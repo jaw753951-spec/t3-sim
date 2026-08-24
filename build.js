@@ -18,6 +18,7 @@ const fs = require('fs'), path = require('path');
    const 는 끌어올려지지 않으므로 (TDZ) — 값이 값을 참조하면 순서가 곧 규칙이다. */
 const ORDER = [
   /* ── 수치 ── 규칙을 의심하면 여기부터 본다. 숫자만 있고 함수가 없다 ── */
+  'src/10-config/version.js',
   'src/10-config/rules.js',
   'src/10-config/symptoms.js',
   'src/10-config/levels.js',
@@ -91,6 +92,12 @@ const HEADER = `/* ${'═'.repeat(72)}
 
 const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8').replace(/\n+$/, '');
 
+/* 판본은 src/10-config/version.js 한 곳에만 적는다.
+   껍데기(HTML)는 JS 를 못 부르므로 여기서 갈아 넣는다. */
+const VERSION = (read('src/10-config/version.js').match(/const VERSION\s*=\s*'([^']+)'/) || [])[1];
+if (!VERSION) { console.error('src/10-config/version.js 에서 판본을 못 읽었다'); process.exit(1) }
+const stamp = t => t.replace(/\{\{VERSION\}\}/g, VERSION);
+
 /* ── 점검 ── */
 const problems = [];
 const seen = new Set();
@@ -117,10 +124,10 @@ for (const f of ORDER) {
 const js = chunks.join('\n\n') + '\n';
 
 const html = [
-  read('src/00-shell/head.html'),
+  stamp(read('src/00-shell/head.html')),
   read('src/00-shell/style.css'),
   '</style></head><body>',
-  read('src/00-shell/body.html'),
+  stamp(read('src/00-shell/body.html')),
   '<script>',
   js + '</script></body></html>',
 ].join('\n');
@@ -133,5 +140,5 @@ if (process.argv.includes('--check')) {
   console.log(`점검 통과 — 층 ${ORDER.length}개 · JS ${js.split('\n').length}줄`);
 } else {
   fs.writeFileSync(path.join(__dirname, 'intern_sim.html'), html);
-  console.log(`intern_sim.html — ${html.split('\n').length}줄 (JS ${js.split('\n').length}줄, 층 ${ORDER.length}개)`);
+  console.log(`intern_sim.html ${VERSION} — ${html.split('\n').length}줄 (JS ${js.split('\n').length}줄, 층 ${ORDER.length}개)`);
 }

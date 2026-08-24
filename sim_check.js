@@ -118,6 +118,12 @@ if (!f1) {
   if (!A.ok) { console.error(`${f1} 실패:\n` + A.err); process.exit(1) }
   if (!B.ok) { console.error(`${f2} 실패:\n` + B.err); process.exit(1) }
   const d = diff(A.v, B.v);
-  if (!d.length) { console.log(`같다 — ${f1} ≡ ${f2}`); }
-  else { console.log(`다른 곳 ${d.length}군데\n` + d.slice(0, 60).join('\n')); process.exit(1) }
+  /* 손잡이가 늘거나 준 것과, 판이 실제로 다르게 돈 것을 갈라 보인다.
+     손잡이를 더하는 작업(변수화)에서는 앞의 것만 나와야 정상이다. */
+  const knob = d.filter(x => x.startsWith('knobs.'));
+  const sim  = d.filter(x => !x.startsWith('knobs.'));
+  if (knob.length) console.log(`손잡이가 달라진 곳 ${knob.length}\n` + knob.map(x => '  ' + x).join('\n'));
+  if (sim.length)  console.log(`\n판이 다르게 돈 곳 ${sim.length}\n` + sim.slice(0, 60).map(x => '  ' + x).join('\n'));
+  if (!sim.length) console.log(`\n판은 같다 — 생성 ${B.v.boards.length} · 단판 ${B.v.one.length} · 세션 ${B.v.sess.length} · 스토리 ${B.v.story.length}`);
+  process.exit(sim.length ? 1 : 0)
 }

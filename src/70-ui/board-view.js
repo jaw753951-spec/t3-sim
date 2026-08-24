@@ -159,7 +159,7 @@ function renderInto(h){
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
-      return cardHTML(id, {S, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
+      return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
     let ok=canPlay(S,id), why='';
@@ -173,7 +173,7 @@ function renderInto(h){
       else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
     }
     else if(c.target==='hand') why=`손패에서 ${pickNeed(S,id)}장 고른다`;
-    return cardHTML(id, {S, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
+    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
       foot: why?`<span class="keep why">${why}</span>`:''});
   }).join('') || '<div class="empty">손이 비었다.</div>';
 

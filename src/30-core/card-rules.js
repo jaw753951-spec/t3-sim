@@ -24,13 +24,19 @@
 //@ 카드.설치 — 설치물 두 칸 · 개방
 const rigTotal = n => (n.rig||0) + (n.rigLent||0);
 
+/* 설치 amt 로 처음 놓았을 때의 상한. 카드가 아니라 규칙이 정한다 */
+const rigCapOf = amt => Math.max(R.RIG_CAP_MIN, amt * R.RIG_CAP_MUL);
+/* 이 자리에 amt 짜리 설치를 더 얹을 수 있는가 — rigSet 과 같은 잣대를 쓴다.
+   카드의 need 가 이것을 부른다. 화면이 낼 수 있는지 미리 보는 데 쓴다 */
+const canRig = (n, amt) => !(n.rig>0 && n.rig >= (n.rigCap || rigCapOf(amt)));
+
 function rigSet(S,n,amt){
   if(n.rig>0){
-    const cap = Math.max(3, n.rigCap||amt*3);
+    const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
     if(n.rig>=cap) return false;
     n.rig = Math.min(cap, n.rig+amt); n.rigUp++;
   } else {
-    n.rig = amt; n.rigUp = 0; n.rigCap = Math.max(3, amt*3);
+    n.rig = amt; n.rigUp = 0; n.rigCap = rigCapOf(amt);
   }
   return true;
 }
@@ -38,7 +44,7 @@ function rigSet(S,n,amt){
 /* 개방 — 보통 설치물만 태운다. 빌려온 물건은 대상이 아니다 */
 function rigOpen(S,n,mult){
   if(!(n.rig>0)) return 0;
-  const amt = n.rig*(mult||2);
+  const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
   n.rig=0; n.rigUp=0; n.rigCap=0;
   return got;
@@ -49,6 +55,26 @@ function rigOpen(S,n,mult){
 function cardCost(S,id){
   const c = CARDS[id]; if(!c) return 0;
   return (S && c.costWhen) ? c.costWhen(S) : c.cost;
+}
+/* 이 카드가 지금 내는 수치 한 벌.
+   v 의 값이 함수면 판을 넣어 부른다 — 규칙 덮어쓰기가 R 을 바꾸면
+   카드에 적힌 숫자도 따라 바뀌어야 하기 때문이다.
+   구조 필드(cost·picks·bleed)도 같이 실어 준다. 본문이 그 숫자를 쓴다. */
+//@ 카드.수치 — 카드 하나의 숫자를 한 벌로 꺼낸다
+function cardNums(S, id){
+  const c = CARDS[id]; if(!c) return {};
+  const out = {cost: cardCost(S,id)};
+  if(c.picks) out.picks = c.picks;
+  if(c.bleed) out.bleed = c.bleed;
+  for(const k in (c.v||{})){ const x = c.v[k]; out[k] = typeof x==='function' ? x(S) : x }
+  return out;
+}
+/* 이 카드가 지금 이 자리에 넣는 억제 '원값' — 수정자가 붙기 전의 수.
+   기세처럼 판을 보고 커지는 카드는 raw 에 식을 적어 둔다. */
+function cardRaw(S, id, n){
+  const c = CARDS[id]; if(!c) return 0;
+  const v = cardNums(S, id);
+  return c.raw ? c.raw(S, n, v) : (v.sup || 0);
 }
 
 //@ 카드.덱조작 — 섞기 · 뽑기 · 덱 세우기
@@ -130,7 +156,7 @@ function play(S, id, node, arg){
     if((S.revisitOn||{})[id]) S.revisitNow = true;
     S.diagBonus = (S.diagPlus||{})[id] || 0;
   }
-  c.fx(S, node, arg);
+  c.fx(S, node, arg, cardNums(S, id));
   S.revisitNow = false; S.diagBonus = 0;
   if(S.rem && c.dept==='내과' && id!=='관해 유도') K.remGain(S, R.REM_GAIN);  // 관해도 수입
   S.played++; S.acts=(S.acts||0)+1;

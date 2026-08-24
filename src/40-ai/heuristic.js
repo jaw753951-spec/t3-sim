@@ -30,7 +30,7 @@ function focus(S){
   const c=K.alive(S).filter(n=>n.val>0&&need(S,n)>0);
   if(!c.length) return null;
   const reach=c.filter(n=>{
-    let best=0; for(const id of S.hand){const cd=C.CARDS[id]; if(cd&&cd.sup&&C.cardCost(S,id)<=S.energy) best=Math.max(best,effSup(S,n,cd.sup))}
+    let best=0; for(const id of S.hand){const cd=C.CARDS[id]; if(cd&&cd.v.sup&&C.cardCost(S,id)<=S.energy) best=Math.max(best,effSup(S,n,cd.v.sup))}
     return best>=need(S,n);
   }).sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
   return reach || c.sort((a,b)=>threat(S,b)-threat(S,a))[0];
@@ -82,7 +82,7 @@ function aiTurnH(S, opt={}){
     let pick=null,ps=-1;
     for(const id of sup){
       const cd=C.CARDS[id];
-      const e = cd.sup ? effSup(S,f,cd.sup) : 6;
+      const e = cd.v.sup ? effSup(S,f,cd.v.sup) : 6;
       let sc = e/Math.max(1,cd.cost);
       if(e>=need(S,f)) sc += 50;
       if(cd.target==='all') sc += K.alive(S).length*1.5;

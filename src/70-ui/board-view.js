@@ -21,10 +21,11 @@ function forecast(){
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다
 function render(){
   deckLine('one_deck', ONE_DECK, ONE_CAP);
-  deckLine('story_deck', STORY_DECK, STORY_CAP);
+  packLine();
   renderOvr();
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;
   if(DB){ renderDeck(); return }
+  if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }
   if(MODE==='make'){ renderMake(); return }
   if(MODE==='sess'){ renderSess(); return }

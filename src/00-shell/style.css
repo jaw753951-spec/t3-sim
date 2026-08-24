@@ -168,3 +168,29 @@ td input[type=checkbox]{width:auto}
 .m.ln{border-color:var(--dim)}
 .m.ln .vup,.m.ln .vdn{cursor:help}
 
+
+/* ── 카드팩 편성 · 레터박스 · 대체 카드 풀 ──────────────────
+   자리 하나 = 카드 한 장 + 그 밑의 레터박스. 레터박스에 적힌 숫자가
+   이 자리에 놓을 수 있는 카드가 몇 장인가다 (0 이면 바꿀 수 없다).
+   카드를 누르면 그 자리만 남기고 나머지 화면이 페이드 아웃된다 —
+   .fade 가 화면을 덮고, 열린 자리만 그 위로 올라온다. */
+.pack{border:1px solid var(--line);background:rgba(255,255,255,.20);padding:11px 12px;margin-bottom:12px}
+.pack.off{background:transparent;border-style:dashed}
+.packhead{display:flex;align-items:baseline;gap:10px;font:12px var(--mono);margin-bottom:10px}
+.packhead b{font-size:14px;letter-spacing:.1em}
+.packhead button{width:auto;margin:0}
+.slot{position:relative;width:238px}
+.slot.on{z-index:60}
+.lbox{margin-top:5px;display:flex;align-items:center;justify-content:space-between;
+ background:var(--ink);color:#E7E2D2;border:1px solid var(--ink);padding:3px 9px;
+ font:10.5px var(--mono);letter-spacing:.14em;cursor:help}
+.lbox b{font:600 13px var(--mono);color:#F2EEE0}
+.lbox.zero{background:transparent;color:var(--dim);border-color:var(--line)}
+.lbox.zero b{color:var(--dim)}
+.fade{position:fixed;inset:0;background:rgba(221,216,198,.86);z-index:50}
+.swaps{position:absolute;left:100%;top:0;margin-left:12px;width:264px;z-index:61;
+ background:#F2EEE0;border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(28,35,33,.2);padding:10px 12px}
+.swaps.flip{left:auto;right:100%;margin:0 12px 0 0}
+.swaps .card{margin-bottom:8px}
+.swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
+.swhead b{color:var(--ink);font-size:13px}

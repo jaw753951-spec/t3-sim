@@ -117,6 +117,41 @@ const INVARIANTS = `(() => {
   for (const k in pools) for (const id of pools[k])
     if (!C.CARDS[id]) bad.push(k + ' 에 없는 카드 「' + id + '」');
 
+  /* ③ㄴ 카드팩과 대체 풀 — 스토리 가방이 이 둘에서 나온다.
+     팩에 없는 카드 · 두 팩에 걸친 카드 · 어느 팩에도 없는 자리를 잡는다.
+     팩이 없는 옛 파일에서는 건너뛴다. */
+  if (C.PACKS) {
+    const inPack = {};
+    for (const p of C.PACKS) for (const id of p.cards) {
+      if (!C.CARDS[id]) bad.push('카드팩 「' + p.name + '」 에 없는 카드 「' + id + '」');
+      if (inPack[id]) bad.push('카드 「' + id + '」 가 카드팩 둘에 있다 — ' + inPack[id] + ' · ' + p.name);
+      inPack[id] = p.name;
+    }
+    if (!C.PACKS.some(p => p.fixed)) bad.push('늘 드는 카드팩(fixed)이 없다 — 가방이 빌 수 있다');
+    const inSwap = {};
+    for (const pool of C.SWAP) {
+      for (const id of pool) {
+        if (!C.CARDS[id]) bad.push('대체 풀에 없는 카드 「' + id + '」');
+        if (inSwap[id]) bad.push('카드 「' + id + '」 가 대체 풀 둘에 있다 — 어느 자리 것인지 갈린다');
+        inSwap[id] = 1;
+      }
+      if (pool.length < 2) bad.push('대체 풀 「' + pool[0] + '」 에 대신할 카드가 없다');
+      if (!inPack[pool[0]]) bad.push('대체 풀의 첫 장 「' + pool[0] + '」 이 어느 카드팩에도 없다 — 놓일 자리가 없다');
+      /* 대체 카드는 자리를 '바꾸는' 것이다. 팩에도 들어 있으면 한 판에 두 장이 된다 */
+      for (const id of pool.slice(1))
+        if (inPack[id]) bad.push('대체 카드 「' + id + '」 가 카드팩 「' + inPack[id] + '」 에도 있다');
+    }
+    /* 팩을 다 들이고 자리를 다 바꿔 봐도 1종 1장이어야 한다 */
+    const on = {}; for (const p of C.PACKS) on[p.id] = 1;
+    const swap = {}; for (const pool of C.SWAP) swap[pool[0]] = pool[pool.length - 1];
+    for (const s of [{}, swap]) {
+      const deck = C.packDeck(on, s), cnt = {};
+      for (const id of deck) { if (cnt[id]) bad.push('스토리 가방에 「' + id + '」 가 두 장이다'); cnt[id] = 1 }
+      if (deck.length !== C.PACKS.reduce((n, p) => n + p.cards.length, 0))
+        bad.push('스토리 가방 장수가 팩의 합과 다르다 — ' + deck.length);
+    }
+  }
+
   /* ④ 대본 환자가 부르는 증상이 증상표에 있는가 */
   for (const id in P.SCRIPT) for (const s of (P.SCRIPT[id].syms || []))
     if (!K.SYM[s]) bad.push('대본 「' + id + '」 이 모르는 증상 「' + s + '」 를 부른다');

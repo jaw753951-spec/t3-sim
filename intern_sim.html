@@ -170,6 +170,33 @@ td input[type=checkbox]{width:auto}
 .ctext .vup,.ctext .vdn,.ctext .voff{border-bottom:1px dotted currentColor;cursor:help}
 .m.ln{border-color:var(--dim)}
 .m.ln .vup,.m.ln .vdn{cursor:help}
+
+
+/* ── 카드팩 편성 · 레터박스 · 대체 카드 풀 ──────────────────
+   자리 하나 = 카드 한 장 + 그 밑의 레터박스. 레터박스에 적힌 숫자가
+   이 자리에 놓을 수 있는 카드가 몇 장인가다 (0 이면 바꿀 수 없다).
+   카드를 누르면 그 자리만 남기고 나머지 화면이 페이드 아웃된다 —
+   .fade 가 화면을 덮고, 열린 자리만 그 위로 올라온다. */
+.pack{border:1px solid var(--line);background:rgba(255,255,255,.20);padding:11px 12px;margin-bottom:12px}
+.pack.off{background:transparent;border-style:dashed}
+.packhead{display:flex;align-items:baseline;gap:10px;font:12px var(--mono);margin-bottom:10px}
+.packhead b{font-size:14px;letter-spacing:.1em}
+.packhead button{width:auto;margin:0}
+.slot{position:relative;width:238px}
+.slot.on{z-index:60}
+.lbox{margin-top:5px;display:flex;align-items:center;justify-content:space-between;
+ background:var(--ink);color:#E7E2D2;border:1px solid var(--ink);padding:3px 9px;
+ font:10.5px var(--mono);letter-spacing:.14em;cursor:help}
+.lbox b{font:600 13px var(--mono);color:#F2EEE0}
+.lbox.zero{background:transparent;color:var(--dim);border-color:var(--line)}
+.lbox.zero b{color:var(--dim)}
+.fade{position:fixed;inset:0;background:rgba(221,216,198,.86);z-index:50}
+.swaps{position:absolute;left:100%;top:0;margin-left:12px;width:264px;z-index:61;
+ background:#F2EEE0;border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(28,35,33,.2);padding:10px 12px}
+.swaps.flip{left:auto;right:100%;margin:0 12px 0 0}
+.swaps .card{margin-bottom:8px}
+.swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
+.swhead b{color:var(--ink);font-size:13px}
 </style></head><body>
 <div id="tip"></div>
 <div class="wrap">
@@ -236,7 +263,7 @@ td input[type=checkbox]{width:auto}
     <select id="boss"><option>아이</option><option>어부</option><option>송이</option><option value="custom">만든 환자</option></select>
     <label>가방</label>
     <div id="story_deck" class="deckline"></div>
-    <button id="btn_deck_story" onclick="openDeckStory()">가방을 연다</button>
+    <button id="btn_deck_story" onclick="openPackStory()">가방을 연다</button>
     <label>3막부터 시작 (0 = 1막부터)</label>
     <div class="row2">
       <select id="sk_pol"><option value="">방침 —</option><option>완치</option><option>연명</option><option>편하게</option></select>
@@ -887,11 +914,14 @@ const CARDS = {
 //@ 파일.20-data/decks
 
 /* ══════════════════════════════════════════════════════════════════
-   덱 · 가방 풀 · 프리셋
-   원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
+   덱 · 가방 풀 · 카드팩 · 프리셋
+   ──────────────────────────────────────────────────────────────────
+   단판·세션은 낱장으로 가방을 짠다 (POOL · PRESETS).
+   스토리는 낱장이 아니라 **팩**으로 짠다 (PACKS · SWAP) — 아래 두 표가
+   스토리 가방이 무엇으로 이루어지는지를 통째로 정한다.
    ══════════════════════════════════════════════════════════════════ */
 /* ── 덱 ─────────────────────────────────────────────────────
-   1종 1장. 덱 상한 8(외래·왕진 1막) / 스토리 15. */
+   1종 1장. 덱 상한 8(외래·왕진 1막). */
 //@ 카드.덱 — 1일차 · 2일차 · 3일차 가방
 const DECK_D1 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여',
                  '창상봉합술','지혈 압박','붕대 감기','소매를 걷습니다'];
@@ -917,17 +947,67 @@ const POOL = {
   /* 왕진 가방에 NPC 6장을 넣는다. v19 에서는 정의만 있고 어느 풀에도 없어
      「빌린 손」 카드가 어떤 경로로도 손에 들어오지 않았다 */
   d3:[...BASE10, ...DEPT6, ...NPC6],
-  story:[...BASE10, ...DEPT6, ...NPC6],
 };
 
+/* ── 카드팩 ─────────────────────────────────────────────────
+   스토리 가방은 낱장이 아니라 팩으로 짠다. 팩 하나가 통째로 들어오고
+   통째로 나간다 — 어느 팩을 들였는가가 그 판의 밑천이다.
+
+     fixed  늘 드는 팩. 뺄 수 없다 — 이것을 빼면 밑천이 없다.
+     cards  팩에 든 카드. 여기 적힌 이름이 그 자리의 '기본' 이고,
+            SWAP 에 같은 이름이 있으면 그 자리를 다른 카드로 바꿀 수 있다.
+
+   팩을 더하려면 여기 한 줄을 넣는다. 상한을 따로 적지 않는다 —
+   가방 크기는 들인 팩의 합이다. */
+//@ 카드.팩 — 스토리 가방을 이루는 카드팩
+const PACKS = [
+  {id:'base',   name:'기본 카드팩',        fixed:true, cards:BASE10,
+   note:'처음 배운 열 장. 이 열 장이 밑천이다'},
+  {id:'supply', name:'보급 카드팩',        cards:DEPT6,
+   note:'분과마다 두 장씩. 어느 분과를 손에 쥘지가 방침과 붙는다'},
+  {id:'settle', name:'정착지 의사 카드팩', cards:['빌려온 물건','손이 기억한다','매듭 짓다'],
+   note:'정착지 의사에게서 얻는다. 셈이 거친 대신 값이 크다'},
+];
+
+/* ── 대체 카드 풀 ───────────────────────────────────────────
+   한 자리에 놓을 수 있는 카드 전부. 첫 장이 팩에 적힌 기본이고
+   뒤가 그 자리를 대신할 수 있는 카드다. 자리 수는 늘지 않는다 —
+   바꾸는 것이지 더하는 것이 아니다.
+
+   카드 밑 레터박스가 이 풀의 장수를 숫자로 보인다. 지금은 0 아니면 2. */
+//@ 카드.대체풀 — 한 자리에 놓을 수 있는 카드
+const SWAP = [
+  ['감초 탕약',   '그물'],
+  ['도와드릴까요?','곗날'],
+  ['매듭 짓다',   '눈 딱 감고'],
+];
+
+/* 이 카드가 속한 대체 풀. 없으면 빈 배열 — 레터박스가 0 을 보인다.
+   자리에 지금 무엇이 놓여 있든(기본이든 대체든) 같은 풀이 나온다 */
+const swapPool = id => SWAP.find(p => p.includes(id)) || [];
+
+/* 들인 팩과 바꿔 놓은 자리에서 가방 한 벌을 짓는다.
+     on    {팩id:참} — fixed 팩은 여기 없어도 든다
+     swap  {기본카드:놓아 둔 카드} — 안 적힌 자리는 기본 그대로 */
+function packDeck(on, swap){
+  const out = [];
+  for(const p of PACKS){
+    if(!p.fixed && !(on||{})[p.id]) continue;
+    for(const base of p.cards) out.push((swap||{})[base] || base);
+  }
+  return out;
+}
+
 /* ── 가방 ─────────────────────────────────────────────────── */
-const ONE_CAP = 8, STORY_CAP = 15;
+const ONE_CAP = 8;
 
 let ONE_DECK   = DECK_D2.slice();
 
-/* 기본값은 v19 의 고정 15장 그대로 둔다 — 배치 숫자를 v19 와 견줄 수 있게.
-   여기서부터 가방을 다시 짜는 것이 이 판의 첫 판단이다. */
-let STORY_DECK = [...DECK_D2,'붕대 감기','소매를 걷습니다','박리','몰아붙인다','거치','출력 개방','그물'];
+/* 스토리 가방은 팩 편성 두 벌이 정한다 — 낱장 목록은 그 결과다.
+   기본 카드팩에 보급·정착지 의사 팩을 얹은 것이 시작 편성이다. */
+let STORY_PACKS = {supply:1, settle:1};
+let STORY_SWAP  = {};
+let STORY_DECK  = packDeck(STORY_PACKS, STORY_SWAP);
 
 const PRESETS = {
   '1일차 8종': DECK_D1, '2일차 8종': DECK_D2,
@@ -2871,7 +2951,7 @@ const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BA
    자체 검산이고, 지금 이것을 부르는 것은 sim_check.js 뿐이다. */
 const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
 
-const C={CARDS,DECK_D1,DECK_D2,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
+const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,swapPool,packDeck,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,cardNums,cardRaw,hasRevisit,rigTotal,handPicks,pickNeed,VAL_KIND};
 
 const P={SCRIPT,SESSIONS,makePatient};
@@ -3218,7 +3298,7 @@ const RULE_GROUP = {
    ═══════════════════════════════════════════════════════════ */
 
 //@ 화면.전역 — §9.1 전역 상태 · 잔손
-let S=null, BOARD=null, SEL=null, LOG=[], MODE='one', UNDO=[], SESS=null, DB=null;
+let S=null, BOARD=null, SEL=null, LOG=[], MODE='one', UNDO=[], SESS=null, DB=null, PK=null;
 
 const $ = id => document.getElementById(id);
 
@@ -3499,10 +3579,11 @@ function forecast(){
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다
 function render(){
   deckLine('one_deck', ONE_DECK, ONE_CAP);
-  deckLine('story_deck', STORY_DECK, STORY_CAP);
+  packLine();
   renderOvr();
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;
   if(DB){ renderDeck(); return }
+  if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }
   if(MODE==='make'){ renderMake(); return }
   if(MODE==='sess'){ renderSess(); return }
@@ -4102,11 +4183,13 @@ function openDeck(o){
   showPane('deck'); renderDeck(); syncDeckBtn();
 }
 
-/* 가방을 펼친 동안에는 옆의 버튼이 확정 버튼으로 바뀐다 */
+/* 가방을 펼친 동안에는 옆의 버튼이 확정 버튼으로 바뀐다.
+   단판은 낱장 편성(DB), 스토리는 카드팩 편성(PK) 이라 여는 화면도 무르는 손도 다르다 */
 function syncDeckBtn(){
-  for(const [id, open] of [['btn_deck_one','openDeckOne()'],['btn_deck_story','openDeckStory()']]){
+  for(const [id, open, on, done] of [['btn_deck_one','openDeckOne()', !!DB, 'dbDone()'],
+                                     ['btn_deck_story','openPackStory()', !!PK, 'pkDone()']]){
     const b = $(id); if(!b) continue;
-    if(DB){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick','dbDone()') }
+    if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
 }
@@ -4219,11 +4302,152 @@ function openDeckOne(){
                log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
 }
 
-function openDeckStory(){
-  openDeck({pool:POOL.story, cap:STORY_CAP, min:6, init:STORY_DECK, title:'스토리 가방 (상한 15)',
-    note:'분과를 어디에 걸지가 방침 선택과 붙는다. v19 는 15장이 고정이라 이 판단이 없었다.',
-    cb:list=>{ STORY_DECK=list; deckLine('story_deck',STORY_DECK,STORY_CAP);
-               log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
+/* 스토리 가방은 여기 없다 — 낱장이 아니라 팩으로 짠다 (70-ui/pack-ui.js). */
+
+//@ 파일.70-ui/pack-ui
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.12 카드팩 편성 — 스토리 가방
+   ──────────────────────────────────────────────────────────────────
+   스토리 가방은 낱장이 아니라 팩으로 짠다. 무엇을 몇 장 넣을까가 아니라
+   어느 팩을 들일까가 판단이다. 팩과 대체 풀은 20-data/decks.js 의
+   PACKS · SWAP 두 표가 정한다 — 이 화면은 그 표를 그릴 뿐이다.
+
+   자리 하나 = 카드 한 장 + 그 밑의 레터박스.
+   레터박스의 숫자는 이 자리에 놓을 수 있는 카드가 몇 장인가다 (지금은 0 아니면 2).
+   카드를 누르면 그 자리 옆에 대체 카드 풀이 펼쳐지고 나머지 화면은 페이드 아웃된다.
+   ══════════════════════════════════════════════════════════════════ */
+/* ═══ 카드팩 편성 ════════════════════════════════════════════ */
+//@ 화면.카드팩 — §9.12 팩으로 짜는 스토리 가방
+
+/* 편성 중인 동안의 상태. 확정(pkDone)해야 STORY_* 로 넘어간다 —
+   가방 화면에서 만지작거린 것이 곧바로 판에 얹히지 않는다.
+     on    {팩id:참}          들인 팩. fixed 팩은 여기 없어도 든다
+     swap  {기본카드:놓은 카드} 바꿔 둔 자리
+     open  대체 풀을 펼쳐 둔 자리의 기본 카드 이름 (없으면 null) */
+function openPackStory(){
+  PK = {on:{...STORY_PACKS}, swap:{...STORY_SWAP}, open:null, msg:''};
+  showPane('deck'); renderPack(); syncDeckBtn();
+}
+
+function pkToggle(id){
+  if(PK.on[id]) delete PK.on[id]; else PK.on[id]=1;
+  const p = PACKS.find(x=>x.id===id);
+  PK.msg = `${p.name}${eul(p.name)} ${PK.on[id]?'들였다':'뺐다'} — ${p.cards.length}장.`;
+  PK.open = null; renderPack();
+}
+
+/* 받침이 있으면 '을', 없으면 '를'. 팩 이름이 늘 '팩' 으로 끝나리라는 법은 없다 */
+function eul(w){
+  const c = w.charCodeAt(w.length-1) - 0xAC00;
+  return (c<0 || c>11171 || c%28) ? '을' : '를';
+}
+
+/* 카드를 누르면 그 자리만 남고 나머지가 페이드 아웃된다.
+   대체할 카드가 없는 자리(레터박스 0)도 눌린다 — 없다는 것을 그 자리에서 보인다 */
+function pkOpen(base){ PK.open = (PK.open===base ? null : base); renderPack() }
+
+function pkClose(){ PK.open = null; renderPack() }
+
+function pkSwap(base, id){
+  if(id===base) delete PK.swap[base]; else PK.swap[base]=id;
+  PK.msg = id===base ? `「${base}」 자리를 기본으로 되돌렸다.`
+                     : `「${base}」 자리에 「${id}」 를 놓았다.`;
+  PK.open = null; renderPack();
+}
+
+function pkDone(){
+  STORY_PACKS = {...PK.on}; STORY_SWAP = {...PK.swap};
+  STORY_DECK  = packDeck(STORY_PACKS, STORY_SWAP);
+  PK = null;
+  showPane(MODE); syncDeckBtn();
+  log(`<span class="d">스토리 가방 — ${STORY_DECK.join(' · ')}</span>`);
+  render();
+}
+
+function pkCancel(){ PK=null; showPane(MODE); syncDeckBtn(); render() }
+
+/* ── 그리기 ── */
+function renderPack(){
+  tipReset();
+  const deck = packDeck(PK.on, PK.swap);
+  const by = {외과:0, 내과:0, 의공학:0, 공통:0};
+  for(const c of deck) by[CARDS[c].dept]++;
+  const onN = PACKS.filter(p=>p.fixed||PK.on[p.id]).length;
+
+  $('dk_body').innerHTML =
+      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>/${PACKS.length}개 · <b>${deck.length}</b>장. 카드 1종은 1장.</div>`
+    + `<div class="note">낱장이 아니라 팩으로 더한다. 팩 하나가 통째로 들어오고 통째로 나간다.
+        카드 밑 레터박스의 숫자는 그 자리에 놓을 수 있는 카드가 몇 장인가다 —
+        <b>0</b> 이면 바꿀 수 없고, 눌러서 고르면 그 자리의 카드가 바뀐다. 자리 수는 늘지 않는다.</div>`
+    + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
+        <span class="right">${PK.msg?`<i>${esc(PK.msg)}</i>`:''}</span></div>`
+    + PACKS.map(packHTML).join('')
+    + `<div class="row2" style="max-width:340px;margin-top:16px">
+        <button class="go" onclick="pkDone()">이 가방으로 간다</button>
+        <button onclick="pkCancel()">그만둔다</button></div>`
+    + (PK.open ? `<div class="fade" onclick="pkClose()"></div>` : '');
+  $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+  renderAIW();
+  pkPlace();
+}
+
+function packHTML(p){
+  const on = p.fixed || !!PK.on[p.id];
+  return `<div class="pack ${on?'':'off'}">
+    <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장 · ${esc(p.note)}</span>
+      ${p.fixed ? `<span class="right d">늘 든다</span>`
+                : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`}</div>
+    <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
+}
+
+/* 자리 하나 — 카드 · 레터박스 · (열려 있으면) 대체 카드 풀 */
+function slotHTML(base, on){
+  const id = PK.swap[base] || base;
+  const pool = swapPool(base);
+  const open = PK.open===base;
+  const swapped = id!==base;
+  return `<div class="slot${open?' on':''}">`
+    + cardHTML(id, {dim: !on && !open, mark: open,
+        onclick:`pkOpen('${base}')`,
+        foot: swapped?`<span class="keep on">「${esc(base)}」 자리</span>`:''})
+    + `<div class="lbox${pool.length?'':' zero'}"${tip(lboxTip(base, id, pool))}>
+        <span>대체 카드</span><b>${pool.length}</b></div>`
+    + (open ? swapsHTML(base, id, pool) : '')
+    + `</div>`;
+}
+
+function lboxTip(base, id, pool){
+  return TT('대체 카드 풀',
+    pool.length
+      ? `이 자리에 놓을 수 있는 카드 <b>${pool.length}</b>장 — ${pool.map(c=>`「${esc(c)}」`).join(' · ')}.<br>`
+        + `지금 놓인 것은 <b>${esc(id)}</b>${id===base?' (기본)':''} 이다. 카드를 누르면 옆에 풀이 펼쳐진다.`
+      : `이 자리를 대신할 카드가 없다. <b>${esc(base)}</b> 한 장뿐이다.`);
+}
+
+/* 페이드 아웃 위로 올라오는 판 — 자리 옆에 붙는다 */
+function swapsHTML(base, cur, pool){
+  return `<div class="swaps">
+    <div class="swhead">대체 카드 풀 <b>${pool.length}</b></div>`
+    + (pool.length
+        ? pool.map(c=>cardHTML(c, {mark:c===cur, onclick:`pkSwap('${base}','${c}')`,
+            foot:`<span class="keep ${c===cur?'on':'why'}">${c===cur?'지금 이 자리에 있다':'이 카드로 바꾼다'}</span>`})).join('')
+        : `<div class="empty">이 자리를 대신할 카드가 없다.</div>`)
+    + `<button class="mini" onclick="pkClose()">닫는다</button></div>`;
+}
+
+/* 오른쪽 끝 자리에서는 판이 화면 밖으로 나간다 — 그때만 왼쪽으로 넘긴다 */
+function pkPlace(){
+  const box = document.querySelector('.swaps'); if(!box) return;
+  if(box.getBoundingClientRect().right > innerWidth - 8) box.classList.add('flip');
+}
+
+/* ── 옆칸 한 줄 — 팩 몇 개 · 몇 장 · 분과 배분 ── */
+function packLine(){
+  const by={외과:0,내과:0,의공학:0,공통:0}; for(const c of STORY_DECK) by[CARDS[c].dept]++;
+  const onN = PACKS.filter(p=>p.fixed||STORY_PACKS[p.id]).length;
+  $('story_deck').innerHTML = `팩 <b>${onN}</b>/${PACKS.length} · <b>${STORY_DECK.length}</b>장`
+    + ` · 외 ${by.외과} 내 ${by.내과} 공학 ${by.의공학} 공통 ${by.공통}`;
 }
 
 //@ 파일.70-ui/one
@@ -4579,6 +4803,8 @@ const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · 
 document.addEventListener('keydown', e=>{
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
+  /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
+  if(PK){ if(e.key==='Escape'){ e.preventDefault(); PK.open ? pkClose() : pkCancel() } return }
   if(DB || MODE==='batch' || MODE==='make' || !S) return;
   const inFight = MODE!=='sess' || (SESS && SESS.phase==='fight');
   const k=e.key;
@@ -4609,7 +4835,7 @@ function showPane(m){
 
 function setMode(m){
   PICK = null;
-  if(DB){ DB=null; syncDeckBtn() }
+  if(DB || PK){ DB=null; PK=null; syncDeckBtn() }
   PANES[MODE] = {...PANES[MODE], S, BOARD, SEL, LOG, UNDO, SESS};
   MODE=m;
   const P = PANES[m]||{};
@@ -5123,7 +5349,7 @@ function renderMake(){
 renderTagBox();
 deckLine('one_deck', ONE_DECK, ONE_CAP);
 
-deckLine('story_deck', STORY_DECK, STORY_CAP);
+packLine();
 
 renderOvr();
 

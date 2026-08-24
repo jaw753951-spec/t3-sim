@@ -11,11 +11,13 @@ function openDeck(o){
   showPane('deck'); renderDeck(); syncDeckBtn();
 }
 
-/* 가방을 펼친 동안에는 옆의 버튼이 확정 버튼으로 바뀐다 */
+/* 가방을 펼친 동안에는 옆의 버튼이 확정 버튼으로 바뀐다.
+   단판은 낱장 편성(DB), 스토리는 카드팩 편성(PK) 이라 여는 화면도 무르는 손도 다르다 */
 function syncDeckBtn(){
-  for(const [id, open] of [['btn_deck_one','openDeckOne()'],['btn_deck_story','openDeckStory()']]){
+  for(const [id, open, on, done] of [['btn_deck_one','openDeckOne()', !!DB, 'dbDone()'],
+                                     ['btn_deck_story','openPackStory()', !!PK, 'pkDone()']]){
     const b = $(id); if(!b) continue;
-    if(DB){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick','dbDone()') }
+    if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
 }
@@ -128,9 +130,4 @@ function openDeckOne(){
                log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
 }
 
-function openDeckStory(){
-  openDeck({pool:POOL.story, cap:STORY_CAP, min:6, init:STORY_DECK, title:'스토리 가방 (상한 15)',
-    note:'분과를 어디에 걸지가 방침 선택과 붙는다. v19 는 15장이 고정이라 이 판단이 없었다.',
-    cb:list=>{ STORY_DECK=list; deckLine('story_deck',STORY_DECK,STORY_CAP);
-               log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
-}
+/* 스토리 가방은 여기 없다 — 낱장이 아니라 팩으로 짠다 (70-ui/pack-ui.js). */

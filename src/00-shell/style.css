@@ -191,9 +191,9 @@ td input[type=checkbox]{width:auto}
 .lbox.zero{background:transparent;color:var(--dim);border-color:var(--line)}
 .lbox.zero b{color:var(--dim)}
 .fade{position:fixed;inset:0;background:rgba(221,216,198,.86);z-index:50}
-.swaps{position:absolute;left:100%;top:0;margin-left:12px;width:264px;z-index:61;
+/* 자리 옆에 붙되 화면에 고정한다 (pkPlace 가 놓는다) — 판이 화면보다 길면 판 안에서 구른다 */
+.swaps{position:fixed;width:264px;z-index:61;max-height:calc(100vh - 24px);overflow-y:auto;
  background:#F2EEE0;border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(28,35,33,.2);padding:10px 12px}
-.swaps.flip{left:auto;right:100%;margin:0 12px 0 0}
 .swaps .card{margin-bottom:8px}
 .swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
 .swhead b{color:var(--ink);font-size:13px}

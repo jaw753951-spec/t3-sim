@@ -248,6 +248,20 @@ async function probe(browser, file){
     pkClose();
     if (document.querySelector('#dk_body .fade')) bad.push('페이드 아웃 — 닫았는데 안 걷혔다');
 
+    /* ④ㄴ 판은 어느 자리에서 열어도 화면 안에 통째로 들어와야 한다.
+       아래쪽 팩(정착지 의사)에서 열면 밑이 잘려 안 보이던 자리다. */
+    for (const seat of seats) {
+      pkOpen(seat);
+      const box = document.querySelector('#dk_body .swaps');
+      if (!box) { pkClose(); continue }
+      const r = box.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight + 1 || r.left < 0 || r.right > innerWidth + 1)
+        bad.push(`대체 풀 — 「${seat}」 자리에서 연 판이 화면 밖으로 나갔다 ` +
+                 `(top ${Math.round(r.top)} · bottom ${Math.round(r.bottom)} / ${innerHeight})`);
+      if (r.height > innerHeight) bad.push(`대체 풀 — 「${seat}」 자리의 판이 화면보다 길다`);
+      pkClose();
+    }
+
     /* ⑤ 확정하기 전에는 판의 가방이 안 바뀐다 */
     const keep = STORY_DECK.slice();
     pkToggle(p.id);

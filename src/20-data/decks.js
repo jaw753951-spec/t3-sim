@@ -54,20 +54,15 @@ const POOL = {
    보급을 셋 다 들일 수 있으면 19장이 되어 상한을 넘는다. 그래서 묶음이다. */
 //@ 카드.팩 — 스토리 가방을 이루는 카드팩
 const PACKS = [
-  {id:'base',   name:'기본 카드팩',           fixed:true, cards:BASE10,
-   note:'처음 배운 열 장. 이 열 장이 밑천이다'},
-  {id:'surg',   name:'외과 보급 카드팩',      group:'supply', cards:SUPPLY.외과,
-   note:'외과 두 장'},
-  {id:'med',    name:'내과 보급 카드팩',      group:'supply', cards:SUPPLY.내과,
-   note:'내과 두 장'},
-  {id:'eng',    name:'의공학 보급 카드팩',    group:'supply', cards:SUPPLY.의공학,
-   note:'의공학 두 장'},
-  {id:'settle', name:'정착지 의사 카드팩',    cards:['빌려온 물건','손이 기억한다','매듭 짓다'],
-   note:'정착지 의사에게서 얻는다. 셈이 거친 대신 값이 크다'},
+  {id:'base',   name:'기본 카드팩',        fixed:true,     cards:BASE10},
+  {id:'surg',   name:'외과 보급 카드팩',   group:'supply', cards:SUPPLY.외과},
+  {id:'med',    name:'내과 보급 카드팩',   group:'supply', cards:SUPPLY.내과},
+  {id:'eng',    name:'의공학 보급 카드팩', group:'supply', cards:SUPPLY.의공학},
+  {id:'settle', name:'정착지 의사 카드팩', cards:['빌려온 물건','손이 기억한다','매듭 짓다']},
 ];
 
-/* 묶음 한 줄 설명 — 화면이 묶음 머리에 건다 */
-const PACK_GROUP = {supply:'보급 카드팩 — 분과마다 두 장. 셋 중 하나를 고른다'};
+/* 묶음 이름 — 화면이 묶음 머리에 건다 */
+const PACK_GROUP = {supply:'보급 카드팩 — 셋 중 하나'};
 
 /* ── 대체 카드 풀 ───────────────────────────────────────────
    한 자리에 놓을 수 있는 카드 전부. 첫 장이 팩에 적힌 기본이고

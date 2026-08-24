@@ -48,7 +48,12 @@ function ro(w){
 
 /* 카드를 누르면 그 자리만 남고 나머지가 페이드 아웃된다.
    대체할 카드가 없는 자리(레터박스 0)도 눌린다 — 없다는 것을 그 자리에서 보인다 */
-function pkOpen(base){ PK.open = (PK.open===base ? null : base); renderPack() }
+function pkOpen(base){
+  PK.open = (PK.open===base ? null : base);
+  renderPack();
+  const slot = document.querySelector('.slot.on');
+  if(slot){ slot.scrollIntoView({block:'nearest'}); pkPlace() }
+}
 
 function pkClose(){ PK.open = null; renderPack() }
 
@@ -83,10 +88,7 @@ function renderPack(){
 
   const over = deck.length > STORY_CAP;
   $('dk_body').innerHTML =
-      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장. 카드 1종은 1장.</div>`
-    + `<div class="note">낱장이 아니라 팩으로 더한다. 팩 하나가 통째로 들어오고 통째로 나간다.
-        카드 밑 레터박스의 숫자는 그 자리에 놓을 수 있는 카드가 몇 장인가다 —
-        <b>0</b> 이면 바꿀 수 없고, 눌러서 고르면 그 자리의 카드가 바뀐다. 자리 수는 늘지 않는다.</div>`
+      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장</div>`
     + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
         <span class="right">${over?`<i class="up">상한 ${STORY_CAP}장을 넘었다</i>`:(PK.msg?`<i>${esc(PK.msg)}</i>`:'')}</span></div>`
     + packsHTML()
@@ -122,7 +124,7 @@ function packHTML(p){
                              : `<button class="mini right go" onclick="pkToggle('${p.id}')">이걸로 고른다</button>`)
                        : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`;
   return `<div class="pack ${on?'':'off'}${p.group?' ing':''}">
-    <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장 · ${esc(p.note)}</span>${knob}</div>
+    <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장</span>${knob}</div>
     <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
 }
 
@@ -161,11 +163,23 @@ function swapsHTML(base, cur, pool){
     + `<button class="mini" onclick="pkClose()">닫는다</button></div>`;
 }
 
-/* 오른쪽 끝 자리에서는 판이 화면 밖으로 나간다 — 그때만 왼쪽으로 넘긴다 */
+/* 판을 놓는다 — 툴팁과 같은 식이다. 자리 오른쪽에 붙이되 화면 밖으로 나갈 때만
+   왼쪽으로 넘기고, 아래로 넘칠 때만 위로 물린다. 화면보다 긴 판은 판 안에서 구른다
+   (아래 자리에서 열면 잘려 보이던 자리다).
+   기준이 화면이므로 판은 fixed 다 — 자리가 화면 밖이면 먼저 자리를 끌어온다. */
 function pkPlace(){
   const box = document.querySelector('.swaps'); if(!box) return;
-  if(box.getBoundingClientRect().right > innerWidth - 8) box.classList.add('flip');
+  const card = document.querySelector('.slot.on .card'); if(!card) return;
+  const r = card.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  let x = r.right + 12, y = r.top;
+  if(x + w > innerWidth  - 8) x = Math.max(8, r.left - w - 12);
+  if(y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  box.style.left = x+'px'; box.style.top = y+'px';
 }
+
+/* 판을 연 채로 화면이 움직이면 자리도 같이 따라간다 */
+addEventListener('scroll', ()=>{ if(PK && PK.open) pkPlace() }, true);
+addEventListener('resize', ()=>{ if(PK && PK.open) pkPlace() });
 
 /* ── 옆칸 한 줄 — 팩 몇 개 · 몇 장 · 분과 배분 ── */
 function packLine(){

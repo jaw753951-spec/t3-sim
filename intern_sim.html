@@ -194,9 +194,9 @@ td input[type=checkbox]{width:auto}
 .lbox.zero{background:transparent;color:var(--dim);border-color:var(--line)}
 .lbox.zero b{color:var(--dim)}
 .fade{position:fixed;inset:0;background:rgba(221,216,198,.86);z-index:50}
-.swaps{position:absolute;left:100%;top:0;margin-left:12px;width:264px;z-index:61;
+/* 자리 옆에 붙되 화면에 고정한다 (pkPlace 가 놓는다) — 판이 화면보다 길면 판 안에서 구른다 */
+.swaps{position:fixed;width:264px;z-index:61;max-height:calc(100vh - 24px);overflow-y:auto;
  background:#F2EEE0;border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(28,35,33,.2);padding:10px 12px}
-.swaps.flip{left:auto;right:100%;margin:0 12px 0 0}
 .swaps .card{margin-bottom:8px}
 .swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
 .swhead b{color:var(--ink);font-size:13px}
@@ -972,20 +972,15 @@ const POOL = {
    보급을 셋 다 들일 수 있으면 19장이 되어 상한을 넘는다. 그래서 묶음이다. */
 //@ 카드.팩 — 스토리 가방을 이루는 카드팩
 const PACKS = [
-  {id:'base',   name:'기본 카드팩',           fixed:true, cards:BASE10,
-   note:'처음 배운 열 장. 이 열 장이 밑천이다'},
-  {id:'surg',   name:'외과 보급 카드팩',      group:'supply', cards:SUPPLY.외과,
-   note:'외과 두 장'},
-  {id:'med',    name:'내과 보급 카드팩',      group:'supply', cards:SUPPLY.내과,
-   note:'내과 두 장'},
-  {id:'eng',    name:'의공학 보급 카드팩',    group:'supply', cards:SUPPLY.의공학,
-   note:'의공학 두 장'},
-  {id:'settle', name:'정착지 의사 카드팩',    cards:['빌려온 물건','손이 기억한다','매듭 짓다'],
-   note:'정착지 의사에게서 얻는다. 셈이 거친 대신 값이 크다'},
+  {id:'base',   name:'기본 카드팩',        fixed:true,     cards:BASE10},
+  {id:'surg',   name:'외과 보급 카드팩',   group:'supply', cards:SUPPLY.외과},
+  {id:'med',    name:'내과 보급 카드팩',   group:'supply', cards:SUPPLY.내과},
+  {id:'eng',    name:'의공학 보급 카드팩', group:'supply', cards:SUPPLY.의공학},
+  {id:'settle', name:'정착지 의사 카드팩', cards:['빌려온 물건','손이 기억한다','매듭 짓다']},
 ];
 
-/* 묶음 한 줄 설명 — 화면이 묶음 머리에 건다 */
-const PACK_GROUP = {supply:'보급 카드팩 — 분과마다 두 장. 셋 중 하나를 고른다'};
+/* 묶음 이름 — 화면이 묶음 머리에 건다 */
+const PACK_GROUP = {supply:'보급 카드팩 — 셋 중 하나'};
 
 /* ── 대체 카드 풀 ───────────────────────────────────────────
    한 자리에 놓을 수 있는 카드 전부. 첫 장이 팩에 적힌 기본이고
@@ -4390,7 +4385,12 @@ function ro(w){
 
 /* 카드를 누르면 그 자리만 남고 나머지가 페이드 아웃된다.
    대체할 카드가 없는 자리(레터박스 0)도 눌린다 — 없다는 것을 그 자리에서 보인다 */
-function pkOpen(base){ PK.open = (PK.open===base ? null : base); renderPack() }
+function pkOpen(base){
+  PK.open = (PK.open===base ? null : base);
+  renderPack();
+  const slot = document.querySelector('.slot.on');
+  if(slot){ slot.scrollIntoView({block:'nearest'}); pkPlace() }
+}
 
 function pkClose(){ PK.open = null; renderPack() }
 
@@ -4425,10 +4425,7 @@ function renderPack(){
 
   const over = deck.length > STORY_CAP;
   $('dk_body').innerHTML =
-      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장. 카드 1종은 1장.</div>`
-    + `<div class="note">낱장이 아니라 팩으로 더한다. 팩 하나가 통째로 들어오고 통째로 나간다.
-        카드 밑 레터박스의 숫자는 그 자리에 놓을 수 있는 카드가 몇 장인가다 —
-        <b>0</b> 이면 바꿀 수 없고, 눌러서 고르면 그 자리의 카드가 바뀐다. 자리 수는 늘지 않는다.</div>`
+      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장</div>`
     + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
         <span class="right">${over?`<i class="up">상한 ${STORY_CAP}장을 넘었다</i>`:(PK.msg?`<i>${esc(PK.msg)}</i>`:'')}</span></div>`
     + packsHTML()
@@ -4464,7 +4461,7 @@ function packHTML(p){
                              : `<button class="mini right go" onclick="pkToggle('${p.id}')">이걸로 고른다</button>`)
                        : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`;
   return `<div class="pack ${on?'':'off'}${p.group?' ing':''}">
-    <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장 · ${esc(p.note)}</span>${knob}</div>
+    <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장</span>${knob}</div>
     <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
 }
 
@@ -4503,11 +4500,23 @@ function swapsHTML(base, cur, pool){
     + `<button class="mini" onclick="pkClose()">닫는다</button></div>`;
 }
 
-/* 오른쪽 끝 자리에서는 판이 화면 밖으로 나간다 — 그때만 왼쪽으로 넘긴다 */
+/* 판을 놓는다 — 툴팁과 같은 식이다. 자리 오른쪽에 붙이되 화면 밖으로 나갈 때만
+   왼쪽으로 넘기고, 아래로 넘칠 때만 위로 물린다. 화면보다 긴 판은 판 안에서 구른다
+   (아래 자리에서 열면 잘려 보이던 자리다).
+   기준이 화면이므로 판은 fixed 다 — 자리가 화면 밖이면 먼저 자리를 끌어온다. */
 function pkPlace(){
   const box = document.querySelector('.swaps'); if(!box) return;
-  if(box.getBoundingClientRect().right > innerWidth - 8) box.classList.add('flip');
+  const card = document.querySelector('.slot.on .card'); if(!card) return;
+  const r = card.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+  let x = r.right + 12, y = r.top;
+  if(x + w > innerWidth  - 8) x = Math.max(8, r.left - w - 12);
+  if(y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  box.style.left = x+'px'; box.style.top = y+'px';
 }
+
+/* 판을 연 채로 화면이 움직이면 자리도 같이 따라간다 */
+addEventListener('scroll', ()=>{ if(PK && PK.open) pkPlace() }, true);
+addEventListener('resize', ()=>{ if(PK && PK.open) pkPlace() });
 
 /* ── 옆칸 한 줄 — 팩 몇 개 · 몇 장 · 분과 배분 ── */
 function packLine(){

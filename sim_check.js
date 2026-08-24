@@ -47,8 +47,10 @@ const SCENARIOS = `(() => {
       tags: b.tags, lines: (b.lines || []).map(l => l.join('>')) });
   }
 
-  /* ② 레벨표 중앙값 검산 */
+  /* ② 레벨표 중앙값 검산 — 값과, 그 값이 어느 레벨로 되돌아오는지 */
   out.median = L.medianBoards();
+  out.medianLv = {};
+  for (const lv of [1,2,3,4,5]) out.medianLv[lv] = L.lv_of(out.median[lv]);
 
   /* ③ 단판 — 새 AI · 옛 AI 둘 다.
      배치 탭이 실제로 타는 경로와 같게 부른다: runDeck 이 opt.ai 로 갈래를 고른다. */
@@ -81,10 +83,56 @@ const SCENARIOS = `(() => {
   return out;
 })()`;
 
+/* ── 불변 조건 ──────────────────────────────────────────────────
+   기준본과 견주는 것과 별개로, 그 파일 하나만 놓고도 맞아야 하는 것들.
+   견주기는 '달라졌다' 만 잡는다. 처음부터 어긋나 있거나, 양쪽이 똑같이
+   어긋나 있으면 못 잡는다. 그것을 여기서 잡는다. */
+const INVARIANTS = `(() => {
+  const bad = [];
+
+  /* ① 레벨표가 스스로와 아귀가 맞는가.
+     레벨 N 의 '평균적인 판' 을 지어 S 산식에 넣으면 다시 레벨 N 이어야 한다.
+     LVTAB 이나 SW(산식 계수 · 레벨 경계)를 만지면 여기가 먼저 깨진다. */
+  const med = L.medianBoards();
+  for (const lv of [1, 2, 3, 4, 5]) {
+    const back = L.lv_of(med[lv]);
+    if (back !== lv) bad.push('레벨표 ' + lv + ' 의 중앙값 S=' + med[lv].toFixed(2) + ' 가 lv_of 로는 ' + back);
+  }
+
+  /* ② 카드 본문의 {열쇠} 가 그 카드의 v 에 실제로 있는가.
+     서식을 오타 내면 화면에 {sup} 이 글자 그대로 남는다.
+     ★ 이 덩어리는 통째로 템플릿 리터럴이다. 정규식의 백슬래시를 둘로 적지 않으면
+       템플릿이 \w 를 w 로 삼켜 아무것도 안 걸린다. 줄이지 말 것.
+     본문을 서식으로 쓰기 전의 파일에는 cardNums 가 없다 — 그때는 건너뛴다. */
+  if (typeof C.cardNums === 'function') {
+    for (const id of Object.keys(C.CARDS)) {
+      const nums = C.cardNums(null, id);
+      for (const m of String(C.CARDS[id].text || '').matchAll(/\\{(\\w+)\\}/g))
+        if (!(m[1] in nums) && m[1] !== 'cost') bad.push('카드 「' + id + '」 본문의 {' + m[1] + '} 가 v 에 없다');
+    }
+  }
+
+  /* ③ 덱과 가방 풀에 적힌 이름이 전부 실재하는 카드인가 */
+  const pools = {DECK_D1: C.DECK_D1, DECK_D2: C.DECK_D2};
+  for (const k in pools) for (const id of pools[k])
+    if (!C.CARDS[id]) bad.push(k + ' 에 없는 카드 「' + id + '」');
+
+  /* ④ 대본 환자가 부르는 증상이 증상표에 있는가 */
+  for (const id in P.SCRIPT) for (const s of (P.SCRIPT[id].syms || []))
+    if (!K.SYM[s]) bad.push('대본 「' + id + '」 이 모르는 증상 「' + s + '」 를 부른다');
+
+  return bad;
+})()`;
+
 function run(file) {
   const ev = load(file);
-  try { return { ok: true, v: ev(SCENARIOS) } }
-  catch (e) { return { ok: false, err: e.stack || String(e) } }
+  /* 불변 조건을 먼저 본다. 데이터가 어긋나 있으면 시나리오는 엉뚱한 곳에서
+     스택 트레이스로 터진다 — 그 전에 무엇이 어긋났는지 이름으로 말해 준다. */
+  let bad;
+  try { bad = ev(INVARIANTS) }
+  catch (e) { return { ok: false, err: '불변 조건을 재는 중 터졌다:\n' + (e.stack || String(e)) } }
+  try { return { ok: true, v: ev(SCENARIOS), bad } }
+  catch (e) { return { ok: false, bad, err: e.stack || String(e) } }
 }
 
 /* ── 두 결과를 견준다 ── */
@@ -105,18 +153,25 @@ function diff(a, b, p = '', acc = []) {
 }
 
 const [f1, f2] = process.argv.slice(2);
-if (!f1) {
-  const r = run('intern_sim.html');
+const report = (file, r) => {
+  if (!r.bad.length) return 0;
+  console.log(`${file} — 불변 조건이 깨진 곳 ${r.bad.length}\n` + r.bad.map(x => '  ' + x).join('\n'));
+  return 1;
+};
+
+if (!f1 || !f2) {
+  const file = f1 || 'intern_sim.html';
+  const r = run(file);
+  if (r.bad) report(file, r);
   if (!r.ok) { console.error(r.err); process.exit(1) }
-  console.log(JSON.stringify(r.v, null, 1));
-} else if (!f2) {
-  const r = run(f1);
-  if (!r.ok) { console.error(r.err); process.exit(1) }
+  if (r.bad.length) process.exit(1);
   console.log(JSON.stringify(r.v, null, 1));
 } else {
   const A = run(f1), B = run(f2);
+  for (const [f, r] of [[f1, A], [f2, B]]) if (r.bad) report(f, r);
   if (!A.ok) { console.error(`${f1} 실패:\n` + A.err); process.exit(1) }
   if (!B.ok) { console.error(`${f2} 실패:\n` + B.err); process.exit(1) }
+  const badly = A.bad.length + B.bad.length;
   const d = diff(A.v, B.v);
   /* 손잡이가 늘거나 준 것과, 판이 실제로 다르게 돈 것을 갈라 보인다.
      손잡이를 더하는 작업(변수화)에서는 앞의 것만 나와야 정상이다. */
@@ -125,5 +180,5 @@ if (!f1) {
   if (knob.length) console.log(`손잡이가 달라진 곳 ${knob.length}\n` + knob.map(x => '  ' + x).join('\n'));
   if (sim.length)  console.log(`\n판이 다르게 돈 곳 ${sim.length}\n` + sim.slice(0, 60).map(x => '  ' + x).join('\n'));
   if (!sim.length) console.log(`\n판은 같다 — 생성 ${B.v.boards.length} · 단판 ${B.v.one.length} · 세션 ${B.v.sess.length} · 스토리 ${B.v.story.length}`);
-  process.exit(sim.length ? 1 : 0)
+  process.exit(sim.length || badly ? 1 : 0)
 }

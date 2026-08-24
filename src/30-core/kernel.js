@@ -102,7 +102,7 @@ function reaction(S,n){                       // 잔량 → 반응 등급
 
 function drawCount(S){
   const d = active(S).filter(n=>n.sym==='호흡곤란' && !n.muted);
-  let cut = 0; for(const n of d) cut += sp(n,'호흡곤란') * (n.evolved?2:1);
+  let cut = 0; for(const n of d) cut += sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
   return Math.max(1, R.HAND - Math.round(cut) + (S.drawBonus||0));
 }
 
@@ -390,7 +390,7 @@ function infPool(S){
   for(const f of infs){
     const tgt = tgtAll.filter(n=>n!==f);
     if(!tgt.length) continue;
-    const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?2:1));
+    const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?R.EVO_X2:1));
     if(total<=0) continue;
     const each = Math.floor(total/tgt.length);
     const rest = total - each*tgt.length;
@@ -505,7 +505,7 @@ function turnResolve(S){
     hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
-    if(n.sym==='감염') n.diagNeed += 1;
+    if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
     mind(S,+1);
     S.evoLog++;
   }

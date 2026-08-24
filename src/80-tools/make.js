@@ -128,16 +128,16 @@ function renderMake(){
         「성장률」은 그와 별개로 모든 증상에 붙는 초기값 기준 고정 성장이다.</div>
      <table><tr><th>증상</th><th>초기값</th><th>진화까지</th><th>성장률</th><th>효과 비율</th><th>보호막</th><th></th></tr>`
     + CUSTOM.nodes.map((n,i)=>{
-        const d = SYMPARAM[n.sym];
+        const d = SYMPARAM[n.sym], dd = SYMDOC[n.sym];
         const cur = (n.p===undefined||n.p===null||n.p==='') ? '' : n.p;
         return `<tr>
         <td><select onchange="mkSet('nodes.${i}.sym',this.value)">${symOpt(n.sym)}</select></td>
         <td><input type="number" value="${n.init}" onchange="mkSet('nodes.${i}.init',this.value)"></td>
         <td><input type="number" value="${n.evo}" onchange="mkSet('nodes.${i}.evo',this.value)"></td>
         <td><input type="number" step="0.05" value="${n.grow}" onchange="mkSet('nodes.${i}.grow',this.value)"></td>
-        <td${tip(TT(n.sym+' · '+d.label, d.why + `<br><br><span class="d">기본값 ${d.def()}</span>`))}>
-          <span class="d" style="font-size:11px">${d.label}</span>
-          <input type="number" step="${d.step}" value="${cur}" placeholder="${d.def()}"
+        <td${tip(TT(n.sym+' · '+dd.label, dd.why() + `<br><br><span class="d">기본값 ${d.def()}</span>`))}>
+          <span class="d" style="font-size:11px">${dd.label}</span>
+          <input type="number" step="${dd.step}" value="${cur}" placeholder="${d.def()}"
                  onchange="mkSet('nodes.${i}.p',this.value)"></td>
         <td><input type="checkbox" ${n.shielded?'checked':''} onchange="mkSet('nodes.${i}.shielded',this.checked)"></td>
         <td><button class="mini" onclick="mkDelNode(${i})">뺀다</button></td></tr>`}).join('')

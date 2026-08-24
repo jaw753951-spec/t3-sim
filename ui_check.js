@@ -75,6 +75,41 @@ async function probe(browser, file){
   snap.make = await text('#mk_body');
   snap.ovr  = await text('#ovrform');
 
+  /* ⑦ㄴ 설명문이 손잡이를 따라오는가 —
+     R · SR 의 숫자 손잡이를 전부 흔들어 놓고, 글이 그대로인 것을 찾는다.
+     글에 숫자를 박아 두면 「규칙 덮어쓰기」로 값을 만지는 순간 설명이 거짓말을
+     시작한다. 아래 목록은 애초에 규칙값을 인용하지 않는 순수 설명이라 안 움직이는
+     것이 맞다. 여기 없는 이름이 새로 걸리면 그 설명문에 숫자를 박은 것이다. */
+  snap.stuckTips = await page.evaluate(() => {
+    /* 옛 파일에는 SYMDOC 도 ovrReset 도 없다 — 그때는 건너뛴다 */
+    if (typeof SYMDOC === 'undefined' || typeof ovrSet !== 'function') return [];
+    const RULEFREE = new Set(['KWTIP.관해','KWTIP.개방','LINKTIP.불응',
+      'BEATTIP.분화','BEATTIP.같은 박자','BEATTIP.창','BEATTIP.굳는다','BEATTIP.엮는다',
+      'BEATTIP.아문다','BEATTIP.고유','UNIQTIP.아이:4','UNIQTIP.아이:5','UNIQTIP.송이:3']);
+    const all = () => {
+      const o = {};
+      for (const [nm, d] of [['KWTIP',KWTIP],['LINKTIP',LINKTIP],['BEATTIP',BEATTIP],
+                             ['UNIQTIP',UNIQTIP],['SYMTIP',SYMTIP]])
+        for (const k of Object.keys(d)) o[nm + '.' + k] = String(d[k]);
+      for (const k of Object.keys(SYMDOC)) o['SYMDOC.' + k] = SYMDOC[k].why();
+      return o;
+    };
+    const before = all();
+    const shake = (root, obj, path = []) => {
+      for (const k in obj) {
+        const v = obj[k];
+        if (typeof v === 'number') ovrSet(root, [...path, k].join('.'), v === 0 ? 7 : v * 3 + 1);
+        else if (v && typeof v === 'object' && !Array.isArray(v)) shake(root, v, [...path, k]);
+      }
+    };
+    shake('R', R0); shake('SR', SR0);
+    const after = all();
+    const stuck = Object.keys(before).filter(k => before[k] === after[k] && !RULEFREE.has(k));
+    ovrReset();
+    return stuck;
+  });
+  await page.waitForTimeout(120);
+
   /* ⑧ 툴팁 — 등록된 설명 개수와 내용 */
   snap.tips = await page.evaluate(()=>({ n: Object.keys(TIPS).length, fix: Object.keys(FIXT).length }));
 
@@ -91,6 +126,13 @@ async function probe(browser, file){
   let bad = 0;
   for(const [f, r] of [[a, A], [b, B]])
     if(r.errs.length){ bad++; console.log(`\n=== ${f} 오류 ${r.errs.length} ===\n` + r.errs.slice(0,10).join('\n')) }
+  /* 손잡이를 따라오지 않는 설명문 — 견주기와 별개로 그 자체가 문제다 */
+  for(const [f, r] of [[a, A], [b, B]]){
+    const st = r.snap.stuckTips || [];
+    if(st.length){ bad++; console.log(`\n=== ${f} — 손잡이를 안 따라오는 설명문 ${st.length} ===\n` + st.map(x=>'  '+x).join('\n')) }
+  }
+  /* 목록 자체는 파일마다 다를 수 있으니 견주기에서는 뺀다 */
+  delete A.snap.stuckTips; delete B.snap.stuckTips;
 
   const d = [];
   (function walk(x, y, p){

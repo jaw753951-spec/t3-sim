@@ -23,7 +23,7 @@ const BOSS = {
            5:['분화','성장','고유','창','분화','엮는다']},
     unique:(S,dis)=>{
       if(dis.stage===3){                       // 「파고든다」 — 신경계 노드 진화 시계를 당긴다
-        for(const n of K.active(S)) if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란')) n.evoLeft=Math.max(1,n.evoLeft-1);
+        for(const n of K.active(S)) if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란')) n.evoLeft=Math.max(1,n.evoLeft-SR.BEAT_EVO_PULL);
         return '파고든다';
       }
       if(dis.stage===4){                       // 「알아듣지 못한다」 — 정신을 한 단계 무너뜨린다
@@ -46,8 +46,8 @@ const BOSS = {
     /* 「긁는다」 — 활성 통증 자리가 둘 이상이면 긁어서 이차 감염이 앉는다 */
     unique:(S)=>{
       const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
-      if(pain.length>=2 && K.active(S).filter(n=>n.sym==='감염').length===0){
-        S.nodes.push(mkSpot('감염',35+Math.floor(S.rng()*25),S.turn));
+      if(pain.length>=SR.BEAT_SCRATCH_N && K.active(S).filter(n=>n.sym==='감염').length===0){
+        S.nodes.push(mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
         return '긁어서 이차 감염이 앉는다';
       }
       return '긁는다 — 아직 자리가 모자란다';

@@ -5,6 +5,21 @@
 /* ═══ 단판 ═══════════════════════════════════════════════════ */
 /* 사이드바 체력 태그 — 상한과 배타를 화면에서 바로 반영한다 */
 //@ 화면.단판 — §9.12 단판 모드
+/* 체력 태그 칸 — 표에서 만든다.
+   전에는 일곱 개를 마크업에 손으로 적어 뒀는데, HP_TAG 에는 열한 개가 있고
+   「환자 만들기」는 열한 개를 다 보여 주고 있었다. 두 화면이 서로 다른 목록을
+   내놓던 셈이다. 아래 설명도 TAG_CAP · TAG_GROUP 을 글로 베껴 놔서
+   상한이나 묶음을 고치면 곧바로 거짓말이 됐다. */
+//@ 화면.태그칸 — 체력 태그 칸을 표에서 만든다
+function renderTagBox(){
+  const box = $('tagbox'); if(!box) return;
+  box.innerHTML = Object.keys(HP_TAG).map(t =>
+    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">×${HP_TAG[t]}</span></label>`).join('');
+  const note = $('tagnote');
+  if(note) note.textContent = `${TAG_CAP}개까지 · `
+    + TAG_GROUP.map(g=>g.join('↔')).join(' · ') + ' 은 함께 붙지 않는다';
+}
+
 function tagPick(t){
   const box = [...document.querySelectorAll('.tag')];
   const on = box.filter(x=>x.checked).map(x=>x.value);

@@ -1,7 +1,7 @@
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN <span>v22</span></h1>
+  <h1>INTERN <span>{{VERSION}}</span></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -17,7 +17,7 @@
   <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
   <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
-  <details id="ovrbox"><summary>규칙 덮어쓰기</summary>
+  <details><summary>규칙 덮어쓰기</summary>
     <div class="note">전투 규칙의 숫자를 여기서 바꾼다. R 은 전투 공통, SR 은 스토리 전용이다.
       고친 값은 곧바로 적용되고, 노드 수치처럼 판을 짤 때 정해지는 값은 「환자를 들인다」로 새 판을 열어야 반영된다.
       권위본과 달라진 칸에는 붉은 점이 붙는다.</div>
@@ -43,8 +43,9 @@
     <label>시작 정신 상태</label>
     <select id="mind"><option selected>평정</option><option>불안</option><option>공황</option><option>의식불명</option></select>
     <label>체력 태그</label>
-    <div class="tags" id="tagbox"><label><input type="checkbox" class="tag" value="노인" onchange="tagPick('노인')">노인</label><label><input type="checkbox" class="tag" value="소아" onchange="tagPick('소아')">소아</label><label><input type="checkbox" class="tag" value="영양실조" onchange="tagPick('영양실조')">영양실조</label><label><input type="checkbox" class="tag" value="만성기저질환" onchange="tagPick('만성기저질환')">만성기저질환</label><label><input type="checkbox" class="tag" value="노동자" onchange="tagPick('노동자')">노동자</label><label><input type="checkbox" class="tag" value="군인" onchange="tagPick('군인')">군인</label><label><input type="checkbox" class="tag" value="상층" onchange="tagPick('상층')">상층</label></div>
-    <div class="note" id="tagnote">둘까지 · 노인↔소아 · 노동자↔군인↔상층은 함께 붙지 않는다</div>
+    <!-- 태그 칸과 그 아래 설명은 HP_TAG · TAG_CAP · TAG_GROUP 에서 만든다 (renderTagBox) -->
+    <div class="tags" id="tagbox"></div>
+    <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
   </div>

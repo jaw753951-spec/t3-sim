@@ -158,3 +158,13 @@ td input[type=checkbox]{width:auto}
 [data-tip]{cursor:help}
 @media(max-width:1300px){.field{grid-template-columns:1fr}}
 @media(max-width:1100px){.wrap{grid-template-columns:1fr}.col{border:0;border-bottom:1px solid var(--line)}}
+
+/* 카드 수치 — 적힌 값보다 세지면 초록, 약해지면 빨강.
+   코스트는 반대로 싸질 때 초록이다 (cardEff 가 방향을 정한다) */
+.vup{color:var(--calm);font-weight:700}
+.vdn{color:var(--blood);font-weight:700}
+.voff{opacity:.42}
+.ctext .vup,.ctext .vdn,.ctext .voff{border-bottom:1px dotted currentColor;cursor:help}
+.m.ln{border-color:var(--dim)}
+.m.ln .vup,.m.ln .vdn{cursor:help}
+

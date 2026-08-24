@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>INTERN 전투 시뮬레이터 v22</title><style>
+<title>INTERN 전투 시뮬레이터 v25</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -161,11 +161,20 @@ td input[type=checkbox]{width:auto}
 [data-tip]{cursor:help}
 @media(max-width:1300px){.field{grid-template-columns:1fr}}
 @media(max-width:1100px){.wrap{grid-template-columns:1fr}.col{border:0;border-bottom:1px solid var(--line)}}
+
+/* 카드 수치 — 적힌 값보다 세지면 초록, 약해지면 빨강.
+   코스트는 반대로 싸질 때 초록이다 (cardEff 가 방향을 정한다) */
+.vup{color:var(--calm);font-weight:700}
+.vdn{color:var(--blood);font-weight:700}
+.voff{opacity:.42}
+.ctext .vup,.ctext .vdn,.ctext .voff{border-bottom:1px dotted currentColor;cursor:help}
+.m.ln{border-color:var(--dim)}
+.m.ln .vup,.m.ln .vdn{cursor:help}
 </style></head><body>
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN <span>v22</span></h1>
+  <h1>INTERN <span>v25</span></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -181,7 +190,7 @@ td input[type=checkbox]{width:auto}
   <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
   <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
-  <details id="ovrbox"><summary>규칙 덮어쓰기</summary>
+  <details><summary>규칙 덮어쓰기</summary>
     <div class="note">전투 규칙의 숫자를 여기서 바꾼다. R 은 전투 공통, SR 은 스토리 전용이다.
       고친 값은 곧바로 적용되고, 노드 수치처럼 판을 짤 때 정해지는 값은 「환자를 들인다」로 새 판을 열어야 반영된다.
       권위본과 달라진 칸에는 붉은 점이 붙는다.</div>
@@ -207,8 +216,9 @@ td input[type=checkbox]{width:auto}
     <label>시작 정신 상태</label>
     <select id="mind"><option selected>평정</option><option>불안</option><option>공황</option><option>의식불명</option></select>
     <label>체력 태그</label>
-    <div class="tags" id="tagbox"><label><input type="checkbox" class="tag" value="노인" onchange="tagPick('노인')">노인</label><label><input type="checkbox" class="tag" value="소아" onchange="tagPick('소아')">소아</label><label><input type="checkbox" class="tag" value="영양실조" onchange="tagPick('영양실조')">영양실조</label><label><input type="checkbox" class="tag" value="만성기저질환" onchange="tagPick('만성기저질환')">만성기저질환</label><label><input type="checkbox" class="tag" value="노동자" onchange="tagPick('노동자')">노동자</label><label><input type="checkbox" class="tag" value="군인" onchange="tagPick('군인')">군인</label><label><input type="checkbox" class="tag" value="상층" onchange="tagPick('상층')">상층</label></div>
-    <div class="note" id="tagnote">둘까지 · 노인↔소아 · 노동자↔군인↔상층은 함께 붙지 않는다</div>
+    <!-- 태그 칸과 그 아래 설명은 HP_TAG · TAG_CAP · TAG_GROUP 에서 만든다 (renderTagBox) -->
+    <div class="tags" id="tagbox"></div>
+    <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
   </div>
@@ -325,6 +335,18 @@ td input[type=checkbox]{width:auto}
    각 층이 무엇을 맡는지는 docs/구조.md 에 있다.
    ════════════════════════════════════════════════════════════════════════ */
 
+//@ 파일.10-config/version
+
+/* ══════════════════════════════════════════════════════════════════
+   판본
+   ──────────────────────────────────────────────────────────────────
+   판본은 여기 한 줄이 유일한 자리다.
+   제목 · 왼쪽 위 이름표 · 차트 머리가 전부 이 값을 쓴다 —
+   껍데기(HTML)는 {{VERSION}} 이라 적어 두면 build.js 가 갈아 넣는다.
+   ══════════════════════════════════════════════════════════════════ */
+//@ 판본 — 고치는 곳은 여기 하나
+const VERSION = 'v25';
+
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
 //@ 파일.10-config/rules
@@ -338,6 +360,7 @@ td input[type=checkbox]{width:auto}
 const R = {
   ENERGY: 3,
   HAND: 5,                 // 드로우 5장. 호흡곤란이 깎는다
+  DRAW_CUT: 1,             // 호흡곤란 한 자리가 줄이는 드로우. 자리마다 따로 적을 수 있다
   PLAY_CAP: 10,
 
   /* 처치 */
@@ -353,7 +376,9 @@ const R = {
   WEAK_LINE_MAX: 1.00,     // 처치선 상한 100%
 
   /* 기세 (외과) */
-  RUSH_SCOPE: 'act',       // 'battle' | 'act' | 'stage' — 막이 바뀌면 풀린다. 병기는 건드리지 않는다
+  /* 유지 범위는 손잡이가 아니라 코드가 정한다 — applyPolicy 가 3막에 들어설 때
+     S.rush 를 0 으로 되돌린다. 즉 막 단위다. RUSH_SCOPE 라는 문자열 손잡이가
+     있었으나 읽는 코드가 한 줄도 없었고, 문자열이라 덮어쓰기 칸에도 뜨지 않아 걷어냈다. */
   RUSH_MAX: 5,
   RUSH_PER: 2,             // 처치 한 번에 얻는 기세. 소비 스택당 효과는 카드가 정한다
 
@@ -361,6 +386,21 @@ const R = {
   BLEED_PAY: {1:0.04, 2:0.09, 3:0.15},   // 단수별 지불 (최대 체력 비율)
   BLEED_TURN_CAP: 0.15,                  // 한 턴에 지불할 수 있는 총량
   BLEED_FLOOR: 1,                        // 지불 후 체력이 이만큼은 남아야 낼 수 있다
+
+  /* 촉발 · 전이가 얹는 값 — 반응 등급(강·약)마다 다르다.
+     경화의 약한 쪽만 값이 없다. 그쪽은 평범한 보호막이라 SHIELD_CUT 을 그대로 쓴다 */
+  LINK: {
+    가속:     {약:0.12, 강:0.24},   // 목표 자리의 성장률에 더한다
+    경화:     {강:0.50},            // 강한 반응이 씌우는 감쌈
+    점화:     {약:1,    강:2},      // 목표 자리 피해 = 수치 × ATK_K × 이 배수
+    발현:     {약:0.60, 강:0.80},   // 새 자리 초기값 = 출발 자리 초기값의 이 비율
+    무장발현: {약:0.12, 강:0.20},   // 새 자리가 갖고 태어나는 성장률
+  },
+
+  /* 설치물 (의공학) */
+  RIG_CAP_MIN: 3,          // 설치 상한의 바닥
+  RIG_CAP_MUL: 3,          // 처음 놓은 값의 이 배수까지 쌓을 수 있다
+  RIG_OPEN_MULT: 2,        // 개방 기본 배수. 카드가 따로 적으면 그쪽을 쓴다
 
   /* 관해 (내과) 관해도 게이지 */
   REM_MAX: 10,             // 관해도 상한
@@ -395,7 +435,11 @@ const R = {
      순서 = 피해 먼저 → 그 뒤에 진화로 인한 수치 증가 */
   EVO_HIT: {발열:0.50, 출혈:0.50, 감염:0.50, 탈수:0.50, 통증:0.50, 호흡곤란:0.50},
   EVO_FEVER_GROW: 1.5,     // 발열 진화 — 수치 대폭 증가
-  EVO_BLEED_ACC: 2.0,      // 출혈 진화 — 가속 배수
+  EVO_BLEED_ACC: 2.0,      // 출혈 진화 — 가속 배수. 출혈만 따로 쥔다
+  /* 진화하면 몇 배가 되는가 — 감염 총 성장과 호흡곤란 드로우 감소가 이것을 쓴다.
+     출혈은 EVO_BLEED_ACC 를 따로 쥔다 (성장이 복리라 결이 다르다) */
+  EVO_X2: 2,
+  EVO_INF_DIAG: 1,         // 감염 진화 — 자기 진단 요구가 이만큼 오른다
 
   /* 통증 — 처치선을 낮춘다 */
   PAIN_T: 0.50,
@@ -415,9 +459,12 @@ const R = {
   DIAG_DEEP_MAX: 0,        // 0 = 무제한 (외래·왕진). 스토리는 3
 
   /* 정신 */
+  HIT_ANX: 3,              // 한 자리를 한 턴에 이만큼 억제하면 평정이 불안으로 간다
   MIND_CALM_STAB: 1.3,     // 평정 — 안정화 ×
   MIND_ANX_SUP: 1,         // 불안 — 억제 −
   MIND_ANX_DIAG: 1,        // 불안 — 진단 −
+  MIND_KO_DIAG: 1,         // 의식불명 — 진단 −. 불안 몫에 더해 빠진다
+  MIND_KO_W: 0.78,         // 의식불명을 공황 몇 배로 칠 것인가 (자동 진행 저울에서만 쓴다)
   MIND_BIGHIT: 0.15,       // 최대 체력 15% 단타 = 악화
 
   REM_DIAG_BONUS: 1,       // 관해 중 모든 진단 카드 효과 +
@@ -473,24 +520,19 @@ const EVO_ADJ = {출혈:-1, 통증:+1, 호흡곤란:+1};
 /* 명부 i번째 자리의 밴드 — main 에서 한 칸씩 내려가되 sub 아래로는 안 간다 */
 const BAND_ORDER = ['I','II','III','IV','V'];
 
-/* ── 증상별 효과 비율 ──────────────────────────────
-   증상 하나를 그 증상이게 만드는 값이다. 자리마다 따로 가질 수 있고,
-   비어 있으면 아래 기본값(권위본)을 쓴다. 「전장 만든다」에서 자리마다 고친다.
-   규칙 덮어쓰기가 기본값을 바꾸면, 값을 적지 않은 자리만 따라 움직인다. */
+/* 증상마다 가진 고유 수치 — 자리에 적어 둔 값이 없으면 여기 def 가 답이다.
+   key = 그 값이 노드의 어느 속성에 들어 있는가. sp() 가 이 둘만 쓴다.
+
+   이름표 · 증감 단위 · 설명문은 화면 것이라 여기 없다 — SYMDOC(60-text)에 있다.
+   이 층은 자름 커널 구간 안이고, 그 구간의 계약은 화면을 쓰지 않는 것이다. */
 //@ 커널.증상비율 — 증상마다 다른 효과 비율
 const SYMPARAM = {
-  출혈:     {key:'growVal', label:'성장률(복리)', step:0.05, def:()=>R.BLEED_G,
-             why:'매 턴 <b>현재 수치</b>에 이 비율만큼 더해진다. 초기값이 아니라 현재 수치라 늦게 손대면 복리로 커진다.<br>진화하면 이 값이 두 배가 된다.'},
-  감염:     {key:'infG',    label:'총 성장 비율', step:0.02, def:()=>R.INF_G,
-             why:'살아 있는 동안 <b>현재 수치</b>의 이 비율만큼 총 성장을 만든다.<br>총량을 <b>다른 모든 자리</b>가 나눠 갖는다 — 자리가 늘어도 판 전체 성장은 그대로다.<br>진화하면 총량이 두 배가 된다.'},
-  탈수:     {key:'dehy',    label:'안정화 나누기', step:0.5, def:()=>R.DEHY_STAB,
-             why:'살아 있는 동안 안정화가 쌓는 값을 이 수로 나눈다. 2면 절반이다.<br>진화하면 이 자리의 보호막을 아예 못 깎는다.'},
-  발열:     {key:'evoK',    label:'진화 수치 배수', step:0.1, def:()=>R.EVO_FEVER_GROW,
-             why:'진화하는 턴에 수치가 이 배수만큼 뛴다.<br>매 턴 피해는 공격 증상 공통값(수치의 20%)을 쓴다.'},
-  통증:     {key:'painT',   label:'처치선 배율', step:0.05, def:()=>R.PAIN_T,
-             why:'살아 있는 동안 판 전체의 처치선에 이 값을 곱한다. 여러 자리면 곱연산으로 겹친다.<br>하한은 규칙값(현재 25%)이다.<br>진화하면 통증 말고는 아무것도 처치할 수 없다.'},
-  호흡곤란: {key:'drawCut', label:'드로우 감소', step:1, def:()=>1,
-             why:'살아 있는 동안 턴 드로우를 이만큼 줄인다.<br>진화하면 두 배로 줄인다.'},
+  출혈:     {key:'growVal', def:()=>R.BLEED_G},
+  감염:     {key:'infG',    def:()=>R.INF_G},
+  탈수:     {key:'dehy',    def:()=>R.DEHY_STAB},
+  발열:     {key:'evoK',    def:()=>R.EVO_FEVER_GROW},
+  통증:     {key:'painT',   def:()=>R.PAIN_T},
+  호흡곤란: {key:'drawCut', def:()=>R.DRAW_CUT},
 };
 
 /* ── 정신 상태 ──────────────────────────────────────────────── */
@@ -533,16 +575,37 @@ const ATK_W = {발열:1, 출혈:2};
    Lv1 발열1 / Lv2 발열1 / Lv3 출혈1 / Lv4 출혈1+발열1 / Lv5 출혈2 를 재현한다. */
 const ATK_TARGET = {1:1, 2:1, 3:2, 4:3, 5:4};
 
+/* ── S 산식의 계수 (§5) ──────────────────────────────────────
+   판 하나를 난이도 숫자 하나로 옮기는 식의 저울.
+   valDiv 는 나누는 수로 둔다 — 곱셈으로 바꾸면 1/25 가 이진수로 안 떨어져
+   S 가 미세하게 흔들리고 lv_of 의 경계에서 레벨이 튄다. */
+//@ 생성기.S계수 — S 산식의 저울과 레벨 경계
+const SW = {
+  node:   1.5,    // 자리 하나당
+  valDiv: 25,     // 수치 총합을 이 수로 나눠 더한다
+  basic:  0.5,    // 기본형 연결선 하나당
+  enh:    2,      // 추가 연결선 하나당
+  evoRef: 6,      // 진화까지의 턴은 이 값에서 뺀 만큼 얹는다 (빠를수록 어렵다)
+  atk:    1.5,    // 공격 가중 1당
+  shSome: 1,      // 일부만 감싸였을 때
+  shAll:  2,      //  전부 감싸였을 때
+  /* 레벨 경계 — S 가 이 값 이하면 그 레벨이다. 마지막은 그 위 전부 */
+  lvCut:  [6, 14, 25, 36],
+};
+
+/* 자리 초기값 — 밴드값에 0 ~ SPREAD−1 을 난수로 얹는다.
+   중앙값 검산은 이 폭의 한가운데((SPREAD−1)/2)를 쓴다. 둘이 갈리면 검산이 거짓말을 한다 */
+const INIT_SPREAD = 16;
+const INIT_MID    = (INIT_SPREAD - 1) / 2;
+/* 주 밴드에서 뽑는 자리 수 — 1 부터 이 값까지 */
+const MAIN_MAX = 2;
+
 //@ 파일.10-config/story-rules
 
 /* ══════════════════════════════════════════════════════════════════
    §6 스토리 전용 수치 손잡이
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* ═══════════════════════════════════════════════════════════════
    스토리 전투 v19 — 단계 6-2
    1막 = 병명을 밝힌다 (병 노드에 손 못 댐)
@@ -570,7 +633,6 @@ const SR = {
   /* v25 — 아래 둘은 레벨표에서 뽑아 쓴다. 손으로 적던 표를 지웠다.
      보스는 항목마다 어느 레벨을 보는지만 정한다 (BOSS[].lv). */
   DIS_BASE: Object.fromEntries(Object.entries(LVTAB).map(([k,v])=>[k, v.dis])),
-  DIS_BASE_ALT: {3:48, 4:72, 5:100}, // 격자 탐색값. 채택 안 함 — 참고로만 남긴다
   STAGE_TURNS: 6,                    // 원안 유지
   SPAWN_LV: Object.fromEntries(Object.entries(LVTAB).map(([k,v])=>[k, v.n[1]])),
 
@@ -582,6 +644,33 @@ const SR = {
   },
   /* 「편하게」 승리 조건 — 병이 최종 병기의 시계를 다 돌 때까지 환자가 살아 있으면 이긴다.
      완화 폭은 R.COMFORT_CUT 하나로 관리한다. */
+
+  /* 박자가 자리를 얼마나 움직이는가 — 그 자리 초기값에 대한 비율.
+     전부 VAL_CAP 에서 잘린다. 「가라앉는다」만 빼는 쪽이고 나머지는 얹는 쪽이다 */
+  BEAT: {
+    성장:       0.15,   // 성장 비트 — 살아 있는 부수 자리 전부. 폴백으로도 쓴다
+    몰린다:     0.40,   // 가장 옅은 자리 하나만 크게
+    번진다:     0.25,   // 어부 — 통증만 골라서
+    치민다:     0.30,   // 송이 — 금단의 정점. 전부
+    가라앉는다: 0.25,   // 송이 — 내려가는 폭. 1 아래로는 안 간다
+  },
+
+  /* 박자가 시계를 얼마나 당기는가 */
+  BEAT_CLOCK:    1,   // 「진행」·「가속」 — 그 턴의 자연 감소 1 과 겹쳐 합쳐 2 가 된다
+  BEAT_EVO_PULL: 1,   // 「파고든다」 — 신경계 자리의 진화 시계를 이만큼 당긴다
+  BEAT_SCRATCH_N: 2,  // 「긁는다」 — 활성 통증 자리가 이만큼 이상이어야 이차 감염이 앉는다
+
+  /* 자리를 세울 때의 초기값 — 밑값에 폭만큼 난수를 얹는다 */
+  SPOT_SPREAD:      15,   // 명부대로 세울 때, 명부가 준 밴드 위에 얹는 폭
+  ROSTER_MISS:      50,   // 명부에 그 증상이 없을 때 대신 쓰는 밴드
+  FREE_BASE:        40,   // 명부가 없는 보스 — 밑값
+  FREE_SPREAD:      20,   //  그 폭
+  DUP_BASE:         35,   // 분화로 새로 나는 자리 — 밑값
+  DUP_SPREAD:       25,   //  그 폭
+
+  /* 자동 진행이 한 막에 쓸 수 있는 턴 */
+  ACT1_CAP:  12,
+  ACT3_CAP:  30,
 
   /* 1막 — 검사 파라미터 */
   PARAM_NEED: 4,                     // 파라미터 하나를 채우는 데 드는 진단 스택
@@ -626,16 +715,18 @@ const STD_REAL = {1:3, 2:8, 3:13, 4:20, 5:26};
 //@ 화면.세션 — §9.19 세션 모드
 const REP = {완치:2, 호전:1, 연명:0, 악화:-1, 사망:-3};
 
+/* ── 턴 예산 · 판 상한 ── */
+//@ 세션.예산계수 — 예산 공식과 한 판의 턴 상한
+const BUDGET_FULL_LV = 2;     // 이 레벨까지는 표준턴을 전액 준다
+const BUDGET_CUT     = 0.7;   // 그 위는 표준턴에 이 비율만 준다 (올림)
+const TURN_HARD_CAP  = 40;    // 화면 없이 돌릴 때 한 판을 이 턴에서 끊는다
+
 //@ 파일.10-config/ai-weights
 
 /* ══════════════════════════════════════════════════════════════════
    자동 진행 저울
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* ═══════════════════════════════════════════════════════════════
    자동 플레이 v19 — 단계 7
    v18 의 aiTurn 은 균일 2코 처치 · 처치선 30% 전제로 짜인 휴리스틱이었다.
@@ -661,104 +752,136 @@ let AIW = {...AIW_DEF};
 
 /* ══════════════════════════════════════════════════════════════════
    데모 22장
-   원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
+   ──────────────────────────────────────────────────────────────────
+   카드 하나의 숫자는 v 한 곳에만 적는다.
+     v      이 카드의 수치. 본문의 {열쇠} 와 fx 의 세 번째 인자가 같은 것을 본다.
+            값이 함수면 판을 넣어 부른다 — 규칙 덮어쓰기가 R 을 바꾸면
+            카드에 적힌 숫자도 따라 바뀌어야 한다.
+     text   본문. {sup} 처럼 v 의 열쇠를 감싸면 화면이 그 자리에 숫자를 넣는다.
+            판 상태에 따라 값이 달라지는 열쇠(VAL_KIND)는 색이 붙는다.
+     raw    이 카드가 지금 이 자리에 넣는 억제 '원값'. 안 적으면 v.sup.
+            기세처럼 판을 보고 커지는 카드가 여기에 식을 적는다.
+     fx     실제 효과. 숫자는 v 에서만 꺼내 쓴다 — 리터럴을 적지 않는다.
+
+   숫자를 고치려면 v 만 고친다. 본문과 효과가 같이 따라온다.
    ══════════════════════════════════════════════════════════════════ */
+
+/* 카드 수치의 열쇠마다 — 판 상태가 이 값을 바꾸는가, 바꾼다면 무엇이 바꾸는가.
+   여기 적힌 열쇠만 화면에서 색이 바뀐다. 나머지는 판과 무관한 고정 수치다. */
+//@ 카드.수치종류 — 어떤 수치가 판 상태를 타는가
+const VAL_KIND = {
+  sup:'억제', supLow:'억제',
+  stab:'안정화',
+  diag:'진단',
+  cost:'코스트',
+};
+
 //@ 카드.목록 — 데모 22장. 카드를 더하거나 고치는 자리
 const CARDS = {
 /* ── 기본 10장 ───────────────────────────────────────────── */
 /* 대상을 못 고르는 것이 이 카드의 값이다 — 판이 골라 주므로 낼지 말지만 정한다.
    가장 얇은 자리를 처치선으로 밀어 첫 처치를 한 턴 앞당기는 자리다 */
-'소독하겠습니다': {cost:0, dept:'공통', verb:'억제', target:'none', sup:5,
-  text:'수치가 가장 낮은 자리에 억제 −5',
-  fx:(S)=>{ const c=K.active(S).filter(n=>n.role!=='disease');
+'소독하겠습니다': {cost:0, dept:'공통', verb:'억제', target:'none', v:{sup:5},
+  text:'수치가 가장 낮은 자리에 억제 −{sup}',
+  fx:(S,n,a,v)=>{ const c=K.active(S).filter(x=>x.role!=='disease');
             if(!c.length) return;
             const t=c.reduce((a,b)=> b.val<a.val ? b : a);
-            K.suppress(S,t,5) }},
-'멈춰!': {cost:1, dept:'내과', verb:'보조', target:'node',
-  text:'이 자리의 성장을 세 턴 멈춘다. 감염이 살아 있어도 그동안 몫을 받지 않는다',
-  fx:(S,n)=>{ if(n && !n.dead) n.growHold = R.GROW_HOLD }},
-'감초 탕약': {cost:1, dept:'내과', verb:'억제', target:'node', sup:6,
-  text:'억제 −6',
-  fx:(S,n)=>K.suppress(S,n,6)},
-'수액 투여': {cost:1, dept:'내과', verb:'억제', sub:'안정화', target:'node',
+            K.suppress(S,t,v.sup) }},
+'멈춰!': {cost:1, dept:'내과', verb:'보조', target:'node', v:{hold:()=>R.GROW_HOLD},
+  text:'이 자리의 성장을 {hold}턴 멈춘다. 감염이 살아 있어도 그동안 몫을 받지 않는다',
+  fx:(S,n,a,v)=>{ if(n && !n.dead) n.growHold = v.hold }},
+'감초 탕약': {cost:1, dept:'내과', verb:'억제', target:'node', v:{sup:6},
+  text:'억제 −{sup}',
+  fx:(S,n,a,v)=>K.suppress(S,n,v.sup)},
+'수액 투여': {cost:1, dept:'내과', verb:'억제', sub:'안정화', target:'node', v:{stab:5},
   /* 탈수가 살아 있으면 안정화 계산에서 알아서 나뉜다 — 카드가 따로 깎지 않는다 */
-  text:'안정화 5',
-  fx:(S,n)=>K.stabilize(S,n,5)},
-'환기하세요': {cost:1, dept:'내과', verb:'진단', target:'node',
-  text:'진단 +2',
-  fx:(S,n)=>K.diagnose(S,n,2)},
-'창상봉합술': {cost:2, dept:'외과', verb:'억제', target:'node', sup:14,
-  text:'억제 −14',
-  fx:(S,n)=>K.suppress(S,n,14)},
-'지혈 압박': {cost:0, dept:'외과', verb:'억제', target:'node', sup:6,
-  text:'억제 −3. 출혈이면 −6',
-  fx:(S,n)=>K.suppress(S,n, n.sym==='출혈'?6:3)},
-'붕대 감기': {cost:0, dept:'공통', verb:'보조', sub:'완화', target:'node',
+  text:'안정화 {stab}',
+  fx:(S,n,a,v)=>K.stabilize(S,n,v.stab)},
+'환기하세요': {cost:1, dept:'내과', verb:'진단', target:'node', v:{diag:2, param:2},
+  /* param = 1막에서 검사 파라미터로 쓸 때의 몫. 다른 진단 카드는 1이다 */
+  text:'진단 +{diag}',
+  fx:(S,n,a,v)=>K.diagnose(S,n,v.diag)},
+'창상봉합술': {cost:2, dept:'외과', verb:'억제', target:'node', v:{sup:14},
+  text:'억제 −{sup}',
+  fx:(S,n,a,v)=>K.suppress(S,n,v.sup)},
+/* sup 이 큰 쪽(출혈)이다 — 자동 진행은 sup 을 보고 카드값을 매긴다.
+   branch — 대상에 따라 갈리는 카드. 고른 자리에 지금 걸리는 쪽만 실제 값으로
+   물들고, 안 걸리는 쪽은 흐려진다 */
+'지혈 압박': {cost:0, dept:'외과', verb:'억제', target:'node', v:{sup:6, supLow:3},
+  text:'억제 −{supLow}. 출혈이면 −{sup}',
+  branch:(S,n)=> n && n.sym==='출혈' ? 'sup' : 'supLow',
+  raw:(S,n,v)=> n && n.sym==='출혈' ? v.sup : v.supLow,
+  fx:(S,n,a,v)=>K.suppress(S,n, n.sym==='출혈'?v.sup:v.supLow)},
+'붕대 감기': {cost:0, dept:'공통', verb:'보조', sub:'완화', target:'node', v:{},
   text:'정신 악화를 한 번 막는다. 통증이나 호흡곤란에 쓰면 그 자리를 이번 턴 재운다',
   fx:(S,n)=>{ if(n && (n.sym==='통증'||n.sym==='호흡곤란')) K.calm(S,n); S.mindGuard=true }},
-'도와드릴까요?': {cost:1, dept:'공통', verb:'보조', target:'none',
-  text:'두 장 뽑는다',
-  fx:(S)=>draw(S,2)},
-'소매를 걷습니다': {cost:0, dept:'공통', verb:'보조', target:'none', once:true,
-  text:'이번 턴 코스트 +2. 한 턴에 한 번',
-  fx:(S)=>{ S.energy += 2 }},
+'도와드릴까요?': {cost:1, dept:'공통', verb:'보조', target:'none', v:{draw:2},
+  text:'{draw}장 뽑는다',
+  fx:(S,n,a,v)=>draw(S,v.draw)},
+'소매를 걷습니다': {cost:0, dept:'공통', verb:'보조', target:'none', once:true, v:{energy:2},
+  text:'이번 턴 코스트 +{energy}. 한 턴에 한 번',
+  fx:(S,n,a,v)=>{ S.energy += v.energy }},
 
 /* ── 분과 보급 6장 ────────────────────────────────────────── */
-'박리': {cost:1, dept:'외과', verb:'억제', kw:'약화', target:'node', sup:4,
-  text:'억제 −4, 약화 1 부여',
-  fx:(S,n)=>{ K.suppress(S,n,4); n.weak += 1 }},
-'몰아붙인다': {cost:1, dept:'외과', verb:'억제', kw:'기세', target:'node', sup:4, rushCard:true, per:6,
-  /* 기세 하나가 사는 억제는 이 카드의 수치다. 규칙이 아니라 카드가 정한다 */
-  text:'억제 −4. 기세를 전부 소비하고 소비한 기세 당 추가 억제 −6',
-  fx:(S,n)=>{ const st=S.rush; S.rush=0; K.suppress(S,n, 4 + st*6) }},
-'관해 유도': {cost:2, dept:'내과', verb:'보조', kw:'관해', target:'none',
-  costWhen:S=>S.rem?0:2,                        // 관해 중에는 0코스트로 되돌린다
+'박리': {cost:1, dept:'외과', verb:'억제', kw:'약화', target:'node', v:{sup:4, weak:1},
+  text:'억제 −{sup}, 약화 {weak} 부여',
+  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); n.weak += v.weak }},
+/* 기세 하나가 사는 억제는 이 카드의 수치다. 규칙이 아니라 카드가 정한다 */
+/* live — 본문의 이 열쇠는 '적힌 수' 가 아니라 '지금 실제로 들어가는 수' 를 보인다.
+   기세가 쌓여 있으면 −4 가 −22 로 물들어 보인다 */
+'몰아붙인다': {cost:1, dept:'외과', verb:'억제', kw:'기세', target:'node', rushCard:true, live:'sup', v:{sup:4, per:6},
+  text:'억제 −{sup}. 기세를 전부 소비하고 소비한 기세 당 추가 억제 −{per}',
+  raw:(S,n,v)=> v.sup + (S.rush||0)*v.per,
+  fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.suppress(S,n, v.sup + st*v.per) }},
+'관해 유도': {cost:2, dept:'내과', verb:'보조', kw:'관해', target:'none', v:{},
+  costWhen:S=>S.rem?0:CARDS['관해 유도'].cost,   // 관해 중에는 0코스트로 되돌린다
   text:'관해 시작. 관해 중 재사용 시 관해를 즉시 끝낸다',
   fx:(S)=>{ if(S.rem){ S.rem=false; S.remGauge=0; S.remLast='end' } else K.remStart(S) }},
-'진행을 붙든다': {cost:1, dept:'내과', verb:'보조', kw:'재진', target:'hand',
+'진행을 붙든다': {cost:1, dept:'내과', verb:'보조', kw:'재진', target:'hand', v:{diagPlus:1},
   /* 붙은 재진과 얹은 진단은 이번 전투 내내 그 카드에 남는다 */
   pick:(S,id)=>CARDS[id] && CARDS[id].verb==='진단',
-  text:'손패의 진단 카드 한 장에 재진을 부여한다. 이미 재진이 붙어 있으면 대신 그 카드가 이번 전투 동안 진단 +1',
+  text:'손패의 진단 카드 한 장에 재진을 부여한다. 이미 재진이 붙어 있으면 대신 그 카드가 이번 전투 동안 진단 +{diagPlus}',
   picks:1,
-  fx:(S,_,picked)=>{ const id=(picked||[])[0]; if(!id) return;
+  fx:(S,_,picked,v)=>{ const id=(picked||[])[0]; if(!id) return;
                      S.revisitOn=S.revisitOn||{}; S.diagPlus=S.diagPlus||{};
-                     if(S.revisitOn[id]) S.diagPlus[id] = (S.diagPlus[id]||0)+1;
+                     if(S.revisitOn[id]) S.diagPlus[id] = (S.diagPlus[id]||0)+v.diagPlus;
                      else S.revisitOn[id] = true }},
-'거치': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', rig:4,
-  need:n=>!(n.rig>0 && n.rig>=(n.rigCap||12)),
-  text:'설치 4',
-  fx:(S,n)=>{ rigSet(S,n,4) }},
-'출력 개방': {cost:1, dept:'의공학', verb:'억제', kw:'개방', target:'node',
+'거치': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', v:{rig:4},
+  need:n=>canRig(n, CARDS['거치'].v.rig),
+  text:'설치 {rig}',
+  fx:(S,n,a,v)=>{ rigSet(S,n,v.rig) }},
+'출력 개방': {cost:1, dept:'의공학', verb:'억제', kw:'개방', target:'node', v:{mult:2},
   need:n=>n.rig>0,
-  text:'설치물 개방',
-  fx:(S,n)=>{ rigOpen(S,n,2) }},
+  text:'설치물을 태운다 — 설치 수치의 {mult}배로 한 방에 억제한다',
+  raw:(S,n,v)=> n ? (n.rig||0)*v.mult : 0,
+  fx:(S,n,a,v)=>{ rigOpen(S,n,v.mult) }},
 
 /* ── NPC 6장 ─────────────────────────────────────────────── */
-'그물': {cost:2, dept:'외과', verb:'억제', target:'all', sup:6,
-  text:'판 위 모든 자리에 억제 −6',
-  fx:(S)=>{ for(const n of K.alive(S)) K.suppress(S,n,6) }},
-'곗날': {cost:0, dept:'내과', verb:'보조', target:'hand', picks:2, allowNone:true,
+'그물': {cost:2, dept:'외과', verb:'억제', target:'all', v:{sup:6},
+  text:'판 위 모든 자리에 억제 −{sup}',
+  fx:(S,n,a,v)=>{ for(const x of K.alive(S)) K.suppress(S,x,v.sup) }},
+'곗날': {cost:0, dept:'내과', verb:'보조', target:'hand', picks:2, allowNone:true, v:{back:1},
   pick:(S,id)=>true,
-  text:'카드 두 장을 버리고 다음 두 턴 동안 한 장씩 더 뽑는다. 버릴 카드가 없어도 낼 수 있다',
+  text:'카드 {picks}장을 버리고 버린 장수만큼 다음 턴부터 {back}장씩 더 뽑는다. 버릴 카드가 없어도 낼 수 있다',
   /* 버린 장수만큼 다음 턴부터 한 장씩 나눠서 갚는다 (v20 은 다음 턴에 몰아서 갚았다) */
-  fx:(S,_,picked)=>{ const drop = picked||[];
+  fx:(S,_,picked,v)=>{ const drop = picked||[];
             for(const c of drop){ const i=S.hand.indexOf(c); if(i>=0) S.hand.splice(i,1) }
             S.discard.push(...drop);
             S.drawQueue = S.drawQueue || [];
-            for(let i=0;i<drop.length;i++) S.drawQueue.push(1) }},
-'손이 기억한다': {cost:1, dept:'내과', verb:'억제', kw:'지연', target:'node', sup:6,
-  text:'억제 −6, 지연 1',
-  fx:(S,n)=>{ K.suppress(S,n,6); K.delay(S,n,1) }},
-'빌려온 물건': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', when:'set', rig:6,
+            for(let i=0;i<drop.length;i++) S.drawQueue.push(v.back) }},
+'손이 기억한다': {cost:1, dept:'내과', verb:'억제', kw:'지연', target:'node', v:{sup:6, delay:1},
+  text:'억제 −{sup}, 지연 {delay}',
+  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); K.delay(S,n,v.delay) }},
+'빌려온 물건': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', when:'set', v:{rig:6},
   need:n=>!(n.rigLent>0),
-  text:'설치 6. 이 설치물은 따로 놓이고 강화되지도 개방되지도 않는다',
-  fx:(S,n)=>{ if(!(n.rigLent>0)) n.rigLent = 6 }},
-'매듭 짓다': {cost:1, dept:'외과', verb:'억제', kw:'사혈', bleed:1, target:'node', sup:14,
-  text:'사혈 1단 · 억제 −14',
-  fx:(S,n)=>{ K.suppress(S,n,14) }},
-'눈 딱 감고': {cost:1, dept:'외과', verb:'억제', target:'node', sup:16,
-  text:'억제 −16. 다음 턴에 한 장 덜 뽑는다',
-  fx:(S,n)=>{ K.suppress(S,n,16); S.nextDrawCut=(S.nextDrawCut||0)+1 }},
+  text:'설치 {rig}. 이 설치물은 따로 놓이고 강화되지도 개방되지도 않는다',
+  fx:(S,n,a,v)=>{ if(!(n.rigLent>0)) n.rigLent = v.rig }},
+'매듭 짓다': {cost:1, dept:'외과', verb:'억제', kw:'사혈', bleed:1, target:'node', v:{sup:14},
+  text:'사혈 {bleed}단 · 억제 −{sup}',
+  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup) }},
+'눈 딱 감고': {cost:1, dept:'외과', verb:'억제', target:'node', v:{sup:16, drawCut:1},
+  text:'억제 −{sup}. 다음 턴에 {drawCut}장 덜 뽑는다',
+  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); S.nextDrawCut=(S.nextDrawCut||0)+v.drawCut }},
 };
 
 //@ 파일.20-data/decks
@@ -776,7 +899,8 @@ const DECK_D1 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투�
 const DECK_D2 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요',
                  '창상봉합술','지혈 압박','도와드릴까요?'];
 
-const BAG_D3  = [...new Set([...DECK_D2,'붕대 감기','소매를 걷습니다','도와드릴까요?'])];  // 1종 1장 — 중복 제거
+/* 3일차 가방은 POOL.d3 하나로 정한다.
+   BAG_D3 라는 두 번째 정의가 있었으나 배선에 실려만 있고 부르는 곳이 없어 걷어냈다. */
 
 /* ── 덱 풀 ── 1종 1장 · 상한 8장. 고르는 것이 하루의 첫 판단이다 */
 const BASE10 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요',
@@ -953,7 +1077,7 @@ const BOSS = {
            5:['분화','성장','고유','창','분화','엮는다']},
     unique:(S,dis)=>{
       if(dis.stage===3){                       // 「파고든다」 — 신경계 노드 진화 시계를 당긴다
-        for(const n of K.active(S)) if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란')) n.evoLeft=Math.max(1,n.evoLeft-1);
+        for(const n of K.active(S)) if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란')) n.evoLeft=Math.max(1,n.evoLeft-SR.BEAT_EVO_PULL);
         return '파고든다';
       }
       if(dis.stage===4){                       // 「알아듣지 못한다」 — 정신을 한 단계 무너뜨린다
@@ -976,8 +1100,8 @@ const BOSS = {
     /* 「긁는다」 — 활성 통증 자리가 둘 이상이면 긁어서 이차 감염이 앉는다 */
     unique:(S)=>{
       const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
-      if(pain.length>=2 && K.active(S).filter(n=>n.sym==='감염').length===0){
-        S.nodes.push(mkSpot('감염',35+Math.floor(S.rng()*25),S.turn));
+      if(pain.length>=SR.BEAT_SCRATCH_N && K.active(S).filter(n=>n.sym==='감염').length===0){
+        S.nodes.push(mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
         return '긁어서 이차 감염이 앉는다';
       }
       return '긁는다 — 아직 자리가 모자란다';
@@ -1124,13 +1248,16 @@ function reaction(S,n){                       // 잔량 → 반응 등급
 
 function drawCount(S){
   const d = active(S).filter(n=>n.sym==='호흡곤란' && !n.muted);
-  let cut = 0; for(const n of d) cut += sp(n,'호흡곤란') * (n.evolved?2:1);
+  let cut = 0; for(const n of d) cut += sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
   return Math.max(1, R.HAND - Math.round(cut) + (S.drawBonus||0));
 }
 
 /* ── 억제 ───────────────────────────────────────────────────── */
 //@ 커널.억제 — 억제 · 무적 판정 · 안정화
-function suppress(S,n,amt,opt={}){
+/* 억제 amt 가 이 자리에 실제로 들어가는 값.
+   화면 예고와 실제 억제가 같은 함수를 쓴다 — 카드에 적힌 수치를 색으로 물들이는
+   쪽(화면.카드수치)과 여기가 갈리면 카드가 거짓말을 하게 된다. */
+function supAmt(S,n,amt,opt={}){
   if(n.dead||n.val<=0) return 0;
   if(immune(S,n)) return 0;                      // 1막 병 노드 — 완전 무적
   let v = amt;
@@ -1139,6 +1266,11 @@ function suppress(S,n,amt,opt={}){
   if(n.role==='disease'){
     if(alive(S).some(x=>x.role!=='disease' && x.val>0)) v = Math.ceil(v*(1-R.DIS_SHIELD));
   } else if(n.shielded && !opt.raw) v = Math.ceil(v*(1-n.shReduc));
+  return v;
+}
+function suppress(S,n,amt,opt={}){
+  const v = supAmt(S,n,amt,opt);
+  if(v<=0) return 0;
   const before = n.val;
   n.val = Math.max(0, n.val - v);
   /* 정신 — 한 노드를 한 턴에 두 번 억제하면 악화.
@@ -1147,7 +1279,7 @@ function suppress(S,n,amt,opt={}){
   if(!opt.sweep){
     S.hitThisTurn[S.nodes.indexOf(n)] = (S.hitThisTurn[S.nodes.indexOf(n)]||0)+1;
     /* v25 — 3회부터, 그리고 불안까지만. 억제로는 공황에 못 간다 */
-    if(S.hitThisTurn[S.nodes.indexOf(n)]===3 && S.mind==='평정') mind(S,+1);
+    if(S.hitThisTurn[S.nodes.indexOf(n)]===R.HIT_ANX && S.mind==='평정') mind(S,+1);
   }
   if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); }  // 휴면 도달 = 호전
   return before-n.val;
@@ -1156,14 +1288,20 @@ function suppress(S,n,amt,opt={}){
 /* 1막의 병 노드는 어떤 효과도 받지 않는다 — 진단(재진)만 통한다 */
 function immune(S,n){ return S.act===1 && n.role==='disease' }
 
-function stabilize(S,n,amt){
-  if(n.dead||!n.shielded) return;
-  if(immune(S,n)) return;
-  if(n.sym==='탈수'&&n.evolved) return;                 // 탈수 진화 — 못 깎는다
+/* 안정화 amt 가 이 자리에 실제로 쌓이는 값 — 예고와 정산이 같은 함수를 쓴다 */
+function stabAmt(S,n,amt){
+  if(n.dead||!n.shielded) return 0;
+  if(immune(S,n)) return 0;
+  if(n.sym==='탈수'&&n.evolved) return 0;               // 탈수 진화 — 못 깎는다
   let v = amt;
   if(S.mind==='평정') v = v*R.MIND_CALM_STAB;
   const dehy = active(S).filter(x=>x.sym==='탈수');
   if(dehy.length) v = v / Math.max(1, ...dehy.map(x=>sp(x,'탈수')));   // 여러 자리면 가장 센 것
+  return v;
+}
+function stabilize(S,n,amt){
+  const v = stabAmt(S,n,amt);
+  if(v<=0) return;
   n.stabAcc += v;
   if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); }
 }
@@ -1194,13 +1332,19 @@ function canDiag(S,n,revisit){
   return true;
 }
 
+/* 진단 amt 가 실제로 쌓이는 값 — 예고와 정산이 같은 함수를 쓴다.
+   자리를 보지 않는다. 열 수 있는가(canDiag)는 부르는 쪽이 따로 본다. */
+function diagAmt(S, amt){
+  let v = amt + (S.diagBonus||0);                   // 그 카드에 얹힌 진단 +N
+  if(S.rem) v += R.REM_DIAG_BONUS;                  // 관해 중 진단 +1
+  if(S.mind==='불안'||S.mind==='공황') v -= R.MIND_ANX_DIAG;
+  if(S.mind==='의식불명') v -= R.MIND_KO_DIAG;
+  return v;
+}
 function diagnose(S,n,amt,opt={}){
   const revisit = !!opt.revisit || !!S.revisitNow;   // 카드 태그 또는 「진행을 붙든다」가 얹은 몫
   if(!canDiag(S,n,revisit)) return 0;
-  let v = amt + (S.diagBonus||0);                   // 그 카드에 얹힌 진단 +N
-  if(S.rem) v += R.REM_DIAG_BONUS;                // 관해 중 진단 +1
-  if(S.mind==='불안'||S.mind==='공황') v -= R.MIND_ANX_DIAG;
-  if(S.mind==='의식불명') v -= 1;
+  const v = diagAmt(S, amt);
   if(v<=0) return 0;
   n.diagAcc += v;
   let rounds = 0;
@@ -1358,14 +1502,16 @@ function fireReactions(S,src,grade){
     const tgt = alive(S).find(n=>n.sym===L.b && n!==src);
     if(L.kind==='trig'){
       if(!tgt) continue;
-      if(L.k==='가속') tgt.grow += strong?0.24:0.12;
-      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?0.50:R.SHIELD_CUT; }
-      if(L.k==='점화'){ if(SYM[tgt.sym].atk) hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?2:1))) }
+      const LK = R.LINK;
+      if(L.k==='가속') tgt.grow += strong?LK.가속.강:LK.가속.약;
+      /* 약한 경화는 평범한 보호막이다 — SHIELD_CUT 을 그대로 쓴다 */
+      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT; }
+      if(L.k==='점화'){ if(SYM[tgt.sym].atk) hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약))) }
     } else {
       if(tgt) continue;                            // 이미 있으면 생성하지 않는다
-      const init = Math.floor(src.init*(strong?0.8:0.6));
+      const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
       const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-                  grow: L.k==='무장발현' ? (strong?0.20:0.12) : 0,
+                  grow: L.k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
                   evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
                   evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
                   diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
@@ -1390,7 +1536,7 @@ function infPool(S){
   for(const f of infs){
     const tgt = tgtAll.filter(n=>n!==f);
     if(!tgt.length) continue;
-    const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?2:1));
+    const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?R.EVO_X2:1));
     if(total<=0) continue;
     const each = Math.floor(total/tgt.length);
     const rest = total - each*tgt.length;
@@ -1505,7 +1651,7 @@ function turnResolve(S){
     hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
-    if(n.sym==='감염') n.diagNeed += 1;
+    if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
     mind(S,+1);
     S.evoLog++;
   }
@@ -1591,19 +1737,27 @@ function tagAdd(list, t){
 
 /* ── S 산식 (§5) ─────────────────────────────────────────── */
 //@ 생성기.S산식 — 판 하나를 난이도 숫자 하나로 옮긴다
+/* S 산식 한 벌. 실제 판(S_of)과 레벨표 중앙값 검산(medianBoards)이
+   같은 식을 쓴다 — 갈라져 있으면 검산이 검산 구실을 못 한다 */
+function sFormula({n, valSum, basic, enh, evo, atkW, shN}){
+  const shTerm = shN===0 ? 0 : (shN===n ? SW.shAll : SW.shSome);
+  return SW.node*n + valSum/SW.valDiv + SW.basic*basic + SW.enh*enh
+       + (SW.evoRef-evo) + SW.atk*atkW + shTerm;
+}
 function S_of(board){
   const ns = board.nodes;
-  const valSum = ns.reduce((s,n)=>s+n.init,0);
-  const basic  = basicLines(ns.map(n=>n.sym)).length;
-  const enh    = board.enh.length;
-  const evo    = board.evoBase;                        // 레벨 기준값. 증상 보정 전
-  const atkW   = ns.reduce((s,n)=>s+(ATK_W[n.sym]||0),0);
-  const shN    = ns.filter(n=>n.shielded).length;
-  const shTerm = shN===0 ? 0 : (shN===ns.length ? 2 : 1);
-  return 1.5*ns.length + valSum/25 + 0.5*basic + 2*enh + (6-evo) + 1.5*atkW + shTerm;
+  return sFormula({
+    n:      ns.length,
+    valSum: ns.reduce((s,n)=>s+n.init,0),
+    basic:  basicLines(ns.map(n=>n.sym)).length,
+    enh:    board.enh.length,
+    evo:    board.evoBase,                             // 레벨 기준값. 증상 보정 전
+    atkW:   ns.reduce((s,n)=>s+(ATK_W[n.sym]||0),0),
+    shN:    ns.filter(n=>n.shielded).length,
+  });
 }
 
-function lv_of(S){ return S<=6?1 : S<=14?2 : S<=25?3 : S<=36?4 : 5 }
+function lv_of(S){ const c=SW.lvCut; return S<=c[0]?1 : S<=c[1]?2 : S<=c[2]?3 : S<=c[3]?4 : 5 }
 
 /* ── 판 생성 ────────────────────────────────────────────────
    opt.tags   : 체력 태그 배열
@@ -1643,10 +1797,10 @@ function build(level, rng, opt={}){
   const syms = pickSyms(rng, cnt, T.atkCap, T.basic, opt.syms, opt.atkFree?null:ATK_TARGET[level]);
   if(!syms) return null;
 
-  const mainN = Math.min(cnt, 1+Math.floor(rng()*2));      // 주 밴드에서 1~2개
+  const mainN = Math.min(cnt, 1+Math.floor(rng()*MAIN_MAX));   // 주 밴드에서 1~MAIN_MAX 개
   const nodes = syms.map((s,i)=>{
     const band = (i<mainN || !T.sub) ? T.main : T.sub;
-    const init = BAND[band] + Math.floor(rng()*16);        // +0~15
+    const init = BAND[band] + Math.floor(rng()*INIT_SPREAD);
     const evo  = Math.max(1, T.evo + (EVO_ADJ[s]||0));
     const shielded = T.shield==='all' || (T.shield==='one' && i===0);
     return {sym:s, init, val:init, band, shielded, shReduc:shielded?R.SHIELD_CUT:0, stabAcc:0,
@@ -1701,20 +1855,23 @@ function medianBoards(){
     const T=LVTAB[lv];
     const cnt = Math.round((T.n[0]+T.n[1])/2);
     const mainN = Math.min(cnt,1);
-    // 중앙값 = 밴드값 + 7.5, 공격 노드는 상한의 절반을 발열로 잡는다
-    const atkN = Math.floor(T.atkCap/2)||(lv>=2?1:1);
+    // 중앙값 = 밴드값 + 폭의 한가운데. 공격 노드는 상한의 절반을 발열로 잡는다
+    const atkN = Math.floor(T.atkCap/2) || 1;
     const nodes=[];
     for(let i=0;i<cnt;i++){
       const band=(i<mainN||!T.sub)?T.main:T.sub;
-      nodes.push({sym: i<atkN?'발열':'통증', init: BAND[band]+7.5,
+      nodes.push({sym: i<atkN?'발열':'통증', init: BAND[band]+INIT_MID,
                   shielded: T.shield==='all'||(T.shield==='one'&&i===0)});
     }
-    const basic=Math.round((T.basic[0]+T.basic[1])/2), enh=Math.round((T.enh[0]+T.enh[1])/2);
-    const valSum=nodes.reduce((s,n)=>s+n.init,0);
-    const atkW=nodes.reduce((s,n)=>s+(ATK_W[n.sym]||0),0);
-    const shN=nodes.filter(n=>n.shielded).length;
-    const shTerm=shN===0?0:(shN===nodes.length?2:1);
-    out[lv]= 1.5*cnt + valSum/25 + 0.5*basic + 2*enh + (6-T.evo) + 1.5*atkW + shTerm;
+    out[lv]= sFormula({
+      n:      cnt,
+      valSum: nodes.reduce((s,n)=>s+n.init,0),
+      basic:  Math.round((T.basic[0]+T.basic[1])/2),
+      enh:    Math.round((T.enh[0]+T.enh[1])/2),
+      evo:    T.evo,
+      atkW:   nodes.reduce((s,n)=>s+(ATK_W[n.sym]||0),0),
+      shN:    nodes.filter(n=>n.shielded).length,
+    });
   }
   return out;
 }
@@ -1725,10 +1882,6 @@ function medianBoards(){
    §3 카드 규칙
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 자체 검증 ─────────────────────────────────────────────── */
-
-
-
 /* ═══════════════════════════════════════════════════════════════
    카드 레이어 v19 — 단계 3
    조건 축 넷을 데이터로 둔다. 효과 함수 안에 숨기지 않는다 —
@@ -1751,13 +1904,19 @@ function medianBoards(){
 //@ 카드.설치 — 설치물 두 칸 · 개방
 const rigTotal = n => (n.rig||0) + (n.rigLent||0);
 
+/* 설치 amt 로 처음 놓았을 때의 상한. 카드가 아니라 규칙이 정한다 */
+const rigCapOf = amt => Math.max(R.RIG_CAP_MIN, amt * R.RIG_CAP_MUL);
+/* 이 자리에 amt 짜리 설치를 더 얹을 수 있는가 — rigSet 과 같은 잣대를 쓴다.
+   카드의 need 가 이것을 부른다. 화면이 낼 수 있는지 미리 보는 데 쓴다 */
+const canRig = (n, amt) => !(n.rig>0 && n.rig >= (n.rigCap || rigCapOf(amt)));
+
 function rigSet(S,n,amt){
   if(n.rig>0){
-    const cap = Math.max(3, n.rigCap||amt*3);
+    const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
     if(n.rig>=cap) return false;
     n.rig = Math.min(cap, n.rig+amt); n.rigUp++;
   } else {
-    n.rig = amt; n.rigUp = 0; n.rigCap = Math.max(3, amt*3);
+    n.rig = amt; n.rigUp = 0; n.rigCap = rigCapOf(amt);
   }
   return true;
 }
@@ -1765,7 +1924,7 @@ function rigSet(S,n,amt){
 /* 개방 — 보통 설치물만 태운다. 빌려온 물건은 대상이 아니다 */
 function rigOpen(S,n,mult){
   if(!(n.rig>0)) return 0;
-  const amt = n.rig*(mult||2);
+  const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
   n.rig=0; n.rigUp=0; n.rigCap=0;
   return got;
@@ -1776,6 +1935,26 @@ function rigOpen(S,n,mult){
 function cardCost(S,id){
   const c = CARDS[id]; if(!c) return 0;
   return (S && c.costWhen) ? c.costWhen(S) : c.cost;
+}
+/* 이 카드가 지금 내는 수치 한 벌.
+   v 의 값이 함수면 판을 넣어 부른다 — 규칙 덮어쓰기가 R 을 바꾸면
+   카드에 적힌 숫자도 따라 바뀌어야 하기 때문이다.
+   구조 필드(cost·picks·bleed)도 같이 실어 준다. 본문이 그 숫자를 쓴다. */
+//@ 카드.수치 — 카드 하나의 숫자를 한 벌로 꺼낸다
+function cardNums(S, id){
+  const c = CARDS[id]; if(!c) return {};
+  const out = {cost: cardCost(S,id)};
+  if(c.picks) out.picks = c.picks;
+  if(c.bleed) out.bleed = c.bleed;
+  for(const k in (c.v||{})){ const x = c.v[k]; out[k] = typeof x==='function' ? x(S) : x }
+  return out;
+}
+/* 이 카드가 지금 이 자리에 넣는 억제 '원값' — 수정자가 붙기 전의 수.
+   기세처럼 판을 보고 커지는 카드는 raw 에 식을 적어 둔다. */
+function cardRaw(S, id, n){
+  const c = CARDS[id]; if(!c) return 0;
+  const v = cardNums(S, id);
+  return c.raw ? c.raw(S, n, v) : (v.sup || 0);
 }
 
 //@ 카드.덱조작 — 섞기 · 뽑기 · 덱 세우기
@@ -1857,7 +2036,7 @@ function play(S, id, node, arg){
     if((S.revisitOn||{})[id]) S.revisitNow = true;
     S.diagBonus = (S.diagPlus||{})[id] || 0;
   }
-  c.fx(S, node, arg);
+  c.fx(S, node, arg, cardNums(S, id));
   S.revisitNow = false; S.diagBonus = 0;
   if(S.rem && c.dept==='내과' && id!=='관해 유도') K.remGain(S, R.REM_GAIN);  // 관해도 수입
   S.played++; S.acts=(S.acts||0)+1;
@@ -1927,11 +2106,11 @@ function sessBudget(d){
    ══════════════════════════════════════════════════════════════════ */
 const rank = t => TIER.indexOf(t);
 
-/* 예산 = 레벨 1~2 표준 전액 + ⌈레벨 3~4 표준 × 0.7⌉ */
+/* 예산 = 낮은 레벨은 표준턴 전액, 그 위는 ⌈표준턴 × BUDGET_CUT⌉ */
 function budgetOf(list, std=STD){
   return list.reduce((s,id)=>{
     const lv = P.SCRIPT[id].lv;
-    return s + (lv<=2 ? std[lv] : Math.ceil(std[lv]*0.7));
+    return s + (lv<=BUDGET_FULL_LV ? std[lv] : Math.ceil(std[lv]*BUDGET_CUT));
   },0);
 }
 
@@ -1958,7 +2137,7 @@ function runOne(board, deck, seed, opt={}){
   const S = K.newState(board, opt); S.board = board;
   C.setupDeck(S, deck, K.mulberry32(seed));
   const core = board.core;
-  const hard = opt.hardCap || 40;
+  const hard = opt.hardCap || TURN_HARD_CAP;
   let t = 0;
   while(t < hard){
     if(S.hp<=0) break;
@@ -1985,7 +2164,7 @@ function runSession(list, deck, budget, seed, opt={}){
     const allowance = Math.max(1, Math.floor(left / remain));
     const board = P.makePatient(id, seed + i*97);
     const r = runOne(board, deck, seed + i*97 + 5,
-      {...opt, hardCap: Math.min(left, opt.hardCap||40),
+      {...opt, hardCap: Math.min(left, opt.hardCap||TURN_HARD_CAP),
        settleAt:(S,core,t)=>shouldSettle(S,core,t,allowance,aim)});
     left -= r.turns;
     out.push({id, out:r.out, turns:r.turns, hp:r.S.hp/r.S.hpMax});
@@ -1996,16 +2175,10 @@ function runSession(list, deck, budget, seed, opt={}){
 
 /* ── 왕진 ───────────────────────────────────────────────────
    포스터 6팀 중 둘을 고른다. 완충 = 1포스터에 3명, 그 밖 = 1명.
-   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다. */
-function runRound(list, deck, seed, opt={}){
-  const out=[];
-  list.forEach((id,i)=>{
-    const board = P.makePatient(id, seed + i*131);
-    const r = runOne(board, deck, seed + i*131 + 3, {...opt, hardCap: opt.hardCap||30});
-    out.push({id, out:r.out, turns:r.turns});
-  });
-  return out;
-}
+   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다.
+
+   전용 러너(runRound)는 v25 에서 걷어냈다 — 부르는 곳이 한 곳도 없었다.
+   왕진 배치는 SESSIONS.d3 의 rounds 를 펼친 list 를 runSession 에 넘겨 돈다. */
 
 //@ 파일.30-core/story
 
@@ -2032,8 +2205,9 @@ function makeDisease(key, rng){
     stage, stageMax:b.stageMax, stageClock:SR.STAGE_TURNS, beat:0};
   const nodes=[dis];
   b.seed.forEach((s,i)=>{
-    const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,50])[1] : 40;
-    const init = b.roster ? band + Math.floor(rng()*15) : 40 + Math.floor(rng()*20);
+    const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
+    const init = b.roster ? band + Math.floor(rng()*SR.SPOT_SPREAD)
+                          : SR.FREE_BASE + Math.floor(rng()*SR.FREE_SPREAD);
     nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
       grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
       rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
@@ -2049,7 +2223,7 @@ function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
 /* ── 병 노드 행동 ── */
 /* 자리 하나를 명부대로 세운다 */
 function laySpot(S, slot, turn, stage){
-  const init = slot[1] + Math.floor(S.rng()*15);
+  const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
   const nd = mkSpot(slot[0], init, turn);
   /* v25 — 레벨표를 그대로 본다. build() 와 달리 EVO_ADJ 가 빠져 있어서
      같은 턴에 깔린 자리들이 같은 턴에 진화했다. 그게 체력 절벽의 원인이었다. */
@@ -2098,7 +2272,7 @@ function wipeSpots(S){
 /* 성장 비트 — 폴백으로도 쓴다 */
 function growBeat(S){
   for(const n of K.active(S)) if(n.role!=='disease')
-    n.val=Math.min(Math.floor(n.init*R.VAL_CAP), n.val+Math.ceil(n.init*0.15));
+    n.val=Math.min(Math.floor(n.init*R.VAL_CAP), n.val+Math.ceil(n.init*SR.BEAT.성장));
   return '증상이 자란다';
 }
 
@@ -2123,7 +2297,7 @@ function diseaseAct(S, dis, act){
       const bd=BOSS[S.board.boss];
       const pool = bd.dupType ? [bd.dupType] : ['발열','통증','호흡곤란','감염','탈수'];
       const s = pool[Math.floor(S.rng()*pool.length)];
-      const init = 35 + Math.floor(S.rng()*25);
+      const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
       S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
         grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
         diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
@@ -2132,7 +2306,7 @@ function diseaseAct(S, dis, act){
     }
     return '분화 — 자리가 다 찼다';
   }
-  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= 1; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다 — 합쳐 2
+  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   /* ── v25 신설 ── 창은 아이 전용. 나머지 셋은 공용, 아래 넷은 보스 고유 ── */
   if(beat==='창'){                                  // 판이 무너진다 — 다음 비트 턴이 무방비다
     if(S.act!==3 || !SR.GIMMICK.WINDOW) return growBeat(S);
@@ -2151,7 +2325,7 @@ function diseaseAct(S, dis, act){
     const ns = active(S).filter(x=>x.role!=='disease');
     if(!ns.length) return growBeat(S);
     const x = ns.slice().sort((p,q)=>p.val-q.val)[0];
-    x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*0.40));
+    x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*SR.BEAT.몰린다));
     return '몰린다 — '+x.sym;
   }
   if(beat==='엮는다'){                               // 살아 있는 증상 둘 사이에 촉발 배선을 놓는다
@@ -2170,7 +2344,7 @@ function diseaseAct(S, dis, act){
   if(beat==='번진다'){                               // 어부 — 통증만 골라 초기값 비율로 오른다
     const ps = active(S).filter(x=>x.role!=='disease' && x.sym==='통증');
     if(!ps.length) return growBeat(S);
-    for(const x of ps) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*0.25));
+    for(const x of ps) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*SR.BEAT.번진다));
     return '번진다';
   }
   if(beat==='아문다'){                               // 어부 — 가장 옅은 자리 하나가 스스로 가라앉는다
@@ -2182,14 +2356,14 @@ function diseaseAct(S, dis, act){
   }
   if(beat==='치민다'){                               // 송이 — 금단의 정점
     const ns = active(S).filter(x=>x.role!=='disease');
-    for(const x of ns) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*0.30));
+    for(const x of ns) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*SR.BEAT.치민다));
     mind(S,+1);
     return '치민다';
   }
   if(beat==='가라앉는다'){                            // 송이 — 정점을 지나면 저절로 내려간다. 0 까지는 안 간다
     const ns = active(S).filter(x=>x.role!=='disease');
     if(!ns.length) return growBeat(S);
-    for(const x of ns) x.val = Math.max(1, x.val - Math.ceil(x.init*0.25));
+    for(const x of ns) x.val = Math.max(1, x.val - Math.ceil(x.init*SR.BEAT.가라앉는다));
     return '가라앉는다';
   }
   if(beat==='성장') return growBeat(S);
@@ -2283,7 +2457,6 @@ function storyVerdict(S, dis, policy){
                                 //  v19 는 완치 방침에서만 봐서, 연명 중 병을 끊으면
                                 //  판정이 영영 나지 않고 턴만 흘렀다.
   if(!policy) return null;
-  const others = K.alive(S).filter(n=>n.role!=='disease');
   /* v25 — 활성 부수 자리가 하나도 없으면 이긴다. 병 노드는 보지 않는다.
      휴면도 '비운 것'으로 센다 — 눌러서 내보냈고 병은 그대로다. */
   if(policy==='연명' && !dis.dead && !S.wiped
@@ -2316,10 +2489,11 @@ function act1PlayerTurn(S, aimEvid, ai){
 
 /* 진단 카드 한 장을 검사 파라미터로 쓴다 */
 function spendParam(S, id){
-  const c = C.CARDS[id];
-  if(C.cardCost(S,id) > S.energy) return false;
-  S.energy -= C.cardCost(S,id);
-  S.paramAcc += (id==='환기하세요' ? 2 : 1) + ((S.diagPlus||{})[id] || 0);
+  const cost = C.cardCost(S, id);
+  if(cost > S.energy) return false;
+  S.energy -= cost;
+  /* 카드마다 파라미터 몫이 다르다 — 안 적은 카드는 1 */
+  S.paramAcc += (C.cardNums(S,id).param ?? 1) + ((S.diagPlus||{})[id] || 0);
   const i=S.hand.indexOf(id); if(i>=0) S.hand.splice(i,1);
   S.discard.push(id); S.played++;
   if(S.rec) S.rec.push(`${id} → 검사`);
@@ -2338,7 +2512,7 @@ function act1(S, deck, opt={}){
   S.paramAcc = 0;
   S.act = 1; S.act1Beat = 0;
   let t=0;
-  const cap = opt.act1Cap || 12;
+  const cap = opt.act1Cap || SR.ACT1_CAP;
   const ai = opt.ai==='H' ? H.aiTurn : D.aiTurn;
   while(t<cap){
     if(S.hp<=0 && !BOSS[S.board.boss].noDeath) return {out:'사망', turns:t};
@@ -2360,7 +2534,7 @@ function act3(S, policy, correct, opt={}){
   const dis = S.nodes[0];
   applyPolicy(S, dis, policy, correct);            // 공용 — painCut 포함
   let t = 0;
-  const cap = opt.act3Cap || 30;
+  const cap = opt.act3Cap || SR.ACT3_CAP;
   while(t<cap){
     const v = storyVerdict(S, dis, policy);        // 공용 — 수동 화면도 같은 판정을 쓴다
     if(v) return {out:v, turns:t, stage:dis.stage};
@@ -2399,10 +2573,10 @@ function storyTurn(S, dis, policy){
 
     const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
     if(!sup.length) break;
-    const card = sup.sort((a,b)=>(C.CARDS[b].sup||6)/Math.max(1,C.CARDS[b].cost)-(C.CARDS[a].sup||6)/Math.max(1,C.CARDS[a].cost))[0];
+    const card = sup.sort((a,b)=>(C.CARDS[b].v.sup||6)/Math.max(1,C.CARDS[b].cost)-(C.CARDS[a].v.sup||6)/Math.max(1,C.CARDS[a].cost))[0];
     const cd = C.CARDS[card];
     if(wantDis){
-      S.energy-=C.cardCost(S,card); hitDisease(S,dis,cd.sup||6); S.played++;
+      S.energy-=C.cardCost(S,card); hitDisease(S,dis,cd.v.sup||6); S.played++;
       if(S.rec) S.rec.push(`${card} → 병 노드`);
       const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
       continue;
@@ -2477,7 +2651,7 @@ function evalState(S){
   }
   v += (S.pendKill||[]).length * W.dead * 0.8;   // 미뤄 둔 처치도 거의 뽑은 것으로 본다
   v += (S.hp/S.hpMax)*W.hp;
-  v -= (S.mind==='불안'?W.anx : S.mind==='공황'?W.panic : S.mind==='의식불명'?W.panic*0.78 : 0);
+  v -= (S.mind==='불안'?W.anx : S.mind==='공황'?W.panic : S.mind==='의식불명'?W.panic*R.MIND_KO_W : 0);
   v += S.energy*W.energy + S.hand.length*W.hand;
   return v;
 }
@@ -2517,7 +2691,7 @@ function moves(S){
       } else {
         /* 여러 장은 조합이 커진다 — 값이 싼 쪽부터 정해진 수만큼 버린다 */
         const cheap = pool.slice().sort((a,b)=>
-          (C.CARDS[a].sup||0)/Math.max(1,C.cardCost(S,a)) - (C.CARDS[b].sup||0)/Math.max(1,C.cardCost(S,b)));
+          (C.CARDS[a].v.sup||0)/Math.max(1,C.cardCost(S,a)) - (C.CARDS[b].v.sup||0)/Math.max(1,C.cardCost(S,b)));
         out.push({t:'card', id, i:-1, arg:cheap.slice(0,want)});
       }
     } else out.push({t:'card', id, i:-1});
@@ -2586,10 +2760,6 @@ function runDeck(board, deck, seed, opt={}){
    §7 v18 휴리스틱 (대조용)
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* 덱을 쥔 표준 플레이 — 단계 3 */
 
 //@ AI옛.평가 — v18 휴리스틱. 대조용으로만 남는다
@@ -2618,13 +2788,17 @@ function focus(S){
   const c=K.alive(S).filter(n=>n.val>0&&need(S,n)>0);
   if(!c.length) return null;
   const reach=c.filter(n=>{
-    let best=0; for(const id of S.hand){const cd=C.CARDS[id]; if(cd&&cd.sup&&C.cardCost(S,id)<=S.energy) best=Math.max(best,effSup(S,n,cd.sup))}
+    let best=0; for(const id of S.hand){const cd=C.CARDS[id]; if(cd&&cd.v.sup&&C.cardCost(S,id)<=S.energy) best=Math.max(best,effSup(S,n,cd.v.sup))}
     return best>=need(S,n);
   }).sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
   return reach || c.sort((a,b)=>threat(S,b)-threat(S,a))[0];
 }
 
-//@ AI옛.턴 — v18 한 턴 · 한 판
+//@ AI옛.턴 — v18 한 턴.
+/* 한 판을 끝까지 도는 러너(runDeckH)는 v25 에서 걷어냈다 — 부르는 곳이 없었고,
+   이름은 H 인데 본문이 새 빔 탐색(aiTurn)을 부르고 있어 대조용 구실도 못 했다.
+   옛 AI 로 한 판을 돌리려면 runDeck(board, deck, seed, {ai:'H'}) 를 쓴다 —
+   배치 탭의 「휴리스틱 (v18 대조)」가 타는 길이 그것이다. */
 function aiTurnH(S, opt={}){
   S.played=0;
   let guard=0;
@@ -2666,7 +2840,7 @@ function aiTurnH(S, opt={}){
     let pick=null,ps=-1;
     for(const id of sup){
       const cd=C.CARDS[id];
-      const e = cd.sup ? effSup(S,f,cd.sup) : 6;
+      const e = cd.v.sup ? effSup(S,f,cd.v.sup) : 6;
       let sc = e/Math.max(1,cd.cost);
       if(e>=need(S,f)) sc += 50;
       if(cd.target==='all') sc += K.alive(S).length*1.5;
@@ -2674,22 +2848,6 @@ function aiTurnH(S, opt={}){
     }
     if(!C.play(S,pick,f)) break;
   }
-}
-
-function runDeckH(board, deck, seed, opt={}){
-  const rng=K.mulberry32(seed);
-  const S=K.newState(board, opt); S.board=board;
-  C.setupDeck(S, deck, rng);
-  const CAP=opt.turnCap||40;
-  for(let t=1;t<=CAP;t++){
-    if(S.hp<=0) return {out:'사망',turns:t,S};
-    if(K.alive(S).length===0) return {out:S.evoLog?'호전':'완치',turns:t,S};
-    aiTurn(S,opt);
-    if(K.alive(S).length===0) return {out:S.evoLog?'호전':'완치',turns:t,S};
-    C.endTurnHand(S);
-    K.turnResolve(S);
-  }
-  return {out:'시간초과',turns:CAP,S};
 }
 
 //@ 자름.커널끝 — 여기까지가 화면 없이 도는 부분
@@ -2705,19 +2863,22 @@ function runDeckH(board, deck, seed, opt={}){
 /* ── 모듈 간 참조를 잇는다 (원본 파일이 require 로 나눠져 있던 자리) ── */
 const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,
   killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,outcome,
+  supAmt,stabAmt,diagAmt,
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
+/* medianBoards 는 화면에서 부르는 곳이 없다. 레벨표 중앙값으로 S 를 되짚는
+   자체 검산이고, 지금 이것을 부르는 것은 sim_check.js 뿐이다. */
 const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
 
-const C={CARDS,DECK_D1,DECK_D2,BAG_D3,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
-         cardCost,hasRevisit,rigTotal,handPicks,pickNeed};
+const C={CARDS,DECK_D1,DECK_D2,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
+         cardCost,cardNums,cardRaw,hasRevisit,rigTotal,handPicks,pickNeed,VAL_KIND};
 
 const P={SCRIPT,SESSIONS,makePatient};
 
-const D={aiTurn,runDeck};          // 새 AI 를 기본으로 쓴다
+const D={aiTurn};                  // 새 AI 를 기본으로 쓴다
 
-const H={aiTurn:aiTurnH,runDeck:runDeckH};   // 옛 휴리스틱 (대조용)
+const H={aiTurn:aiTurnH};          // 옛 휴리스틱 (대조용). 갈래는 runDeck 이 opt.ai 로 고른다
 
 //@ 자름.배선끝 — 문서를 열면 여기서 시작한다
 
@@ -2728,128 +2889,157 @@ const H={aiTurn:aiTurnH,runDeck:runDeckH};   // 옛 휴리스틱 (대조용)
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
 /* ── 분과 키워드 ── 출처: 「카드 시스템 정리」 ── */
+/* 설명문에 숫자를 글자로 박지 않는다. 박아 두면 「규칙 덮어쓰기」로 손잡이를
+   만지는 순간 설명이 거짓말을 시작하고, 이 도구의 용도가 정확히 그것이다.
+
+   그래서 규칙값을 인용하는 항목은 전부 <b>get</b> 으로 적는다 — 읽을 때마다
+   지금의 R · SR · CARDS 를 본다. 쓰는 쪽은 예전처럼 KWTIP['약화'] 로 꺼내면
+   되므로 소비처는 하나도 고칠 것이 없다.
+   규칙과 무관한 순수한 설명은 그냥 문자열로 둔다. */
 //@ 화면.설명사전 — §9.3 키워드 · 연결선 · 박자 설명문
 const TT = (title, body) => `<span class="tt">${title}</span>${body}`;
+const pctOf = x => Math.round(x*100) + '%';
+/* 소수 자릿수를 붙들지 않고 사람이 읽는 대로 */
+const numOf = x => Number.isInteger(x) ? String(x) : String(Math.round(x*100)/100);
 
 const KWTIP = {
-'약화': TT('약화 · 외과',
-  '스택당 노드의 처치선이 <b>5%</b> 올라간다.<br>병 노드에는 효과가 반감된다(2.5%). 처치선은 최대 100%까지 올라간다.<br>약화로 기존 처치선보다 높은 곳에서 처치해도 광역 억제는 초기값 50% 기준으로 발동된다.<br><span class="d">예 · 약화 2 → 처치선 50%에서 60%로.</span>'),
-'기세': TT('기세 · 외과',
-  '증상을 처치할 때 기세가 쌓인다. 처치 한 번에 얼마가 쌓이는지는 규칙값이다.<br>'
+get '약화'(){ return TT('약화 · 외과',
+  `스택당 노드의 처치선이 <b>${pctOf(R.WEAK_STACK)}</b> 올라간다.<br>병 노드에는 효과가 반감된다(${pctOf(R.WEAK_STACK_DIS)}). 처치선은 최대 ${pctOf(R.WEAK_LINE_MAX)}까지 올라간다.<br>약화로 기존 처치선보다 높은 곳에서 처치해도 광역 억제는 초기값 ${pctOf(R.SWEEP_CAP)} 기준으로 발동된다.<br><span class="d">예 · 약화 2 → 처치선 ${pctOf(R.KILL_LINE)}에서 ${pctOf(R.KILL_LINE + R.WEAK_STACK*2)}로.</span>`) },
+get '기세'(){ return TT('기세 · 외과',
+  `증상을 처치할 때 기세가 쌓인다. 처치 한 번에 <b>${R.RUSH_PER}</b> 쌓이고 상한은 <b>${R.RUSH_MAX}</b> 다.<br>`
   +'단독으로는 아무 효과가 없다. 참조하는 카드만 쓴다.<br>'
   +'기세 하나가 얼마를 사는지는 <b>카드마다 다르다</b> — 규칙이 아니라 카드가 정한다.<br>'
-  +'<span class="d">예 · 「몰아붙인다」는 소모한 기세 하나당 억제 6.</span>'),
-'사혈': TT('사혈 · 외과',
+  +`<span class="d">예 · 「몰아붙인다」는 소모한 기세 하나당 억제 ${CARDS['몰아붙인다'].v.per}.</span>`) },
+get '사혈'(){ return TT('사혈 · 외과',
   '환자 체력을 지불해 효과를 키운다. 1단부터 3단까지 있고 단수 하나가 1코스트의 값을 한다.'
   +'<table><tr><th>단</th><th>지불(최대 체력)</th><th>사는 값</th></tr>'
-  +'<tr><td>1단</td><td>4%</td><td>억제 6 · 안정화 5 · 진단 2 · 드로우 2</td></tr>'
-  +'<tr><td>2단</td><td>9%</td><td>억제 14 · 안정화 10 · 진단 3 · 드로우 5</td></tr>'
-  +'<tr><td>3단</td><td>15%</td><td>억제 23 · 안정화 10+ · 진단 3+</td></tr></table>'
-  +'<br><b>하한 1</b> — 지불 후 체력이 1 이상 남을 때만 낼 수 있다. 사혈이 직접 죽이지 않는다.'
-  +'<br><b>턴당 상한 15%</b> — 한 턴에 3단 하나 또는 1단+2단까지다.'
-  +'<br><b>코스트 + 단수 ≤ 3</b>'
-  +'<br>한 턴에 최대 체력의 15% 이상 잃으면 정신 상태가 한 단계 악화한다(턴당 1회).'),
-'사혈1': TT('사혈 1단',
-  '최대 체력의 <b>4%</b>를 지불한다.<br>사는 값 = 억제 6 · 안정화 5 · 진단 2 · 드로우 2.<br>지불 후 체력이 1 이상 남아야 낼 수 있다. 한 턴 지불 총량은 15%까지.'),
-'사혈2': TT('사혈 2단',
-  '최대 체력의 <b>9%</b>를 지불한다.<br>사는 값 = 억제 14 · 안정화 10 · 진단 3 · 드로우 5.<br>지불 후 체력이 1 이상 남아야 낼 수 있다. 한 턴 지불 총량은 15%까지.'),
-'사혈3': TT('사혈 3단',
-  '최대 체력의 <b>15%</b>를 지불한다.<br>사는 값 = 억제 23 · 안정화 10+추가 · 진단 3+추가.<br>한 턴에 이것 하나면 상한을 다 쓴다. 지불 직후 정신이 한 단계 무너진다.'),
-'재진': TT('재진 · 내과',
+  +`<tr><td>1단</td><td>${pctOf(R.BLEED_PAY[1])}</td><td>억제 6 · 안정화 5 · 진단 2 · 드로우 2</td></tr>`
+  +`<tr><td>2단</td><td>${pctOf(R.BLEED_PAY[2])}</td><td>억제 14 · 안정화 10 · 진단 3 · 드로우 5</td></tr>`
+  +`<tr><td>3단</td><td>${pctOf(R.BLEED_PAY[3])}</td><td>억제 23 · 안정화 10+ · 진단 3+</td></tr></table>`
+  +`<br><b>하한 ${R.BLEED_FLOOR}</b> — 지불 후 체력이 ${R.BLEED_FLOOR} 이상 남을 때만 낼 수 있다. 사혈이 직접 죽이지 않는다.`
+  +`<br><b>턴당 상한 ${pctOf(R.BLEED_TURN_CAP)}</b> — 한 턴에 3단 하나 또는 1단+2단까지다.`
+  +`<br><b>코스트 + 단수 ≤ ${R.ENERGY}</b>`
+  +`<br>한 턴에 최대 체력의 ${pctOf(R.MIND_BIGHIT)} 이상 잃으면 정신 상태가 한 단계 악화한다(턴당 1회).`) },
+get '사혈1'(){ return TT('사혈 1단',
+  `최대 체력의 <b>${pctOf(R.BLEED_PAY[1])}</b>를 지불한다.<br>사는 값 = 억제 6 · 안정화 5 · 진단 2 · 드로우 2.<br>지불 후 체력이 ${R.BLEED_FLOOR} 이상 남아야 낼 수 있다. 한 턴 지불 총량은 ${pctOf(R.BLEED_TURN_CAP)}까지.`) },
+get '사혈2'(){ return TT('사혈 2단',
+  `최대 체력의 <b>${pctOf(R.BLEED_PAY[2])}</b>를 지불한다.<br>사는 값 = 억제 14 · 안정화 10 · 진단 3 · 드로우 5.<br>지불 후 체력이 ${R.BLEED_FLOOR} 이상 남아야 낼 수 있다. 한 턴 지불 총량은 ${pctOf(R.BLEED_TURN_CAP)}까지.`) },
+get '사혈3'(){ return TT('사혈 3단',
+  `최대 체력의 <b>${pctOf(R.BLEED_PAY[3])}</b>를 지불한다.<br>사는 값 = 억제 23 · 안정화 10+추가 · 진단 3+추가.<br>한 턴에 이것 하나면 상한을 다 쓴다. 지불 직후 정신이 한 단계 무너진다.`) },
+get '재진'(){ return TT('재진 · 내과',
   '진단이 완료된 자리를 다시 여는 태그. 재진 없이는 2회차로 들어갈 수 없다.'
   +'<table><tr><th>회차</th><th>요구 스택</th><th>여는 카드</th><th>얻는 것</th></tr>'
-  +'<tr><td>1</td><td>3</td><td>전 분과</td><td>연결선 · 진화 카운터 노출</td></tr>'
-  +'<tr><td>2</td><td>4</td><td><b>재진</b></td><td>반응 1등급 영구 강등 · 수치 −10%p</td></tr>'
-  +'<tr><td>3 이상</td><td>5, 6, 7…</td><td><b>재진</b></td><td>수치 −20%p</td></tr></table>'),
+  +`<tr><td>1</td><td>${R.DIAG_NEED}</td><td>전 분과</td><td>연결선 · 진화 카운터 노출</td></tr>`
+  +`<tr><td>2</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP}</td><td><b>재진</b></td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
+  +`<tr><td>3 이상</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP*2}, ${R.DIAG_NEED + R.DIAG_NEED_UP*3}, …</td><td><b>재진</b></td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
 '관해': TT('관해 · 내과',
   '매 턴 관해도를 지불하고 전장을 멈춘다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b><br>특정 내과 카드는 관해가 지속된 턴 수에 따라 강해진다.'),
-'관해도': TT('관해도 · 내과',
-  '관해를 유지하는 자원. 상한 <b>10</b>, 개시 시 초기값 <b>3</b>.<br>매 턴 시작 시 <b>3</b>이 빠지고 모자라면 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+1</b>.'),
-'지연': TT('지연 · 내과',
-  '진화 카운터를 <b>N턴 뒤로</b> 민다.<br>미룬 턴 1당 노드 수치가 초기값의 <b>10%</b>만큼 늘어난다.<br><span class="d">예 · 지연 1 → 진화 카운터 +1, 노드 수치 +10%.</span>'),
-'설치': TT('설치 · 의공학',
-  '노드에 매 턴 자동으로 억제하는 설치물을 놓는다.<br>같은 설치물에 설치 카드를 다시 쓰면 자동 억제 수치가 더해진다.<br>상한은 <b>설치한 카드 수치의 3배</b>(최소 3).<br>설치물은 <b>보호막을 무시</b>한다. 노드를 처치하면 설치물도 사라진다.<br><span class="d">예 · 설치 4 → 매 턴 4 억제. 다시 쓰면 8. 상한 12.</span>'),
-'설치물': null,
-'개방': TT('개방 · 의공학',
-  '설치물을 소모해 그 노드를 <b>설치물 수치의 두 배</b>만큼 억제한다.<br>개방한 설치물은 사라진다. 수치가 없는 유틸용 조립도 같이 사라진다.'),
+get '관해도'(){ return TT('관해도 · 내과',
+  `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 빠지고 모자라면 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
+get '지연'(){ return TT('지연 · 내과',
+  `진화 카운터를 <b>N턴 뒤로</b> 민다.<br>미룬 턴 1당 노드 수치가 초기값의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.<br><span class="d">예 · 지연 1 → 진화 카운터 +1, 노드 수치 +${pctOf(R.DELAY_GROW)}.</span>`) },
+get '설치'(){ const rig = CARDS['거치'].v.rig, cap = Math.max(R.RIG_CAP_MIN, rig*R.RIG_CAP_MUL);
+  return TT('설치 · 의공학',
+  `노드에 매 턴 자동으로 억제하는 설치물을 놓는다.<br>같은 설치물에 설치 카드를 다시 쓰면 자동 억제 수치가 더해진다.<br>상한은 <b>설치한 카드 수치의 ${R.RIG_CAP_MUL}배</b>(최소 ${R.RIG_CAP_MIN}).<br>설치물은 <b>보호막을 무시</b>한다. 노드를 처치하면 설치물도 사라진다.<br><span class="d">예 · 설치 ${rig} → 매 턴 ${rig} 억제. 다시 쓰면 ${rig*2}. 상한 ${cap}.</span>`) },
+get '설치물'(){ return KWTIP['설치'] },
+get '개방'(){ return TT('개방 · 의공학',
+  `설치물을 소모해 그 노드를 <b>설치물 수치의 ${CARDS['출력 개방'].v.mult}배</b>만큼 억제한다.<br>개방한 설치물은 사라진다. 수치가 없는 유틸용 조립도 같이 사라진다.`) },
 };
-
-KWTIP['설치물'] = KWTIP['설치'];
 
 /* ── 전이 · 촉발 ── */
 const LINKTIP = {
-'가속': TT('가속 · 촉발',
+get '가속'(){ return TT('가속 · 촉발',
   '<b>앞쪽 자리를 처치하는 순간</b> 한 번 터진다. 상시 발동이 아니다.<br>'
-  +'터지면 뒤쪽 자리의 성장률이 <b>+0.12</b>(강반응 +0.24) 오른다.<br><br>'
+  +`터지면 뒤쪽 자리의 성장률이 <b>+${numOf(R.LINK.가속.약)}</b>(강반응 +${numOf(R.LINK.가속.강)}) 오른다.<br><br>`
   +'<span class="d">한 번 붙은 성장률은 되돌아가지 않는다. 그래서 판에서는 계속 걸려 있는 것처럼 보인다 — 배선이 매 턴 도는 게 아니라 이미 받은 값이 남아 있는 것이다.</span><br><br>'
-  +'휴면 등급에서 끊으면 촉발이 아예 터지지 않는다.'),
-'경화': TT('경화 · 촉발',
+  +'휴면 등급에서 끊으면 촉발이 아예 터지지 않는다.') },
+get '경화'(){ return TT('경화 · 촉발',
   '<b>앞쪽 자리를 처치하는 순간</b> 한 번 터진다.<br>'
   +'뒤쪽 자리에 보호막이 다시 씌워지고 안정화 누적이 0으로 돌아간다.<br>'
-  +'받는 피해 30% 경감, 강반응이면 50%.<br><br>'
-  +'휴면 등급에서 끊으면 터지지 않는다.'),
-'점화': TT('점화 · 촉발',
+  +`받는 피해 ${pctOf(R.SHIELD_CUT)} 경감, 강반응이면 ${pctOf(R.LINK.경화.강)}.<br><br>`
+  +'휴면 등급에서 끊으면 터지지 않는다.') },
+get '점화'(){ return TT('점화 · 촉발',
   '<b>앞쪽 자리를 처치하는 순간</b> 한 번 터진다.<br>'
-  +'뒤쪽 자리가 공격 증상이면 그 수치의 20%만큼 환자를 즉시 때린다. 강반응은 두 배.<br><br>'
-  +'휴면 등급에서 끊으면 터지지 않는다.'),
-'발현': TT('발현 · 전이',
+  +`뒤쪽 자리가 공격 증상이면 그 수치의 ${pctOf(R.ATK_K*R.LINK.점화.약)}만큼 환자를 즉시 때린다. 강반응은 ${pctOf(R.ATK_K*R.LINK.점화.강)}.<br><br>`
+  +'휴면 등급에서 끊으면 터지지 않는다.') },
+get '발현'(){ return TT('발현 · 전이',
   '<b>앞쪽 자리를 처치하는 순간</b> 뒤쪽 증상이 새로 태어난다.<br>'
-  +'초기값은 끊은 자리의 60%, 강반응이면 80%. 보호막을 달고 나온다.<br>'
-  +'같은 증상이 이미 판에 있으면 생기지 않는다.'),
-'무장발현': TT('무장발현 · 전이',
+  +`초기값은 끊은 자리의 ${pctOf(R.LINK.발현.약)}, 강반응이면 ${pctOf(R.LINK.발현.강)}. 보호막을 달고 나온다.<br>`
+  +'같은 증상이 이미 판에 있으면 생기지 않는다.') },
+get '무장발현'(){ return TT('무장발현 · 전이',
   '<b>앞쪽 자리를 처치하는 순간</b> 뒤쪽 증상이 성장률을 달고 태어난다.<br>'
-  +'약반응 0.12, 강반응 0.20. 그 밖은 발현과 같다.'),
+  +`약반응 ${numOf(R.LINK.무장발현.약)}, 강반응 ${numOf(R.LINK.무장발현.강)}. 그 밖은 발현과 같다.`) },
 '불응': TT('불응 · 강화', '이 환자에게만 걸린 강화형 배선이다. 앞쪽 자리를 처치할 때 상태가 뒤쪽으로 옮는다.'),
 };
 
 /* ── 병 노드 행동 ── */
 const BEATTIP = {
 '분화': TT('분화', '부수 증상 하나를 새로 뿜는다. 병기별 자리 상한에 닿아 있으면 아무 일도 일어나지 않는다.'),
-'진행': TT('진행', '병기 시계를 2 당긴다. 다음 병기가 그만큼 빨리 온다.'),
-'가속': TT('가속', '병기 시계를 2 당긴다.'),
-'병기 가속': TT('병기 가속', '병기 시계를 2 당긴다.'),
-'성장': TT('성장', '살아 있는 부수 증상이 전부 초기값의 15%만큼 자란다.'),
+get '진행'(){ return TT('진행', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다. 다음 병기가 그만큼 빨리 온다.`) },
+get '가속'(){ return TT('가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
+get '병기 가속'(){ return TT('병기 가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
+get '성장'(){ return TT('성장', `살아 있는 부수 증상이 전부 초기값의 ${pctOf(SR.BEAT.성장)}만큼 자란다.`) },
 '같은 박자': TT('같은 박자', '이번 턴은 아무것도 하지 않는다. 준비할 자리다.'),
 '창': TT('창 · 아이 전용', '부수 자리가 전부 무너진다. 다음 비트 턴에는 병 노드가 보호막 없이 선다.'),
 '굳는다': TT('굳는다', '보호막이 벗겨진 자리 전부에 다시 보호막을 두른다.'),
-'몰린다': TT('몰린다', '수치가 가장 낮은 자리 하나만 초기값의 40%만큼 밀어 올린다.'),
+get '몰린다'(){ return TT('몰린다', `수치가 가장 낮은 자리 하나만 초기값의 ${pctOf(SR.BEAT.몰린다)}만큼 밀어 올린다.`) },
 '엮는다': TT('엮는다', '살아 있는 증상 둘 사이에 촉발 배선을 새로 놓는다.'),
-'번진다': TT('번진다 · 어부', '활성 통증 자리가 전부 초기값의 25%만큼 오른다.'),
+get '번진다'(){ return TT('번진다 · 어부', `활성 통증 자리가 전부 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 오른다.`) },
 '아문다': TT('아문다 · 어부', '수치가 가장 낮은 자리 하나가 스스로 휴면에 든다.'),
-'치민다': TT('치민다 · 송이', '자리 전부가 초기값의 30%만큼 오르고 정신이 한 단계 무너진다.'),
-'가라앉는다': TT('가라앉는다 · 송이', '자리 전부가 초기값의 25%만큼 내려간다. 하한은 1이라 휴면에는 들지 않는다.'),
+get '치민다'(){ return TT('치민다 · 송이', `자리 전부가 초기값의 ${pctOf(SR.BEAT.치민다)}만큼 오르고 정신이 한 단계 무너진다.`) },
+get '가라앉는다'(){ return TT('가라앉는다 · 송이', `자리 전부가 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 내려간다. 하한은 1이라 휴면에는 들지 않는다.`) },
 '고유': TT('고유', '이 병만의 수. 병과 병기마다 다르다.'),
 };
 
 const UNIQTIP = {
-'아이:3': TT('파고든다 · 고유', '신경계 자리(통증 · 호흡곤란)의 진화 시계를 1씩 당긴다.'),
+get '아이:3'(){ return TT('파고든다 · 고유', `신경계 자리(통증 · 호흡곤란)의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`) },
 '아이:4': TT('알아듣지 못한다 · 고유', '정신 상태가 한 단계 무너진다.'),
 '아이:5': TT('터진다 · 고유', '재워 둔 자리 하나가 초기값 그대로 다시 일어난다.'),
-'어부:3': TT('긁는다 · 고유', '활성 통증 자리가 둘 이상이고 감염이 없으면 이차 감염이 새로 앉는다.'),
+get '어부:3'(){ return TT('긁는다 · 고유', `활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이고 감염이 없으면 이차 감염이 새로 앉는다.`) },
 '송이:3': TT('지금이면 괜찮아진다 · 고유', '재워 둔 자리 하나를 깨우고 정신을 한 단계 무너뜨린다.'),
 };
 
 /* ── 카드 글 ── 키워드에 밑줄을 긋고 툴팁을 단다 ── */
 const KWORDS = ['관해도','관해','설치물','설치','개방','약화','기세','재진','지연'];
 
+/* ── 증상 고유 수치의 이름표 · 증감 단위 · 설명문 ─────────────
+   수치 자체(key·def)는 SYMPARAM(10-config)에 있다. 여기는 사람이 읽는 몫이다.
+   why 는 글이 아니라 함수다 — 부를 때마다 지금의 R 을 읽는다. 글에 숫자를
+   박아 두면 「규칙 덮어쓰기」로 손잡이를 만지는 순간 설명이 거짓말을 한다. */
+//@ 화면.증상수치설명 — 증상 고유 수치의 이름표와 설명문
+const SYMDOC = {
+  출혈:     {label:'성장률(복리)', step:0.05,
+             why:()=>`매 턴 <b>현재 수치</b>에 이 비율만큼 더해진다. 초기값이 아니라 현재 수치라 늦게 손대면 복리로 커진다.<br>진화하면 이 값이 <b>${R.EVO_BLEED_ACC}배</b>가 된다.`},
+  감염:     {label:'총 성장 비율', step:0.02,
+             why:()=>`살아 있는 동안 <b>현재 수치</b>의 이 비율만큼 총 성장을 만든다.<br>총량을 <b>다른 모든 자리</b>가 나눠 갖는다 — 자리가 늘어도 판 전체 성장은 그대로다.<br>진화하면 총량이 <b>${R.EVO_X2}배</b>가 되고 자기 진단 요구가 ${R.EVO_INF_DIAG} 오른다.`},
+  탈수:     {label:'안정화 나누기', step:0.5,
+             why:()=>`살아 있는 동안 안정화가 쌓는 값을 이 수로 나눈다. 지금 값 ${R.DEHY_STAB} 이면 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.<br>진화하면 이 자리의 보호막을 아예 못 깎는다.`},
+  발열:     {label:'진화 수치 배수', step:0.1,
+             why:()=>`진화하는 턴에 수치가 이 배수만큼 뛴다.<br>매 턴 피해는 공격 증상 공통값(수치의 <b>${pctOf(R.ATK_K)}</b>)을 쓴다.`},
+  통증:     {label:'처치선 배율', step:0.05,
+             why:()=>`살아 있는 동안 판 전체의 처치선에 이 값을 곱한다. 여러 자리면 곱연산으로 겹친다.<br>하한은 규칙값(지금 <b>${pctOf(R.PAIN_FLOOR)}</b>)이다.<br>진화하면 통증 말고는 아무것도 처치할 수 없다.`},
+  호흡곤란: {label:'드로우 감소', step:1,
+             why:()=>`살아 있는 동안 턴 드로우를 이만큼 줄인다.<br>진화하면 <b>${R.EVO_X2}배</b>로 줄인다.`},
+};
+
 /* 진화한 자리가 무엇을 하는가 — 그 자리의 실제 값으로 적는다 */
 const EVOTXT_F = {
-  발열:     n=>`수치가 <b>${sp(n,'발열')}배</b>로 뛴 상태다. 매 턴 피해는 그대로 수치의 20%.`,
-  출혈:     n=>`매 턴 성장이 <b>${Math.round(sp(n,'출혈')*100)}%</b>로 두 배가 됐다. 클수록 더 빨리 큰다.`,
-  감염:     n=>`만드는 총 성장이 <b>현재 수치의 ${Math.round(sp(n,'감염')*200)}%</b>로 두 배가 됐다. 자기 진단 요구도 1 올랐다.`,
+  발열:     n=>`수치가 <b>${sp(n,'발열')}배</b>로 뛴 상태다. 매 턴 피해는 그대로 수치의 ${pctOf(R.ATK_K)}.`,
+  출혈:     n=>`매 턴 성장이 <b>${pctOf(sp(n,'출혈'))}</b>로 ${R.EVO_BLEED_ACC}배가 됐다. 클수록 더 빨리 큰다.`,
+  감염:     n=>`만드는 총 성장이 <b>현재 수치의 ${pctOf(sp(n,'감염')*R.EVO_X2)}</b>로 ${R.EVO_X2}배가 됐다. 자기 진단 요구도 ${R.EVO_INF_DIAG} 올랐다.`,
   탈수:     n=>`이 자리의 보호막을 <b>아예 깎을 수 없다</b>. 안정화가 통하지 않는다.`,
   통증:     n=>`<b>통증 말고는 아무것도 처치할 수 없다.</b> 처치선 배율 ${sp(n,'통증')}는 그대로 걸려 있다.`,
-  호흡곤란: n=>`드로우 감소가 <b>${sp(n,'호흡곤란')*2}장</b>으로 두 배가 됐다.`,
+  호흡곤란: n=>`드로우 감소가 <b>${sp(n,'호흡곤란')*R.EVO_X2}장</b>으로 ${R.EVO_X2}배가 됐다.`,
 };
 
 /* ── 증상 설명 ── */
 const SYMTIP = {
- 발열:'공격 증상. 매 턴 수치의 20%만큼 환자를 때린다.<br>진화하면 수치가 1.5배로 뛴다.',
- 출혈:'공격 증상. 매 턴 수치의 20%만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.<br>진화하면 성장이 두 배로 빨라진다.',
- 감염:'다른 모든 자리에 성장률을 얹는다. 진화하면 두 배.<br>진화 시 자기 진단 요구 스택이 1 오른다.',
- 탈수:'살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 절반이다.<br>진화하면 이 자리의 보호막을 아예 벗길 수 없다.',
- 통증:'살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 25%).<br>진화하면 통증 말고는 아무것도 처치할 수 없다.',
- 호흡곤란:'살아 있는 동안 턴 드로우를 깎는다. 기본은 1장이다.<br>진화하면 두 배로 깎는다.',
+ get 발열(){ return `공격 증상. 매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>진화하면 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.` },
+ get 출혈(){ return `공격 증상. 매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.<br>진화하면 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.` },
+ get 감염(){ return `다른 모든 자리에 성장률을 얹는다. 진화하면 ${R.EVO_X2}배.<br>진화 시 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.` },
+ get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.<br>진화하면 이 자리의 보호막을 아예 벗길 수 없다.` },
+ get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).<br>진화하면 통증 말고는 아무것도 처치할 수 없다.` },
+ get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.<br>진화하면 ${R.EVO_X2}배로 깎는다.` },
 };
 
 //@ 파일.60-text/rule-doc
@@ -2962,7 +3152,15 @@ const RULE_DOC = {
   MIND_BIGHIT:'한 턴에 최대 체력의 몇 %를 잃으면 정신이 무너지는가',
   MIND_ANX_SUP:'불안·공황일 때 억제에서 깎는 값', MIND_ANX_DIAG:'불안·공황일 때 진단에서 깎는 값',
   MIND_CALM_STAB:'평정일 때 안정화에 곱하는 값',
-  RUSH_MAX:'기세 상한', RUSH_PER:'처치 한 번에 얻는 기세', RUSH_SCOPE:'기세가 유지되는 범위',
+  RUSH_MAX:'기세 상한', RUSH_PER:'처치 한 번에 얻는 기세',
+  LINK:'촉발·전이가 얹는 값. 반응 등급이 강이면 강 쪽, 약이면 약 쪽을 쓴다. 경화의 약한 쪽은 값이 따로 없고 SHIELD_CUT 을 그대로 쓴다',
+  HIT_ANX:'한 자리를 한 턴에 이만큼 억제하면 평정이 불안으로 간다',
+  RIG_CAP_MIN:'설치 상한의 바닥', RIG_CAP_MUL:'처음 놓은 값의 이 배수까지 쌓인다',
+  RIG_OPEN_MULT:'개방 기본 배수. 카드가 따로 적으면 그쪽을 쓴다',
+  EVO_X2:'진화하면 몇 배가 되는가. 감염 총 성장과 호흡곤란 드로우 감소가 쓴다',
+  EVO_INF_DIAG:'감염이 진화하면 자기 진단 요구가 이만큼 오른다',
+  DRAW_CUT:'호흡곤란 한 자리가 줄이는 드로우',
+  MIND_KO_DIAG:'의식불명일 때 진단에서 더 빠지는 값', MIND_KO_W:'자동 진행이 의식불명을 공황의 몇 배로 보는가',
   BLEED_PAY:'사혈 단수별 지불 (최대 체력 비율)', BLEED_TURN_CAP:'한 턴 사혈 지불 상한',
   BLEED_FLOOR:'사혈 뒤 남아야 하는 체력',
   REM_MAX:'관해도 상한', REM_START:'관해 개시 시 관해도', REM_UPKEEP:'매 턴 빠지는 관해도',
@@ -2977,20 +3175,32 @@ const RULE_DOC = {
   dmgUp:'환자가 받는 피해 증가',
   SWEEP_K:'광역 억제 — 잘라 낸 잔량에 곱하는 값 (올림). 1/3 이면 셋으로 나눈 것과 같다',
   DIS_SHIELD:'부수 증상이 하나라도 살아 있으면 병 노드가 받는 피해를 이 비율만큼 깎는다',
-  DIS_BASE_ALT:'병기별 병 노드 수치의 격자 탐색값. 채택하지 않았다 — 계산에 쓰지 않는 참고 숫자다',
   SPAWN_LV:'레벨별 부수 증상 자리 상한 (LVTAB.n 상한에서 온다). 보스는 lv.spots 로 어느 레벨을 볼지 정한다',
   CAND_BASE:'차트에 처음 뜨는 후보 병명 수. 증거를 모을 때마다 둘씩 줄고 최소 하나는 남는다',
+  BEAT:'박자마다 자리를 초기값의 몇 %만큼 움직이는가',
+  BEAT_CLOCK:'「진행」·「가속」이 병기 시계를 추가로 당기는 값. 그 턴의 자연 감소와 겹친다',
+  BEAT_EVO_PULL:'「파고든다」가 신경계 자리의 진화 시계를 당기는 값',
+  BEAT_SCRATCH_N:'「긁는다」가 걸리는 활성 통증 자리 수',
+  SPOT_SPREAD:'명부대로 세울 때 밴드 위에 얹는 난수 폭', ROSTER_MISS:'명부에 그 증상이 없을 때 쓰는 밴드',
+  FREE_BASE:'명부가 없는 보스의 자리 밑값', FREE_SPREAD:'그 폭',
+  DUP_BASE:'분화로 나는 자리의 밑값', DUP_SPREAD:'그 폭',
+  ACT1_CAP:'자동 진행이 1막에 쓸 턴', ACT3_CAP:'자동 진행이 3막에 쓸 턴',
 };
 
 const RULE_GROUP = {
   R:[['처치와 처치선', ['KILL_LINE','KILL_COST','REFUND','SWEEP_CAP','SWEEP_K','DIS_KILL_LINE','DIS_SHIELD','WEAK_STACK','WEAK_STACK_DIS','WEAK_LINE_MAX','PAIN_T','PAIN_FLOOR','PAIN_STACK']],
-     ['성장과 진화', ['BLEED_G','BLEED_ABS','INF_G','GROW_HOLD','NOATK_G','VAL_CAP','EVO_HIT','EVO_FEVER_GROW','EVO_BLEED_ACC','DORMANT']],
+     ['성장과 진화', ['BLEED_G','BLEED_ABS','INF_G','GROW_HOLD','NOATK_G','VAL_CAP','EVO_HIT','EVO_FEVER_GROW','EVO_BLEED_ACC','EVO_X2','EVO_INF_DIAG','DORMANT']],
      ['피해와 정신', ['ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_CUT']],
      ['보호막과 안정화', ['SHIELD_CUT','SHIELD_MAX','DEHY_STAB']],
-     ['손과 코스트', ['ENERGY','HAND','PLAY_CAP']],
+     ['손과 코스트', ['ENERGY','HAND','DRAW_CUT','PLAY_CAP']],
      ['진단과 재진', ['DIAG_NEED','DIAG_NEED_UP','DIAG_CUT_R2','DIAG_CUT_LATE','DIAG_DEMOTE_ROUND','DIAG_DEEP_MAX']],
+     ['촉발 · 전이', ['LINK']],
+     ['설치물', ['RIG_CAP_MIN','RIG_CAP_MUL','RIG_OPEN_MULT']],
      ['분과 키워드', ['RUSH_MAX','RUSH_PER','BLEED_PAY','BLEED_TURN_CAP','BLEED_FLOOR','REM_MAX','REM_START','REM_UPKEEP','REM_GAIN','REM_DIAG_BONUS','DELAY_GROW']]],
   SR:[['병 노드와 병기', ['DIS_BASE','STAGE_TURNS','SPAWN_LV']],
+      ['박자', ['BEAT','BEAT_CLOCK','BEAT_EVO_PULL','BEAT_SCRATCH_N']],
+      ['자리를 세울 때', ['SPOT_SPREAD','ROSTER_MISS','FREE_BASE','FREE_SPREAD','DUP_BASE','DUP_SPREAD']],
+      ['자동 진행', ['ACT1_CAP','ACT3_CAP']],
       ['1막 · 진단', ['PARAM_NEED','EVID_TOTAL','EVID_AIM','CAND_BASE','ACT1_SPAWN_EVERY']],
       ['방침', ['POLICY']]],
 };
@@ -3001,10 +3211,6 @@ const RULE_GROUP = {
    §9.1 전역 상태 · 잔손
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 옛 AI 와 견주기 ── */
-
-
-
 /* ═══ 화면 · 배치 · 도구 ═════════════════════════════════════
    v20 — 모드 다섯. 단판 / 세션 / 스토리 / 배치 / 만들기.
    판은 모드마다 따로 살아 있고 탭을 옮겨도 죽지 않는다.
@@ -3026,6 +3232,23 @@ const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 //@ 화면.패널 — §9.5 모드별 판 · 가방 상한
 const PANES = {one:{started:false}, sess:{started:false}, story:{started:false},
                batch:{started:true}, make:{started:true}};
+
+/* ── 수치 물들이기 ─────────────────────────────────────────────
+   바탕값(규칙이 정한 값 · 카드에 적힌 값)과 지금 값이 다르면 색으로 알린다.
+   세지면 초록, 약해지면 빨강. 무엇이 '좋은' 방향인지는 부르는 쪽이 정한다 —
+   코스트와 처치선은 결이 달라서 한 규칙으로 묶을 수 없다.
+
+   카드(cardEff)와 자리(lineEff)가 같은 이 함수를 쓴다. 색 규칙이 두 벌이면
+   같은 판을 보고 카드와 자리가 서로 다른 말을 하게 된다. */
+//@ 화면.물들이기 — 바탕값과 지금 값이 다르면 색으로 알린다
+const numText = x => (typeof x==='number' && !Number.isInteger(x)) ? (Math.round(x*10)/10).toFixed(1) : String(x);
+
+function driftSpan(base, eff, body, upIsGood=true){
+  if(base===undefined || eff===undefined) return numText(base===undefined?eff:base);
+  if(eff===base) return numText(base);
+  const better = upIsGood ? eff>base : eff<base;
+  return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
+}
 
 //@ 파일.70-ui/tooltip
 
@@ -3136,8 +3359,15 @@ function markKw(text){
 
 /* ══════════════════════════════════════════════════════════════════
    §9.4 카드 한 장의 겉모습
-   원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
+   ──────────────────────────────────────────────────────────────────
+   카드에 적힌 숫자는 '적힌 값' 이 아니라 '지금 이 판 이 자리에서 실제로
+   일어나는 값' 으로 그린다. 적힌 값보다 세지면 초록, 약해지면 빨강.
+   코스트만 반대다 — 싸지는 것이 좋은 일이므로 낮아질 때 초록이다.
+
+   실제 값은 커널의 supAmt · stabAmt · diagAmt 가 낸다. 카드가 쓰는 함수와
+   판이 정산할 때 쓰는 함수가 같은 것이다 — 갈리면 카드가 거짓말을 한다.
    ══════════════════════════════════════════════════════════════════ */
+
 /* 사혈 단수 아이콘 — 코스트 옆에 붙는다 */
 //@ 화면.카드그리기 — §9.4 카드 한 장의 겉모습
 function bleedIcon(c, S){
@@ -3148,19 +3378,97 @@ function bleedIcon(c, S){
   return `<span class="bl"${tip(body)} style="${ok?'':'opacity:.45'}">혈${c.bleed}</span>`;
 }
 
+//@ 화면.카드수치 — 적힌 값과 지금 실제로 일어나는 값
+/* 이 카드의 이 열쇠가 지금 내는 값.
+   base = 카드에 적힌 수 · eff = 이 판 이 자리에서 실제로 일어나는 수 */
+function cardEff(S, id, key, node){
+  const c = CARDS[id], v = C.cardNums(S, id);
+  const kind = key==='cost' ? '코스트' : C.VAL_KIND[key];
+  const base = key==='cost' ? c.cost : v[key];
+  if(!S || !kind || typeof base!=='number') return {base, eff:base, kind:null};
+  let eff = base;
+  if(kind==='억제'){
+    /* live 열쇠는 적힌 수가 아니라 지금 들어가는 원값에서 출발한다 (기세 따위) */
+    const raw = (c.live===key || (c.branch && node && c.branch(S,node)===key))
+              ? C.cardRaw(S, id, node) : base;
+    eff = node ? K.supAmt(S, node, raw) : raw;
+  }
+  else if(kind==='안정화') eff = node ? K.stabAmt(S, node, base) : base;
+  else if(kind==='진단')   eff = Math.max(0, K.diagAmt(S, base));
+  else if(kind==='코스트') eff = v.cost;
+  return {base, eff, kind};
+}
+
+/* 왜 이 값이 되었는가 — 지금 걸려 있는 수정자만 줄줄이 적는다 */
+function effWhy(S, id, kind, node){
+  if(!S) return [];
+  const w = [], c = CARDS[id];
+  if(kind==='억제'){
+    if(c.live==='sup' && S.rush) w.push(`기세 ${S.rush} — 기세 1당 −${C.cardNums(S,id).per}`);
+    if(S.mind==='불안'||S.mind==='공황') w.push(`${S.mind} — 억제 −${R.MIND_ANX_SUP}`);
+    if(node && node.role==='disease' && K.alive(S).some(x=>x.role!=='disease'&&x.val>0))
+      w.push(`부수 증상이 살아 있다 — 병 노드가 받는 피해 ${Math.round(R.DIS_SHIELD*100)}% 경감`);
+    else if(node && node.shielded) w.push(`보호막 — 받는 피해 ${Math.round(node.shReduc*100)}% 경감`);
+    if(node && K.immune(S,node)) w.push('1막 병 노드 — 어떤 효과도 안 통한다');
+  }
+  if(kind==='안정화'){
+    if(S.mind==='평정') w.push(`평정 — 안정화 ×${R.MIND_CALM_STAB}`);
+    const d = K.active(S).filter(x=>x.sym==='탈수');
+    if(d.length) w.push(`탈수 — 안정화 ÷${Math.max(1,...d.map(x=>K.sp(x,'탈수')))}`);
+    if(node && !node.shielded) w.push('이 자리엔 보호막이 없다 — 안정화가 할 일이 없다');
+  }
+  if(kind==='진단'){
+    const dp = (S.diagPlus||{})[id]||0;
+    if(dp) w.push(`이 카드에 얹힌 진단 +${dp}`);
+    if(S.rem) w.push(`관해 중 — 진단 +${R.REM_DIAG_BONUS}`);
+    if(S.mind==='불안'||S.mind==='공황') w.push(`${S.mind} — 진단 −${R.MIND_ANX_DIAG}`);
+    if(S.mind==='의식불명') w.push(`의식불명 — 진단 −${R.MIND_ANX_DIAG + R.MIND_KO_DIAG}`);
+  }
+  if(kind==='코스트' && c.costWhen) w.push('이 카드는 판 상태에 따라 값이 달라진다');
+  return w;
+}
+
+/* 값 하나를 글로. 적힌 값과 다르면 물들이고 왜 그런지 붙인다 */
+function valSpan(S, id, key, node){
+  const c = CARDS[id];
+  const {base, eff, kind} = cardEff(S, id, key, node);
+  if(base===undefined) return '?';
+  /* 갈래가 있는 카드 — 지금 안 걸리는 쪽은 흐려 둔다.
+     코스트는 갈래의 대상이 아니다. 카드가 어느 쪽으로 갈리든 값은 하나다 */
+  if(S && node && c.branch && key!=='cost' && c.branch(S, node) !== key)
+    return `<span class="voff"${tip(`<span class="tt">지금은 안 걸린다</span>고른 자리는 <b>${node.sym}</b> 이다.`)}>${numText(base)}</span>`;
+  if(!kind || eff===base) return numText(base);
+  const why = effWhy(S, id, kind, node);
+  const body = `<span class="tt">${kind}</span>카드에 적힌 값 <b>${numText(base)}</b><br>`
+    + `지금 실제로 <b>${numText(eff)}</b>`
+    + (why.length ? '<br><br>' + why.join('<br>') : '');
+  /* 코스트만 반대다 — 싸지는 쪽이 좋은 일이다 */
+  return driftSpan(base, eff, body, kind!=='코스트');
+}
+
+/* 본문의 {열쇠} 를 값으로 갈아 넣는다. 없는 열쇠는 그대로 둔다 —
+   서식을 잘못 적었을 때 조용히 사라지지 않고 눈에 띄게 남는다.
+
+   키워드 밑줄(markKw)을 먼저 긋는다. markKw 는 글을 통째로 이스케이프하므로
+   숫자 자리의 span 을 그보다 먼저 넣으면 태그가 글자로 보인다. */
+function fillText(id, S, node){
+  const v = C.cardNums(S, id);
+  return markKw(String(CARDS[id].text||''))
+    .replace(/\{(\w+)\}/g, (m, key) =>
+      (key in v || key==='cost') ? valSpan(S, id, key, node) : m);
+}
+
 /* 카드 한 장 그리기 — 손패와 가방이 같은 것을 쓴다 */
 function cardHTML(id, o={}){
-  const c = CARDS[id], S = o.S;
+  const c = CARDS[id], S = o.S, node = o.node || null;
   const keepLeft = S && c.keep ? c.keep-((S.keepUses||{})[id]||0) : c.keep;
-  const cost = S ? cardCost(S,id) : c.cost;
-  const cheap = S && c.costWhen && cost < c.cost;
   const rvOn = S && !!(S.revisitOn||{})[id];
   const dPlus = S ? ((S.diagPlus||{})[id]||0) : 0;
   return `<div class="card ${o.dim?'no':''} ${o.mark?'pick':''} ${c.dept}" ${o.onclick?`onclick="${o.onclick}"`:''}>
-    <div class="chead"><span class="cost" ${cheap?'style="color:var(--calm)"':''}>${cost}</span>${bleedIcon(c,S)}<b>${esc(id)}</b>
+    <div class="chead"><span class="cost">${valSpan(S, id, 'cost', node)}</span>${bleedIcon(c,S)}<b>${esc(id)}</b>
       ${o.keyhint!==undefined?`<span class="key">${o.keyhint}</span>`:''}</div>
     <div class="cmeta">${c.dept} · ${c.verb}${c.sub?`(${c.sub})`:''}${c.kw?` · ${c.kw}`:''}${c.target==='all'?' · 전체':''}${c.target==='hand'?' · 손패':''}</div>
-    <div class="ctext">${markKw(c.text||'')}</div>
+    <div class="ctext">${fillText(id, S, node)}</div>
     ${rvOn||dPlus?`<span class="keep on"${tip((rvOn?KWTIP['재진']+'<br><br>':'')+`이 카드에 붙은 것은 이번 전투 내내 남는다. 써도 빠지지 않는다.${dPlus?`<br><br>진단 <b>+${dPlus}</b> — 이 카드가 여는 진단 수치에 그대로 더해진다. 1막에서는 검사 파라미터에도 같이 붙는다.`:''}`)}>${[rvOn?'재진':'', dPlus?`진단 +${dPlus}`:''].filter(Boolean).join(' · ')}</span>`:''}
     ${c.keep?`<span class="keep">손에 남는다${c.keep<90?` ${keepLeft}회`:''}</span>`:''}
     ${o.foot||''}</div>`;
@@ -3200,6 +3508,36 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+}
+
+/* ── 자리의 처치선 ── 규칙이 정한 바탕값과, 이 판에서 실제로 걸린 값 ──
+   약화가 올리고(끊기 쉬워진다) 통증이 내린다(끊기 어려워진다).
+   실제 값은 커널의 killLine 이 낸다 — 카드와 마찬가지로 화면이 따로 계산하지 않는다. */
+//@ 화면.처치선 — 바탕 처치선과 지금 처치선
+function lineEff(S, n){
+  const pct = n.role==='disease' ? R.DIS_KILL_LINE : R.KILL_LINE;
+  return { base: Math.floor(n.init * pct), eff: killLine(S, n) };
+}
+/* 뱃지에 박히는 처치선 한 조각 — 바탕값과 다르면 물든다.
+   높아지는 쪽이 좋다: 처치선이 높을수록 일찍 끊을 수 있다 */
+function lineSpan(S, n){
+  const {base, eff} = lineEff(S, n);
+  const why = lineWhy(S, n);
+  return driftSpan(base, eff,
+    `<span class="tt">처치선</span>규칙이 정한 값 <b>${base}</b><br>이 판에서는 <b>${eff}</b>`
+    + (why.length ? '<br><br>' + why.join('<br>') : ''), true);
+}
+
+/* 무엇이 처치선을 움직였는가 */
+function lineWhy(S, n){
+  const w = [];
+  const per = n.role==='disease' ? R.WEAK_STACK_DIS : R.WEAK_STACK;
+  if(n.weak) w.push(`약화 ${n.weak} — 처치선 +${pctOf(per*n.weak)}p`);
+  if(n.role!=='disease'){
+    const ps = active(S).filter(x=>x.sym==='통증');
+    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
+  }
+  return w;
 }
 
 function renderInto(h){
@@ -3249,34 +3587,38 @@ function renderInto(h){
     const badge = imm
       ? `<span class="badge none"${tip(TT('1막 · 무적','병명을 밝히기 전까지 병 노드는 억제 · 안정화 · 처치를 전부 받지 않는다.<br>이 자리에 통하는 것은 <b>진단</b>과 <b>재진</b>뿐이다. 진단 카드는 검사 파라미터로 들어가 증거를 쌓는다.'))}>무적 · 진단만 통한다</span>`
       : (r===null?'':`<span class="badge ${r}"${tip(TT(r==='strong'?'강반응':r==='weak'?'약반응':'휴면',
-          `처치선 <b>${line}</b> (초기값의 ${Math.round(line/n.init*100)}%) 아래로 내려온 자리는 끊을 수 있다.<br>`
+          `처치선 <b>${line}</b> (초기값의 ${pctOf(line/n.init)}) 아래로 내려온 자리는 끊을 수 있다.<br>`
+          +`규칙이 정한 바탕값은 ${lineEff(S,n).base} (초기값의 ${pctOf(n.role==='disease'?R.DIS_KILL_LINE:R.KILL_LINE)}).<br>`
           +(n.role==='disease'
-            ? `병 노드는 기본 0이다. 약화 한 스택이 <b>2.5%p</b>씩 올린다 (증상의 절반). 지금 약화 ${n.weak}.<br>`
-            : `= 초기값 × (통증 몫 ${Math.round(painShare(S)*100)}% + 5%p × 약화 ${n.weak})<br>`)
+            ? `병 노드는 기본 ${pctOf(R.DIS_KILL_LINE)} 다. 약화 한 스택이 <b>${pctOf(R.WEAK_STACK_DIS)}p</b>씩 올린다 (증상의 절반). 지금 약화 ${n.weak}.<br>`
+            : `= 초기값 × (통증 몫 ${pctOf(painShare(S))} + ${pctOf(R.WEAK_STACK)}p × 약화 ${n.weak})<br>`)
           +`강 · 약 경계는 처치선의 절반 = ${edge}.<br>처치 코스트 ${R.KILL_COST}.<br><br>`
-          +`끊으면 판 전체가 <b>−${sweepAmt(n)}</b> 광역 억제된다 (잔량을 초기값 50%에서 캡한 뒤 1/3, 올림).`
+          +`끊으면 판 전체가 <b>−${sweepAmt(n)}</b> 광역 억제된다 (잔량을 초기값 ${pctOf(R.SWEEP_CAP)} 에서 캡한 뒤 ${numOf(R.SWEEP_K)} 배, 올림).`
           +(r==='strong'?'<br><br>강반응은 전이 · 촉발을 강하게 터뜨리고 정신을 한 단계 무너뜨린다.':'')
           +(r==='none'?'<br><br>휴면에서 끊으면 광역 억제가 0이다.':'')))}>${r==='strong'?'강반응':r==='weak'?'약반응':'휴면'} · 처치 ${R.KILL_COST}코 · 전체 −${sweepAmt(n)}</span>`);
 
     const gAdd = growAmt(S,n);
     const marks=[
+      /* 처치선은 늘 보인다. 뱃지는 이미 끊을 수 있을 때만 뜨는데,
+         정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
+      `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
       n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
       n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
-      n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${Math.round(n.shReduc*100)}%</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화 효율이 절반이다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
-      n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak} · 선 ${Math.round(line/n.init*100)}%</span>`:'',
-      n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(3,n.rig)}<br><br>개방하면 <b>−${n.rig*2}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+      n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
+      n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
+      n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
       n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
       gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
       n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
       n.role==='disease'?'':(n.evolved
         ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
-        :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${Math.round((R.EVO_HIT[n.sym]||0)*100)}%</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
+        :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
       n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
-      (SYMPARAM[n.sym] && n.role!=='disease')
-        ?`<span class="m"${tip(TT(n.sym+' · '+SYMPARAM[n.sym].label, SYMPARAM[n.sym].why
+      (SYMDOC[n.sym] && n.role!=='disease')
+        ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
             + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
             + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
-          }>${SYMPARAM[n.sym].label} ${sp(n)}</span>`:'',
+          }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
       `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
         + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
       n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
@@ -3289,7 +3631,7 @@ function renderInto(h){
     ].filter(Boolean).join('');
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     const symTip = n.role==='disease'
-      ? tip(TT('병 노드','부수 증상이 하나라도 살아 있으면 받는 피해가 절반이다.<br>처치선은 0 — 수치를 0까지 내려야 끊을 수 있다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.'))
+      ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
       : tip(TT(n.sym, SYMTIP[n.sym]||''));
     const evoTip = tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'') + '<br><br><span class="d">한 번 진화한 자리는 되돌아가지 않는다.</span>'));
     return `<div class="node ${SEL===i?'sel':''} ${SYM[n.sym]&&SYM[n.sym].atk?'atk':''} ${n.evolved?'evo':''} ${n.role==='disease'?'dis':''}" onclick="pickNode(${i})">
@@ -3329,7 +3671,7 @@ function renderInto(h){
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
-      return cardHTML(id, {S, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
+      return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
     let ok=canPlay(S,id), why='';
@@ -3343,7 +3685,7 @@ function renderInto(h){
       else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
     }
     else if(c.target==='hand') why=`손패에서 ${pickNeed(S,id)}장 고른다`;
-    return cardHTML(id, {S, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
+    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
       foot: why?`<span class="keep why">${why}</span>`:''});
   }).join('') || '<div class="empty">손이 비었다.</div>';
 
@@ -3893,6 +4235,21 @@ function openDeckStory(){
 /* ═══ 단판 ═══════════════════════════════════════════════════ */
 /* 사이드바 체력 태그 — 상한과 배타를 화면에서 바로 반영한다 */
 //@ 화면.단판 — §9.12 단판 모드
+/* 체력 태그 칸 — 표에서 만든다.
+   전에는 일곱 개를 마크업에 손으로 적어 뒀는데, HP_TAG 에는 열한 개가 있고
+   「환자 만들기」는 열한 개를 다 보여 주고 있었다. 두 화면이 서로 다른 목록을
+   내놓던 셈이다. 아래 설명도 TAG_CAP · TAG_GROUP 을 글로 베껴 놔서
+   상한이나 묶음을 고치면 곧바로 거짓말이 됐다. */
+//@ 화면.태그칸 — 체력 태그 칸을 표에서 만든다
+function renderTagBox(){
+  const box = $('tagbox'); if(!box) return;
+  box.innerHTML = Object.keys(HP_TAG).map(t =>
+    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">×${HP_TAG[t]}</span></label>`).join('');
+  const note = $('tagnote');
+  if(note) note.textContent = `${TAG_CAP}개까지 · `
+    + TAG_GROUP.map(g=>g.join('↔')).join(' · ') + ' 은 함께 붙지 않는다';
+}
+
 function tagPick(t){
   const box = [...document.querySelectorAll('.tag')];
   const on = box.filter(x=>x.checked).map(x=>x.value);
@@ -4446,7 +4803,7 @@ const ovrNote = () => OVR_KEYS.length ? ` · <span class="badred">덮어쓴 값 
 //@ 화면.차트 — §9.9 배치 결과를 글로 뽑는다
 function exportChart(){
   const L = [];
-  L.push('INTERN 전투 시뮬레이터 v22 — 차트');
+  L.push(`INTERN 전투 시뮬레이터 ${VERSION} — 차트`);
   L.push(`뽑은 때 ${new Date().toISOString().slice(0,19).replace('T',' ')}`);
   L.push(`모드 ${MODE} · 시드 ${$('seed').value}`);
   L.push(`규칙 덮어쓰기 ${OVR_KEYS.length ? OVR_KEYS.join(' · ') : '없음 (권위본)'}`);
@@ -4720,16 +5077,16 @@ function renderMake(){
         「성장률」은 그와 별개로 모든 증상에 붙는 초기값 기준 고정 성장이다.</div>
      <table><tr><th>증상</th><th>초기값</th><th>진화까지</th><th>성장률</th><th>효과 비율</th><th>보호막</th><th></th></tr>`
     + CUSTOM.nodes.map((n,i)=>{
-        const d = SYMPARAM[n.sym];
+        const d = SYMPARAM[n.sym], dd = SYMDOC[n.sym];
         const cur = (n.p===undefined||n.p===null||n.p==='') ? '' : n.p;
         return `<tr>
         <td><select onchange="mkSet('nodes.${i}.sym',this.value)">${symOpt(n.sym)}</select></td>
         <td><input type="number" value="${n.init}" onchange="mkSet('nodes.${i}.init',this.value)"></td>
         <td><input type="number" value="${n.evo}" onchange="mkSet('nodes.${i}.evo',this.value)"></td>
         <td><input type="number" step="0.05" value="${n.grow}" onchange="mkSet('nodes.${i}.grow',this.value)"></td>
-        <td${tip(TT(n.sym+' · '+d.label, d.why + `<br><br><span class="d">기본값 ${d.def()}</span>`))}>
-          <span class="d" style="font-size:11px">${d.label}</span>
-          <input type="number" step="${d.step}" value="${cur}" placeholder="${d.def()}"
+        <td${tip(TT(n.sym+' · '+dd.label, dd.why() + `<br><br><span class="d">기본값 ${d.def()}</span>`))}>
+          <span class="d" style="font-size:11px">${dd.label}</span>
+          <input type="number" step="${dd.step}" value="${cur}" placeholder="${d.def()}"
                  onchange="mkSet('nodes.${i}.p',this.value)"></td>
         <td><input type="checkbox" ${n.shielded?'checked':''} onchange="mkSet('nodes.${i}.shielded',this.checked)"></td>
         <td><button class="mini" onclick="mkDelNode(${i})">뺀다</button></td></tr>`}).join('')
@@ -4763,6 +5120,7 @@ function renderMake(){
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
 /* ── 부팅 ── */
+renderTagBox();
 deckLine('one_deck', ONE_DECK, ONE_CAP);
 
 deckLine('story_deck', STORY_DECK, STORY_CAP);

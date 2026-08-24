@@ -4,11 +4,11 @@
    ══════════════════════════════════════════════════════════════════ */
 const rank = t => TIER.indexOf(t);
 
-/* 예산 = 레벨 1~2 표준 전액 + ⌈레벨 3~4 표준 × 0.7⌉ */
+/* 예산 = 낮은 레벨은 표준턴 전액, 그 위는 ⌈표준턴 × BUDGET_CUT⌉ */
 function budgetOf(list, std=STD){
   return list.reduce((s,id)=>{
     const lv = P.SCRIPT[id].lv;
-    return s + (lv<=2 ? std[lv] : Math.ceil(std[lv]*0.7));
+    return s + (lv<=BUDGET_FULL_LV ? std[lv] : Math.ceil(std[lv]*BUDGET_CUT));
   },0);
 }
 
@@ -35,7 +35,7 @@ function runOne(board, deck, seed, opt={}){
   const S = K.newState(board, opt); S.board = board;
   C.setupDeck(S, deck, K.mulberry32(seed));
   const core = board.core;
-  const hard = opt.hardCap || 40;
+  const hard = opt.hardCap || TURN_HARD_CAP;
   let t = 0;
   while(t < hard){
     if(S.hp<=0) break;
@@ -62,7 +62,7 @@ function runSession(list, deck, budget, seed, opt={}){
     const allowance = Math.max(1, Math.floor(left / remain));
     const board = P.makePatient(id, seed + i*97);
     const r = runOne(board, deck, seed + i*97 + 5,
-      {...opt, hardCap: Math.min(left, opt.hardCap||40),
+      {...opt, hardCap: Math.min(left, opt.hardCap||TURN_HARD_CAP),
        settleAt:(S,core,t)=>shouldSettle(S,core,t,allowance,aim)});
     left -= r.turns;
     out.push({id, out:r.out, turns:r.turns, hp:r.S.hp/r.S.hpMax});
@@ -73,13 +73,7 @@ function runSession(list, deck, budget, seed, opt={}){
 
 /* ── 왕진 ───────────────────────────────────────────────────
    포스터 6팀 중 둘을 고른다. 완충 = 1포스터에 3명, 그 밖 = 1명.
-   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다. */
-function runRound(list, deck, seed, opt={}){
-  const out=[];
-  list.forEach((id,i)=>{
-    const board = P.makePatient(id, seed + i*131);
-    const r = runOne(board, deck, seed + i*131 + 3, {...opt, hardCap: opt.hardCap||30});
-    out.push({id, out:r.out, turns:r.turns});
-  });
-  return out;
-}
+   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다.
+
+   전용 러너(runRound)는 v25 에서 걷어냈다 — 부르는 곳이 한 곳도 없었다.
+   왕진 배치는 SESSIONS.d3 의 rounds 를 펼친 list 를 runSession 에 넘겨 돈다. */

@@ -102,13 +102,16 @@ function reaction(S,n){                       // 잔량 → 반응 등급
 
 function drawCount(S){
   const d = active(S).filter(n=>n.sym==='호흡곤란' && !n.muted);
-  let cut = 0; for(const n of d) cut += sp(n,'호흡곤란') * (n.evolved?2:1);
+  let cut = 0; for(const n of d) cut += sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
   return Math.max(1, R.HAND - Math.round(cut) + (S.drawBonus||0));
 }
 
 /* ── 억제 ───────────────────────────────────────────────────── */
 //@ 커널.억제 — 억제 · 무적 판정 · 안정화
-function suppress(S,n,amt,opt={}){
+/* 억제 amt 가 이 자리에 실제로 들어가는 값.
+   화면 예고와 실제 억제가 같은 함수를 쓴다 — 카드에 적힌 수치를 색으로 물들이는
+   쪽(화면.카드수치)과 여기가 갈리면 카드가 거짓말을 하게 된다. */
+function supAmt(S,n,amt,opt={}){
   if(n.dead||n.val<=0) return 0;
   if(immune(S,n)) return 0;                      // 1막 병 노드 — 완전 무적
   let v = amt;
@@ -117,6 +120,11 @@ function suppress(S,n,amt,opt={}){
   if(n.role==='disease'){
     if(alive(S).some(x=>x.role!=='disease' && x.val>0)) v = Math.ceil(v*(1-R.DIS_SHIELD));
   } else if(n.shielded && !opt.raw) v = Math.ceil(v*(1-n.shReduc));
+  return v;
+}
+function suppress(S,n,amt,opt={}){
+  const v = supAmt(S,n,amt,opt);
+  if(v<=0) return 0;
   const before = n.val;
   n.val = Math.max(0, n.val - v);
   /* 정신 — 한 노드를 한 턴에 두 번 억제하면 악화.
@@ -125,7 +133,7 @@ function suppress(S,n,amt,opt={}){
   if(!opt.sweep){
     S.hitThisTurn[S.nodes.indexOf(n)] = (S.hitThisTurn[S.nodes.indexOf(n)]||0)+1;
     /* v25 — 3회부터, 그리고 불안까지만. 억제로는 공황에 못 간다 */
-    if(S.hitThisTurn[S.nodes.indexOf(n)]===3 && S.mind==='평정') mind(S,+1);
+    if(S.hitThisTurn[S.nodes.indexOf(n)]===R.HIT_ANX && S.mind==='평정') mind(S,+1);
   }
   if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); }  // 휴면 도달 = 호전
   return before-n.val;
@@ -134,14 +142,20 @@ function suppress(S,n,amt,opt={}){
 /* 1막의 병 노드는 어떤 효과도 받지 않는다 — 진단(재진)만 통한다 */
 function immune(S,n){ return S.act===1 && n.role==='disease' }
 
-function stabilize(S,n,amt){
-  if(n.dead||!n.shielded) return;
-  if(immune(S,n)) return;
-  if(n.sym==='탈수'&&n.evolved) return;                 // 탈수 진화 — 못 깎는다
+/* 안정화 amt 가 이 자리에 실제로 쌓이는 값 — 예고와 정산이 같은 함수를 쓴다 */
+function stabAmt(S,n,amt){
+  if(n.dead||!n.shielded) return 0;
+  if(immune(S,n)) return 0;
+  if(n.sym==='탈수'&&n.evolved) return 0;               // 탈수 진화 — 못 깎는다
   let v = amt;
   if(S.mind==='평정') v = v*R.MIND_CALM_STAB;
   const dehy = active(S).filter(x=>x.sym==='탈수');
   if(dehy.length) v = v / Math.max(1, ...dehy.map(x=>sp(x,'탈수')));   // 여러 자리면 가장 센 것
+  return v;
+}
+function stabilize(S,n,amt){
+  const v = stabAmt(S,n,amt);
+  if(v<=0) return;
   n.stabAcc += v;
   if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); }
 }
@@ -172,13 +186,19 @@ function canDiag(S,n,revisit){
   return true;
 }
 
+/* 진단 amt 가 실제로 쌓이는 값 — 예고와 정산이 같은 함수를 쓴다.
+   자리를 보지 않는다. 열 수 있는가(canDiag)는 부르는 쪽이 따로 본다. */
+function diagAmt(S, amt){
+  let v = amt + (S.diagBonus||0);                   // 그 카드에 얹힌 진단 +N
+  if(S.rem) v += R.REM_DIAG_BONUS;                  // 관해 중 진단 +1
+  if(S.mind==='불안'||S.mind==='공황') v -= R.MIND_ANX_DIAG;
+  if(S.mind==='의식불명') v -= R.MIND_KO_DIAG;
+  return v;
+}
 function diagnose(S,n,amt,opt={}){
   const revisit = !!opt.revisit || !!S.revisitNow;   // 카드 태그 또는 「진행을 붙든다」가 얹은 몫
   if(!canDiag(S,n,revisit)) return 0;
-  let v = amt + (S.diagBonus||0);                   // 그 카드에 얹힌 진단 +N
-  if(S.rem) v += R.REM_DIAG_BONUS;                // 관해 중 진단 +1
-  if(S.mind==='불안'||S.mind==='공황') v -= R.MIND_ANX_DIAG;
-  if(S.mind==='의식불명') v -= 1;
+  const v = diagAmt(S, amt);
   if(v<=0) return 0;
   n.diagAcc += v;
   let rounds = 0;
@@ -336,14 +356,16 @@ function fireReactions(S,src,grade){
     const tgt = alive(S).find(n=>n.sym===L.b && n!==src);
     if(L.kind==='trig'){
       if(!tgt) continue;
-      if(L.k==='가속') tgt.grow += strong?0.24:0.12;
-      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?0.50:R.SHIELD_CUT; }
-      if(L.k==='점화'){ if(SYM[tgt.sym].atk) hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?2:1))) }
+      const LK = R.LINK;
+      if(L.k==='가속') tgt.grow += strong?LK.가속.강:LK.가속.약;
+      /* 약한 경화는 평범한 보호막이다 — SHIELD_CUT 을 그대로 쓴다 */
+      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT; }
+      if(L.k==='점화'){ if(SYM[tgt.sym].atk) hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약))) }
     } else {
       if(tgt) continue;                            // 이미 있으면 생성하지 않는다
-      const init = Math.floor(src.init*(strong?0.8:0.6));
+      const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
       const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-                  grow: L.k==='무장발현' ? (strong?0.20:0.12) : 0,
+                  grow: L.k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
                   evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
                   evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
                   diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
@@ -368,7 +390,7 @@ function infPool(S){
   for(const f of infs){
     const tgt = tgtAll.filter(n=>n!==f);
     if(!tgt.length) continue;
-    const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?2:1));
+    const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?R.EVO_X2:1));
     if(total<=0) continue;
     const each = Math.floor(total/tgt.length);
     const rest = total - each*tgt.length;
@@ -483,7 +505,7 @@ function turnResolve(S){
     hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
-    if(n.sym==='감염') n.diagNeed += 1;
+    if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
     mind(S,+1);
     S.evoLog++;
   }

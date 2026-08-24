@@ -21,8 +21,9 @@ function makeDisease(key, rng){
     stage, stageMax:b.stageMax, stageClock:SR.STAGE_TURNS, beat:0};
   const nodes=[dis];
   b.seed.forEach((s,i)=>{
-    const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,50])[1] : 40;
-    const init = b.roster ? band + Math.floor(rng()*15) : 40 + Math.floor(rng()*20);
+    const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
+    const init = b.roster ? band + Math.floor(rng()*SR.SPOT_SPREAD)
+                          : SR.FREE_BASE + Math.floor(rng()*SR.FREE_SPREAD);
     nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
       grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
       rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
@@ -38,7 +39,7 @@ function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
 /* ── 병 노드 행동 ── */
 /* 자리 하나를 명부대로 세운다 */
 function laySpot(S, slot, turn, stage){
-  const init = slot[1] + Math.floor(S.rng()*15);
+  const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
   const nd = mkSpot(slot[0], init, turn);
   /* v25 — 레벨표를 그대로 본다. build() 와 달리 EVO_ADJ 가 빠져 있어서
      같은 턴에 깔린 자리들이 같은 턴에 진화했다. 그게 체력 절벽의 원인이었다. */
@@ -87,7 +88,7 @@ function wipeSpots(S){
 /* 성장 비트 — 폴백으로도 쓴다 */
 function growBeat(S){
   for(const n of K.active(S)) if(n.role!=='disease')
-    n.val=Math.min(Math.floor(n.init*R.VAL_CAP), n.val+Math.ceil(n.init*0.15));
+    n.val=Math.min(Math.floor(n.init*R.VAL_CAP), n.val+Math.ceil(n.init*SR.BEAT.성장));
   return '증상이 자란다';
 }
 
@@ -112,7 +113,7 @@ function diseaseAct(S, dis, act){
       const bd=BOSS[S.board.boss];
       const pool = bd.dupType ? [bd.dupType] : ['발열','통증','호흡곤란','감염','탈수'];
       const s = pool[Math.floor(S.rng()*pool.length)];
-      const init = 35 + Math.floor(S.rng()*25);
+      const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
       S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
         grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
         diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
@@ -121,7 +122,7 @@ function diseaseAct(S, dis, act){
     }
     return '분화 — 자리가 다 찼다';
   }
-  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= 1; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다 — 합쳐 2
+  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   /* ── v25 신설 ── 창은 아이 전용. 나머지 셋은 공용, 아래 넷은 보스 고유 ── */
   if(beat==='창'){                                  // 판이 무너진다 — 다음 비트 턴이 무방비다
     if(S.act!==3 || !SR.GIMMICK.WINDOW) return growBeat(S);
@@ -140,7 +141,7 @@ function diseaseAct(S, dis, act){
     const ns = active(S).filter(x=>x.role!=='disease');
     if(!ns.length) return growBeat(S);
     const x = ns.slice().sort((p,q)=>p.val-q.val)[0];
-    x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*0.40));
+    x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*SR.BEAT.몰린다));
     return '몰린다 — '+x.sym;
   }
   if(beat==='엮는다'){                               // 살아 있는 증상 둘 사이에 촉발 배선을 놓는다
@@ -159,7 +160,7 @@ function diseaseAct(S, dis, act){
   if(beat==='번진다'){                               // 어부 — 통증만 골라 초기값 비율로 오른다
     const ps = active(S).filter(x=>x.role!=='disease' && x.sym==='통증');
     if(!ps.length) return growBeat(S);
-    for(const x of ps) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*0.25));
+    for(const x of ps) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*SR.BEAT.번진다));
     return '번진다';
   }
   if(beat==='아문다'){                               // 어부 — 가장 옅은 자리 하나가 스스로 가라앉는다
@@ -171,14 +172,14 @@ function diseaseAct(S, dis, act){
   }
   if(beat==='치민다'){                               // 송이 — 금단의 정점
     const ns = active(S).filter(x=>x.role!=='disease');
-    for(const x of ns) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*0.30));
+    for(const x of ns) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.init*SR.BEAT.치민다));
     mind(S,+1);
     return '치민다';
   }
   if(beat==='가라앉는다'){                            // 송이 — 정점을 지나면 저절로 내려간다. 0 까지는 안 간다
     const ns = active(S).filter(x=>x.role!=='disease');
     if(!ns.length) return growBeat(S);
-    for(const x of ns) x.val = Math.max(1, x.val - Math.ceil(x.init*0.25));
+    for(const x of ns) x.val = Math.max(1, x.val - Math.ceil(x.init*SR.BEAT.가라앉는다));
     return '가라앉는다';
   }
   if(beat==='성장') return growBeat(S);
@@ -272,7 +273,6 @@ function storyVerdict(S, dis, policy){
                                 //  v19 는 완치 방침에서만 봐서, 연명 중 병을 끊으면
                                 //  판정이 영영 나지 않고 턴만 흘렀다.
   if(!policy) return null;
-  const others = K.alive(S).filter(n=>n.role!=='disease');
   /* v25 — 활성 부수 자리가 하나도 없으면 이긴다. 병 노드는 보지 않는다.
      휴면도 '비운 것'으로 센다 — 눌러서 내보냈고 병은 그대로다. */
   if(policy==='연명' && !dis.dead && !S.wiped
@@ -305,10 +305,11 @@ function act1PlayerTurn(S, aimEvid, ai){
 
 /* 진단 카드 한 장을 검사 파라미터로 쓴다 */
 function spendParam(S, id){
-  const c = C.CARDS[id];
-  if(C.cardCost(S,id) > S.energy) return false;
-  S.energy -= C.cardCost(S,id);
-  S.paramAcc += (id==='환기하세요' ? 2 : 1) + ((S.diagPlus||{})[id] || 0);
+  const cost = C.cardCost(S, id);
+  if(cost > S.energy) return false;
+  S.energy -= cost;
+  /* 카드마다 파라미터 몫이 다르다 — 안 적은 카드는 1 */
+  S.paramAcc += (C.cardNums(S,id).param ?? 1) + ((S.diagPlus||{})[id] || 0);
   const i=S.hand.indexOf(id); if(i>=0) S.hand.splice(i,1);
   S.discard.push(id); S.played++;
   if(S.rec) S.rec.push(`${id} → 검사`);
@@ -327,7 +328,7 @@ function act1(S, deck, opt={}){
   S.paramAcc = 0;
   S.act = 1; S.act1Beat = 0;
   let t=0;
-  const cap = opt.act1Cap || 12;
+  const cap = opt.act1Cap || SR.ACT1_CAP;
   const ai = opt.ai==='H' ? H.aiTurn : D.aiTurn;
   while(t<cap){
     if(S.hp<=0 && !BOSS[S.board.boss].noDeath) return {out:'사망', turns:t};
@@ -349,7 +350,7 @@ function act3(S, policy, correct, opt={}){
   const dis = S.nodes[0];
   applyPolicy(S, dis, policy, correct);            // 공용 — painCut 포함
   let t = 0;
-  const cap = opt.act3Cap || 30;
+  const cap = opt.act3Cap || SR.ACT3_CAP;
   while(t<cap){
     const v = storyVerdict(S, dis, policy);        // 공용 — 수동 화면도 같은 판정을 쓴다
     if(v) return {out:v, turns:t, stage:dis.stage};
@@ -388,10 +389,10 @@ function storyTurn(S, dis, policy){
 
     const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
     if(!sup.length) break;
-    const card = sup.sort((a,b)=>(C.CARDS[b].sup||6)/Math.max(1,C.CARDS[b].cost)-(C.CARDS[a].sup||6)/Math.max(1,C.CARDS[a].cost))[0];
+    const card = sup.sort((a,b)=>(C.CARDS[b].v.sup||6)/Math.max(1,C.CARDS[b].cost)-(C.CARDS[a].v.sup||6)/Math.max(1,C.CARDS[a].cost))[0];
     const cd = C.CARDS[card];
     if(wantDis){
-      S.energy-=C.cardCost(S,card); hitDisease(S,dis,cd.sup||6); S.played++;
+      S.energy-=C.cardCost(S,card); hitDisease(S,dis,cd.v.sup||6); S.played++;
       if(S.rec) S.rec.push(`${card} → 병 노드`);
       const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
       continue;

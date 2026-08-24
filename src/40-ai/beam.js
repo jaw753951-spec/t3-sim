@@ -38,7 +38,7 @@ function evalState(S){
   }
   v += (S.pendKill||[]).length * W.dead * 0.8;   // 미뤄 둔 처치도 거의 뽑은 것으로 본다
   v += (S.hp/S.hpMax)*W.hp;
-  v -= (S.mind==='불안'?W.anx : S.mind==='공황'?W.panic : S.mind==='의식불명'?W.panic*0.78 : 0);
+  v -= (S.mind==='불안'?W.anx : S.mind==='공황'?W.panic : S.mind==='의식불명'?W.panic*R.MIND_KO_W : 0);
   v += S.energy*W.energy + S.hand.length*W.hand;
   return v;
 }
@@ -78,7 +78,7 @@ function moves(S){
       } else {
         /* 여러 장은 조합이 커진다 — 값이 싼 쪽부터 정해진 수만큼 버린다 */
         const cheap = pool.slice().sort((a,b)=>
-          (C.CARDS[a].sup||0)/Math.max(1,C.cardCost(S,a)) - (C.CARDS[b].sup||0)/Math.max(1,C.cardCost(S,b)));
+          (C.CARDS[a].v.sup||0)/Math.max(1,C.cardCost(S,a)) - (C.CARDS[b].v.sup||0)/Math.max(1,C.cardCost(S,b)));
         out.push({t:'card', id, i:-1, arg:cheap.slice(0,want)});
       }
     } else out.push({t:'card', id, i:-1});

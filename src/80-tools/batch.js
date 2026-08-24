@@ -6,7 +6,7 @@
 //@ 화면.차트 — §9.9 배치 결과를 글로 뽑는다
 function exportChart(){
   const L = [];
-  L.push('INTERN 전투 시뮬레이터 v22 — 차트');
+  L.push(`INTERN 전투 시뮬레이터 ${VERSION} — 차트`);
   L.push(`뽑은 때 ${new Date().toISOString().slice(0,19).replace('T',' ')}`);
   L.push(`모드 ${MODE} · 시드 ${$('seed').value}`);
   L.push(`규칙 덮어쓰기 ${OVR_KEYS.length ? OVR_KEYS.join(' · ') : '없음 (권위본)'}`);

@@ -23,7 +23,11 @@ const BOSS = {
            5:['분화','성장','고유','창','분화','엮는다']},
     unique:(S,dis)=>{
       if(dis.stage===3){                       // 「파고든다」 — 신경계 노드 진화 시계를 당긴다
-        for(const n of K.active(S)) if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란')) n.evoLeft=Math.max(1,n.evoLeft-SR.BEAT_EVO_PULL);
+        /* 당길 자리가 하나도 없으면(창이 쓸어 간 직후·이미 시계가 1) 헛돈다 —
+           null 을 돌려 성장으로 넘긴다. 문자열을 돌려주면 그 턴은 통째로 빈다. */
+        const ns = K.active(S).filter(n=>n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란') && n.evoLeft>1);
+        if(!ns.length) return null;
+        for(const n of ns) n.evoLeft = Math.max(1, n.evoLeft - SR.BEAT_EVO_PULL);
         return '파고든다';
       }
       if(dis.stage===4){                       // 「알아듣지 못한다」 — 정신을 한 단계 무너뜨린다
@@ -46,11 +50,10 @@ const BOSS = {
     /* 「긁는다」 — 활성 통증 자리가 둘 이상이면 긁어서 이차 감염이 앉는다 */
     unique:(S)=>{
       const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
-      if(pain.length>=SR.BEAT_SCRATCH_N && K.active(S).filter(n=>n.sym==='감염').length===0){
-        S.nodes.push(mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
-        return '긁어서 이차 감염이 앉는다';
-      }
-      return '긁는다 — 아직 자리가 모자란다';
+      /* 통증이 모자라거나 이미 감염이 앉아 있으면 헛돈다 — 성장으로 넘긴다 */
+      if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
+      S.nodes.push(mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
+      return '긁어서 이차 감염이 앉는다';
     },
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
@@ -62,8 +65,11 @@ const BOSS = {
     /* 「지금이면 괜찮아진다」 — 재워둔 자리 하나를 깨우고 정신을 한 단계 무너뜨린다 */
     unique:(S)=>{
       const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
+      const mind0=S.mind;
       if(dorm.length){ const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0 }
       K.mind(S,+1);
+      /* 깨울 자리도 없고 정신도 더 갈 데가 없으면 헛돈다 — 성장으로 넘긴다 */
+      if(!dorm.length && S.mind===mind0) return null;
       return '지금이면 괜찮아진다';
     },
     policy:{완치:'병 노드를 처치선까지 내려 끊는다 (정점을 넘기는 경주)',

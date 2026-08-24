@@ -120,7 +120,9 @@ function diseaseAct(S, dis, act){
         spawned:true, born:S.turn, role:'sym'});
       return `분화 — ${s}`;
     }
-    return '분화 — 자리가 다 찼다';
+    /* 자리가 다 찼다 — 명부가 있는 보스와 같게 성장으로 넘긴다.
+       전에는 여기서만 문자열을 돌려줘 어부·송이의 분화가 빈 턴이 됐다. */
+    return growBeat(S);
   }
   if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   /* ── v25 신설 ── 창은 아이 전용. 나머지 셋은 공용, 아래 넷은 보스 고유 ── */

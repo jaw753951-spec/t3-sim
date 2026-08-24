@@ -169,6 +169,53 @@ const INVARIANTS = `(() => {
     }
   }
 
+  /* ③ㄷ 병 노드의 비트가 헛돌지 않는가.
+     살아 있는 자리가 하나라도 있으면 「같은 박자」(설계상 쉼) 말고는 어떤 비트든
+     판을 바꿔야 한다. 「고유가 헛돌면 성장으로 대신한다」는 규약이 여기서 걸린다 —
+     고유가 실패하고도 문자열을 돌려주면 그 턴은 병이 통째로 노는 턴이 된다.
+     세 가지 판에 세워 본다: 자리 하나 · 자리가 꽉 참 · 자리 하나에 정신이 바닥.
+     비트 화면이 없던 옛 파일에는 diseaseAct 가 없다 — 그때는 건너뛴다. */
+  if (typeof diseaseAct === 'function') {
+    const REST = {'같은 박자': 1};
+    const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length,
+      clock: S.nodes[0].stageClock, stage: S.nodes[0].stage,
+      nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0, x.evoLeft, x.dormT])});
+    /* 병기 st 의 판을 세우고 자리를 fill 개만 살려 둔다 */
+    const stand = (boss, stage, fill, mind) => {
+      const rng = K.mulberry32(99);
+      const board = makeDisease(boss, rng);
+      const S = K.newState(board, {}); S.board = board; S.rng = rng; S.act = 3;
+      S.nodes[0].stage = stage;
+      for (const n of S.nodes) if (n.role !== 'disease') { n.dead = true; n.val = 0 }
+      for (const sym of fill) { const n = mkSpot(sym, 50, 0); n.val = 20; S.nodes.push(n) }
+      if (mind) S.mind = mind;
+      return S;
+    };
+    for (const boss in BOSS) {
+      const b = BOSS[boss];
+      for (const st in b.beats) {
+        const stage = +st;
+        /* 자리가 꽉 찬 판 — 명부가 있으면 명부대로, 없으면 자리 상한만큼 */
+        const full = b.roster ? b.roster[stage].map(r => r[0])
+                              : new Array(SR.SPAWN_LV[SLV(boss, 'spots', stage)]).fill('발열');
+        b.beats[st].forEach((beat, i) => {
+          if (REST[beat]) return;
+          for (const [what, fill, mind] of [['자리 하나', ['발열'], null],
+                                            ['자리가 꽉 참', full, null],
+                                            ['자리 하나 · 공황', ['발열'], '공황']]) {
+            const S = stand(boss, stage, fill, mind);
+            S.nodes[0].beat = i;
+            const before = snap(S);
+            const line = diseaseAct(S, S.nodes[0], null);
+            if (snap(S) === before)
+              bad.push('비트가 헛돈다 — ' + boss + ' 병기' + stage + ' ' + (i + 1) + '번째 「' + beat +
+                       '」 · ' + what + ' → 「' + line + '」');
+          }
+        });
+      }
+    }
+  }
+
   /* ④ 대본 환자가 부르는 증상이 증상표에 있는가 */
   for (const id in P.SCRIPT) for (const s of (P.SCRIPT[id].syms || []))
     if (!K.SYM[s]) bad.push('대본 「' + id + '」 이 모르는 증상 「' + s + '」 를 부른다');

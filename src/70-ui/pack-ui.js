@@ -25,10 +25,8 @@ function openPackStory(){
 function pkToggle(id){
   const p = PACKS.find(x=>x.id===id), was = !!PK.on[id];
   PK.on = packPick(PK.on, id);
-  PK.msg = !PK.on[id] ? `${p.name}${eul(p.name)} 뺐다 — ${p.cards.length}장.`
-         : was        ? `${p.name}은(는) 이미 골라 둔 팩이다.`
-         : p.group    ? (dept => `보급을 ${dept}${ro(dept)} 골랐다 — ${p.cards.join(' · ')}.`)(p.name.replace(' 보급 카드팩',''))
-                      : `${p.name}${eul(p.name)} 들였다 — ${p.cards.length}장.`;
+  PK.msg = was && PK.on[id] ? ''                      // 고른 팩을 다시 누른 것 — 달라진 게 없다
+         : `${p.name}${eul(p.name)} ${!PK.on[id] ? '뺐다' : p.group ? '골랐다' : '들였다'} — ${p.cards.join(' · ')}.`;
   PK.open = null; renderPack();
 }
 
@@ -38,22 +36,9 @@ function eul(w){
   return (c<0 || c>11171 || c%28) ? '을' : '를';
 }
 
-/* 받침이 없거나 ㄹ 이면 '로', 그 밖에는 '으로'. 외과·내과는 '로', 의공학은 '으로' */
-function ro(w){
-  const c = w.charCodeAt(w.length-1) - 0xAC00;
-  if(c<0 || c>11171) return '으로';
-  const j = c%28;
-  return (j===0 || j===8) ? '로' : '으로';
-}
-
 /* 카드를 누르면 그 자리만 남고 나머지가 페이드 아웃된다.
    대체할 카드가 없는 자리(레터박스 0)도 눌린다 — 없다는 것을 그 자리에서 보인다 */
-function pkOpen(base){
-  PK.open = (PK.open===base ? null : base);
-  renderPack();
-  const slot = document.querySelector('.slot.on');
-  if(slot){ slot.scrollIntoView({block:'nearest'}); pkPlace() }
-}
+function pkOpen(base){ PK.open = (PK.open===base ? null : base); renderPack() }
 
 function pkClose(){ PK.open = null; renderPack() }
 
@@ -65,9 +50,6 @@ function pkSwap(base, id){
 }
 
 function pkDone(){
-  if(packDeck(PK.on, PK.swap).length > STORY_CAP){
-    PK.msg = `${STORY_CAP}장이 상한이다. 팩 하나를 빼야 한다.`; renderPack(); return;
-  }
   STORY_PACKS = {...PK.on}; STORY_SWAP = {...PK.swap};
   STORY_DECK  = packDeck(STORY_PACKS, STORY_SWAP);
   PK = null;
@@ -86,11 +68,10 @@ function renderPack(){
   for(const c of deck) by[CARDS[c].dept]++;
   const onN = PACKS.filter(p=>p.fixed||PK.on[p.id]).length;
 
-  const over = deck.length > STORY_CAP;
   $('dk_body').innerHTML =
       `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장</div>`
     + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
-        <span class="right">${over?`<i class="up">상한 ${STORY_CAP}장을 넘었다</i>`:(PK.msg?`<i>${esc(PK.msg)}</i>`:'')}</span></div>`
+        <span class="right">${PK.msg?`<i>${esc(PK.msg)}</i>`:''}</span></div>`
     + packsHTML()
     + `<div class="row2" style="max-width:340px;margin-top:16px">
         <button class="go" onclick="pkDone()">이 가방으로 간다</button>
@@ -98,22 +79,24 @@ function renderPack(){
     + (PK.open ? `<div class="fade" onclick="pkClose()"></div>` : '');
   $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
   renderAIW();
-  pkPlace();
+  if(PK.open){
+    const slot = $('dk_body').querySelector('.slot.on');
+    if(slot) slot.scrollIntoView({block:'nearest'});
+    pkPlace();
+  }
 }
 
-/* 팩을 차례로 그리되, 묶음이 시작되는 자리에 묶음 머리를 한 줄 건다.
-   묶음(보급)은 셋이 나란히 놓여 그중 하나를 고르는 것으로 보여야 한다 */
+/* 팩을 차례로 그리되, 묶음이 시작되는 자리에 묶음 머리를 한 줄 건다 */
 function packsHTML(){
   let out = '', group = null;
   for(const p of PACKS){
     if(p.group !== group){
-      if(group) out += `</div>`;
       group = p.group;
-      if(group) out += `<div class="bar">${esc(PACK_GROUP[group]||'')}</div><div class="group">`;
+      if(group) out += `<div class="bar">${esc(PACK_GROUP[group]||'')}</div>`;
     }
     out += packHTML(p);
   }
-  return out + (group ? '</div>' : '');
+  return out;
 }
 
 function packHTML(p){
@@ -123,7 +106,7 @@ function packHTML(p){
              : p.group ? (on ? `<span class="right d">골랐다</span>`
                              : `<button class="mini right go" onclick="pkToggle('${p.id}')">이걸로 고른다</button>`)
                        : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`;
-  return `<div class="pack ${on?'':'off'}${p.group?' ing':''}">
+  return `<div class="pack ${on?'':'off'}">
     <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장</span>${knob}</div>
     <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
 }
@@ -155,7 +138,7 @@ function lboxTip(base, id, pool){
 /* 페이드 아웃 위로 올라오는 판 — 자리 옆에 붙는다 */
 function swapsHTML(base, cur, pool){
   return `<div class="swaps">
-    <div class="swhead">대체 카드 풀 <b>${pool.length}</b></div>`
+    <div class="swhead">대체 카드 풀</div>`
     + (pool.length
         ? pool.map(c=>cardHTML(c, {mark:c===cur, onclick:`pkSwap('${base}','${c}')`,
             foot:`<span class="keep ${c===cur?'on':'why'}">${c===cur?'지금 이 자리에 있다':'이 카드로 바꾼다'}</span>`})).join('')

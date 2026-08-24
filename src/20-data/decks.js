@@ -87,8 +87,8 @@ const swapPool = id => SWAP.find(p => p.includes(id)) || [];
 function packDeck(on, swap){
   const out = [];
   for(const p of PACKS){
-    if(!p.fixed && !(on||{})[p.id]) continue;
-    for(const base of p.cards) out.push((swap||{})[base] || base);
+    if(!p.fixed && !on[p.id]) continue;
+    for(const base of p.cards) out.push(swap[base] || base);
   }
   return out;
 }

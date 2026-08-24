@@ -19,9 +19,6 @@ function bleedIcon(c, S){
   return `<span class="bl"${tip(body)} style="${ok?'':'opacity:.45'}">혈${c.bleed}</span>`;
 }
 
-/* 소수는 한 자리까지만 — 안정화가 1.3 배나 나누기로 딱 안 떨어진다 */
-const numText = x => (typeof x==='number' && !Number.isInteger(x)) ? (Math.round(x*10)/10).toFixed(1) : String(x);
-
 //@ 화면.카드수치 — 적힌 값과 지금 실제로 일어나는 값
 /* 이 카드의 이 열쇠가 지금 내는 값.
    base = 카드에 적힌 수 · eff = 이 판 이 자리에서 실제로 일어나는 수 */
@@ -82,13 +79,12 @@ function valSpan(S, id, key, node){
   if(S && node && c.branch && key!=='cost' && c.branch(S, node) !== key)
     return `<span class="voff"${tip(`<span class="tt">지금은 안 걸린다</span>고른 자리는 <b>${node.sym}</b> 이다.`)}>${numText(base)}</span>`;
   if(!kind || eff===base) return numText(base);
-  /* 코스트만 반대다 — 싸지는 쪽이 좋은 일이다 */
-  const better = kind==='코스트' ? eff<base : eff>base;
   const why = effWhy(S, id, kind, node);
   const body = `<span class="tt">${kind}</span>카드에 적힌 값 <b>${numText(base)}</b><br>`
     + `지금 실제로 <b>${numText(eff)}</b>`
     + (why.length ? '<br><br>' + why.join('<br>') : '');
-  return `<span class="${better?'vup':'vdn'}"${tip(body)}>${numText(eff)}</span>`;
+  /* 코스트만 반대다 — 싸지는 쪽이 좋은 일이다 */
+  return driftSpan(base, eff, body, kind!=='코스트');
 }
 
 /* 본문의 {열쇠} 를 값으로 갈아 넣는다. 없는 열쇠는 그대로 둔다 —

@@ -110,6 +110,70 @@ async function probe(browser, file){
   });
   await page.waitForTimeout(120);
 
+  /* ⑦ㄷ 깊은 경로 — 되돌리기 · 사혈 · 설치물 · 처치 · 규칙 덮어쓰기.
+     여기는 두 파일을 견주는 것이 아니라, 그 파일 하나가 스스로 앞뒤가 맞는지 본다.
+     화면 글자를 견주는 것만으로는 '눌렀더니 엉뚱한 일이 일어난다' 를 못 잡는다. */
+  snap.deep = await page.evaluate(() => {
+    const bad = [];
+    if (typeof playCard !== 'function' || typeof undoStep !== 'function') return bad;
+    const fresh = (hand, tweak) => {
+      document.getElementById('seed').value = '2024';
+      document.getElementById('src').value = 'level';
+      document.getElementById('lv').value = '3';
+      newGame();
+      S.hand = hand.slice(); S.energy = 9; SEL = 0;
+      if (tweak) tweak(S);
+      render();
+    };
+    const shot = () => JSON.stringify({hp:S.hp, energy:S.energy, hand:[...S.hand].sort(),
+      nodes:S.nodes.map(n=>[n.sym,n.val,n.rig|0,n.rigLent|0,n.weak|0,n.dead?1:0])});
+
+    /* ① 되돌리기 — 카드를 내고 무르면 판이 원래대로 와야 한다 */
+    fresh(['감초 탕약']);
+    const a0 = shot();
+    playCard('감초 탕약');
+    if (shot() === a0) bad.push('되돌리기 — 카드를 냈는데 판이 그대로다 (검사가 헛돌았다)');
+    undoStep();
+    if (shot() !== a0) bad.push('되돌리기 — 무른 뒤 판이 원래대로 안 왔다');
+
+    /* ② 사혈 — 낸 만큼 정확히 최대 체력에서 빠져야 한다.
+       예상값을 bleedPay 로 구하면 그 함수가 틀려도 둘이 같이 틀려 검사가 헛돈다 —
+       규칙값에서 따로 센다. */
+    fresh(['매듭 짓다']);
+    const tier = CARDS['매듭 짓다'].bleed;
+    const hp0 = S.hp, want = Math.ceil(S.hpMax * R.BLEED_PAY[tier]);
+    playCard('매듭 짓다');
+    if (hp0 - S.hp !== want) bad.push(`사혈 — 지불액이 다르다. 규칙상 ${want} · 실제 ${hp0 - S.hp}`);
+
+    /* ③ 설치물 — 놓고, 개방하면 사라지면서 수치가 준다 */
+    fresh(['거치', '출력 개방'], s => { s.nodes[0].shielded = false; s.nodes[0].shReduc = 0 });
+    playCard('거치');
+    const rig = S.nodes[0].rig, want2 = C.cardNums(S, '거치').rig;
+    if (rig !== want2) bad.push(`설치물 — 놓인 값이 다르다. 카드값 ${want2} · 실제 ${rig}`);
+    const v0 = S.nodes[0].val;
+    SEL = 0; playCard('출력 개방');
+    if (S.nodes[0].rig !== 0) bad.push('설치물 — 개방했는데 설치물이 안 사라졌다');
+    if (S.nodes[0].val >= v0) bad.push('설치물 — 개방했는데 수치가 안 줄었다');
+
+    /* ④ 처치 — 처치선 아래면 끊기고 광역 억제가 돈다 */
+    fresh([], s => { s.nodes[0].val = 1; s.nodes.forEach(n => { n.shielded = false; n.shReduc = 0 }) });
+    if (S.nodes.length > 1) {
+      const other = S.nodes[1].val;
+      SEL = 0; killSel();
+      if (!S.nodes[0].dead && S.nodes[0].val > 0) bad.push('처치 — 처치선 아래인데 안 끊겼다');
+      if (S.nodes[1].val > other) bad.push('처치 — 끊었는데 다른 자리 수치가 되레 올랐다');
+    }
+
+    /* ⑤ 규칙 덮어쓰기 — 걸고 풀면 제자리로 와야 한다 */
+    const k0 = R.KILL_LINE;
+    ovrSet('R', 'KILL_LINE', 0.9);
+    if (R.KILL_LINE !== 0.9) bad.push('덮어쓰기 — 값이 안 걸렸다');
+    ovrReset();
+    if (R.KILL_LINE !== k0) bad.push(`덮어쓰기 — 푼 뒤 제자리로 안 왔다. ${k0} → ${R.KILL_LINE}`);
+    return bad;
+  });
+  await page.waitForTimeout(120);
+
   /* ⑧ 툴팁 — 등록된 설명 개수와 내용 */
   snap.tips = await page.evaluate(()=>({ n: Object.keys(TIPS).length, fix: Object.keys(FIXT).length }));
 
@@ -131,8 +195,13 @@ async function probe(browser, file){
     const st = r.snap.stuckTips || [];
     if(st.length){ bad++; console.log(`\n=== ${f} — 손잡이를 안 따라오는 설명문 ${st.length} ===\n` + st.map(x=>'  '+x).join('\n')) }
   }
+  for(const [f, r] of [[a, A], [b, B]]){
+    const dp = r.snap.deep || [];
+    if(dp.length){ bad++; console.log(`\n=== ${f} — 깊은 경로가 어긋난 곳 ${dp.length} ===\n` + dp.map(x=>'  '+x).join('\n')) }
+  }
   /* 목록 자체는 파일마다 다를 수 있으니 견주기에서는 뺀다 */
   delete A.snap.stuckTips; delete B.snap.stuckTips;
+  delete A.snap.deep; delete B.snap.deep;
 
   const d = [];
   (function walk(x, y, p){
@@ -144,6 +213,6 @@ async function probe(browser, file){
   })(A.snap, B.snap, '');
 
   if(d.length){ console.log(`\n=== 화면이 다른 곳 ${d.length} ===\n` + d.slice(0,12).join('\n\n')); bad++ }
-  else console.log('화면 같다 — 조작 8묶음 · 탭 5개 · 오류 0');
+  else console.log('화면 같다 — 조작 8묶음 · 탭 5개 · 깊은 경로 5 · 설명문 추적 · 오류 0');
   process.exit(bad ? 1 : 0);
 })();

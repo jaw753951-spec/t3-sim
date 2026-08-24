@@ -32,6 +32,36 @@ function render(){
   renderInto(MODE==='story' ? 'st' : 'on');
 }
 
+/* ── 자리의 처치선 ── 규칙이 정한 바탕값과, 이 판에서 실제로 걸린 값 ──
+   약화가 올리고(끊기 쉬워진다) 통증이 내린다(끊기 어려워진다).
+   실제 값은 커널의 killLine 이 낸다 — 카드와 마찬가지로 화면이 따로 계산하지 않는다. */
+//@ 화면.처치선 — 바탕 처치선과 지금 처치선
+function lineEff(S, n){
+  const pct = n.role==='disease' ? R.DIS_KILL_LINE : R.KILL_LINE;
+  return { base: Math.floor(n.init * pct), eff: killLine(S, n) };
+}
+/* 뱃지에 박히는 처치선 한 조각 — 바탕값과 다르면 물든다.
+   높아지는 쪽이 좋다: 처치선이 높을수록 일찍 끊을 수 있다 */
+function lineSpan(S, n){
+  const {base, eff} = lineEff(S, n);
+  const why = lineWhy(S, n);
+  return driftSpan(base, eff,
+    `<span class="tt">처치선</span>규칙이 정한 값 <b>${base}</b><br>이 판에서는 <b>${eff}</b>`
+    + (why.length ? '<br><br>' + why.join('<br>') : ''), true);
+}
+
+/* 무엇이 처치선을 움직였는가 */
+function lineWhy(S, n){
+  const w = [];
+  const per = n.role==='disease' ? R.WEAK_STACK_DIS : R.WEAK_STACK;
+  if(n.weak) w.push(`약화 ${n.weak} — 처치선 +${pctOf(per*n.weak)}p`);
+  if(n.role!=='disease'){
+    const ps = active(S).filter(x=>x.sym==='통증');
+    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
+  }
+  return w;
+}
+
 function renderInto(h){
   if(!S) return;
   tipReset();
@@ -79,28 +109,32 @@ function renderInto(h){
     const badge = imm
       ? `<span class="badge none"${tip(TT('1막 · 무적','병명을 밝히기 전까지 병 노드는 억제 · 안정화 · 처치를 전부 받지 않는다.<br>이 자리에 통하는 것은 <b>진단</b>과 <b>재진</b>뿐이다. 진단 카드는 검사 파라미터로 들어가 증거를 쌓는다.'))}>무적 · 진단만 통한다</span>`
       : (r===null?'':`<span class="badge ${r}"${tip(TT(r==='strong'?'강반응':r==='weak'?'약반응':'휴면',
-          `처치선 <b>${line}</b> (초기값의 ${Math.round(line/n.init*100)}%) 아래로 내려온 자리는 끊을 수 있다.<br>`
+          `처치선 <b>${line}</b> (초기값의 ${pctOf(line/n.init)}) 아래로 내려온 자리는 끊을 수 있다.<br>`
+          +`규칙이 정한 바탕값은 ${lineEff(S,n).base} (초기값의 ${pctOf(n.role==='disease'?R.DIS_KILL_LINE:R.KILL_LINE)}).<br>`
           +(n.role==='disease'
-            ? `병 노드는 기본 0이다. 약화 한 스택이 <b>2.5%p</b>씩 올린다 (증상의 절반). 지금 약화 ${n.weak}.<br>`
-            : `= 초기값 × (통증 몫 ${Math.round(painShare(S)*100)}% + 5%p × 약화 ${n.weak})<br>`)
+            ? `병 노드는 기본 ${pctOf(R.DIS_KILL_LINE)} 다. 약화 한 스택이 <b>${pctOf(R.WEAK_STACK_DIS)}p</b>씩 올린다 (증상의 절반). 지금 약화 ${n.weak}.<br>`
+            : `= 초기값 × (통증 몫 ${pctOf(painShare(S))} + ${pctOf(R.WEAK_STACK)}p × 약화 ${n.weak})<br>`)
           +`강 · 약 경계는 처치선의 절반 = ${edge}.<br>처치 코스트 ${R.KILL_COST}.<br><br>`
-          +`끊으면 판 전체가 <b>−${sweepAmt(n)}</b> 광역 억제된다 (잔량을 초기값 50%에서 캡한 뒤 1/3, 올림).`
+          +`끊으면 판 전체가 <b>−${sweepAmt(n)}</b> 광역 억제된다 (잔량을 초기값 ${pctOf(R.SWEEP_CAP)} 에서 캡한 뒤 ${numOf(R.SWEEP_K)} 배, 올림).`
           +(r==='strong'?'<br><br>강반응은 전이 · 촉발을 강하게 터뜨리고 정신을 한 단계 무너뜨린다.':'')
           +(r==='none'?'<br><br>휴면에서 끊으면 광역 억제가 0이다.':'')))}>${r==='strong'?'강반응':r==='weak'?'약반응':'휴면'} · 처치 ${R.KILL_COST}코 · 전체 −${sweepAmt(n)}</span>`);
 
     const gAdd = growAmt(S,n);
     const marks=[
+      /* 처치선은 늘 보인다. 뱃지는 이미 끊을 수 있을 때만 뜨는데,
+         정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
+      `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
       n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
       n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
-      n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${Math.round(n.shReduc*100)}%</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화 효율이 절반이다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
-      n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak} · 선 ${Math.round(line/n.init*100)}%</span>`:'',
-      n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(3,n.rig)}<br><br>개방하면 <b>−${n.rig*2}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+      n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
+      n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
+      n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
       n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
       gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
       n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
       n.role==='disease'?'':(n.evolved
         ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
-        :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${Math.round((R.EVO_HIT[n.sym]||0)*100)}%</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
+        :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
       n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
       (SYMDOC[n.sym] && n.role!=='disease')
         ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
@@ -119,7 +153,7 @@ function renderInto(h){
     ].filter(Boolean).join('');
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     const symTip = n.role==='disease'
-      ? tip(TT('병 노드','부수 증상이 하나라도 살아 있으면 받는 피해가 절반이다.<br>처치선은 0 — 수치를 0까지 내려야 끊을 수 있다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.'))
+      ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
       : tip(TT(n.sym, SYMTIP[n.sym]||''));
     const evoTip = tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'') + '<br><br><span class="d">한 번 진화한 자리는 되돌아가지 않는다.</span>'));
     return `<div class="node ${SEL===i?'sel':''} ${SYM[n.sym]&&SYM[n.sym].atk?'atk':''} ${n.evolved?'evo':''} ${n.role==='disease'?'dis':''}" onclick="pickNode(${i})">

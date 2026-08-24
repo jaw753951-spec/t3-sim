@@ -165,4 +165,6 @@ td input[type=checkbox]{width:auto}
 .vdn{color:var(--blood);font-weight:700}
 .voff{opacity:.42}
 .ctext .vup,.ctext .vdn,.ctext .voff{border-bottom:1px dotted currentColor;cursor:help}
+.m.ln{border-color:var(--dim)}
+.m.ln .vup,.m.ln .vdn{cursor:help}
 

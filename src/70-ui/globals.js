@@ -23,3 +23,20 @@ const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 //@ 화면.패널 — §9.5 모드별 판 · 가방 상한
 const PANES = {one:{started:false}, sess:{started:false}, story:{started:false},
                batch:{started:true}, make:{started:true}};
+
+/* ── 수치 물들이기 ─────────────────────────────────────────────
+   바탕값(규칙이 정한 값 · 카드에 적힌 값)과 지금 값이 다르면 색으로 알린다.
+   세지면 초록, 약해지면 빨강. 무엇이 '좋은' 방향인지는 부르는 쪽이 정한다 —
+   코스트와 처치선은 결이 달라서 한 규칙으로 묶을 수 없다.
+
+   카드(cardEff)와 자리(lineEff)가 같은 이 함수를 쓴다. 색 규칙이 두 벌이면
+   같은 판을 보고 카드와 자리가 서로 다른 말을 하게 된다. */
+//@ 화면.물들이기 — 바탕값과 지금 값이 다르면 색으로 알린다
+const numText = x => (typeof x==='number' && !Number.isInteger(x)) ? (Math.round(x*10)/10).toFixed(1) : String(x);
+
+function driftSpan(base, eff, body, upIsGood=true){
+  if(base===undefined || eff===undefined) return numText(base===undefined?eff:base);
+  if(eff===base) return numText(base);
+  const better = upIsGood ? eff>base : eff<base;
+  return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
+}

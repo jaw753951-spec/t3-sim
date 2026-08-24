@@ -8,13 +8,15 @@ const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BA
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
+/* medianBoards 는 화면에서 부르는 곳이 없다. 레벨표 중앙값으로 S 를 되짚는
+   자체 검산이고, 지금 이것을 부르는 것은 sim_check.js 뿐이다. */
 const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
 
-const C={CARDS,DECK_D1,DECK_D2,BAG_D3,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
+const C={CARDS,DECK_D1,DECK_D2,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,hasRevisit,rigTotal,handPicks,pickNeed};
 
 const P={SCRIPT,SESSIONS,makePatient};
 
-const D={aiTurn,runDeck};          // 새 AI 를 기본으로 쓴다
+const D={aiTurn};                  // 새 AI 를 기본으로 쓴다
 
-const H={aiTurn:aiTurnH,runDeck:runDeckH};   // 옛 휴리스틱 (대조용)
+const H={aiTurn:aiTurnH};          // 옛 휴리스틱 (대조용). 갈래는 runDeck 이 opt.ai 로 고른다

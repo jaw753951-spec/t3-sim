@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>INTERN 전투 시뮬레이터 v22</title><style>
+<title>INTERN 전투 시뮬레이터 v25</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -165,7 +165,7 @@ td input[type=checkbox]{width:auto}
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN <span>v22</span></h1>
+  <h1>INTERN <span>v25</span></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -353,7 +353,9 @@ const R = {
   WEAK_LINE_MAX: 1.00,     // 처치선 상한 100%
 
   /* 기세 (외과) */
-  RUSH_SCOPE: 'act',       // 'battle' | 'act' | 'stage' — 막이 바뀌면 풀린다. 병기는 건드리지 않는다
+  /* 유지 범위는 손잡이가 아니라 코드가 정한다 — applyPolicy 가 3막에 들어설 때
+     S.rush 를 0 으로 되돌린다. 즉 막 단위다. RUSH_SCOPE 라는 문자열 손잡이가
+     있었으나 읽는 코드가 한 줄도 없었고, 문자열이라 덮어쓰기 칸에도 뜨지 않아 걷어냈다. */
   RUSH_MAX: 5,
   RUSH_PER: 2,             // 처치 한 번에 얻는 기세. 소비 스택당 효과는 카드가 정한다
 
@@ -539,10 +541,6 @@ const ATK_TARGET = {1:1, 2:1, 3:2, 4:3, 5:4};
    §6 스토리 전용 수치 손잡이
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* ═══════════════════════════════════════════════════════════════
    스토리 전투 v19 — 단계 6-2
    1막 = 병명을 밝힌다 (병 노드에 손 못 댐)
@@ -570,7 +568,6 @@ const SR = {
   /* v25 — 아래 둘은 레벨표에서 뽑아 쓴다. 손으로 적던 표를 지웠다.
      보스는 항목마다 어느 레벨을 보는지만 정한다 (BOSS[].lv). */
   DIS_BASE: Object.fromEntries(Object.entries(LVTAB).map(([k,v])=>[k, v.dis])),
-  DIS_BASE_ALT: {3:48, 4:72, 5:100}, // 격자 탐색값. 채택 안 함 — 참고로만 남긴다
   STAGE_TURNS: 6,                    // 원안 유지
   SPAWN_LV: Object.fromEntries(Object.entries(LVTAB).map(([k,v])=>[k, v.n[1]])),
 
@@ -632,10 +629,6 @@ const REP = {완치:2, 호전:1, 연명:0, 악화:-1, 사망:-3};
    자동 진행 저울
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* ═══════════════════════════════════════════════════════════════
    자동 플레이 v19 — 단계 7
    v18 의 aiTurn 은 균일 2코 처치 · 처치선 30% 전제로 짜인 휴리스틱이었다.
@@ -776,7 +769,8 @@ const DECK_D1 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투�
 const DECK_D2 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요',
                  '창상봉합술','지혈 압박','도와드릴까요?'];
 
-const BAG_D3  = [...new Set([...DECK_D2,'붕대 감기','소매를 걷습니다','도와드릴까요?'])];  // 1종 1장 — 중복 제거
+/* 3일차 가방은 POOL.d3 하나로 정한다.
+   BAG_D3 라는 두 번째 정의가 있었으나 배선에 실려만 있고 부르는 곳이 없어 걷어냈다. */
 
 /* ── 덱 풀 ── 1종 1장 · 상한 8장. 고르는 것이 하루의 첫 판단이다 */
 const BASE10 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요',
@@ -1725,10 +1719,6 @@ function medianBoards(){
    §3 카드 규칙
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 자체 검증 ─────────────────────────────────────────────── */
-
-
-
 /* ═══════════════════════════════════════════════════════════════
    카드 레이어 v19 — 단계 3
    조건 축 넷을 데이터로 둔다. 효과 함수 안에 숨기지 않는다 —
@@ -1996,16 +1986,10 @@ function runSession(list, deck, budget, seed, opt={}){
 
 /* ── 왕진 ───────────────────────────────────────────────────
    포스터 6팀 중 둘을 고른다. 완충 = 1포스터에 3명, 그 밖 = 1명.
-   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다. */
-function runRound(list, deck, seed, opt={}){
-  const out=[];
-  list.forEach((id,i)=>{
-    const board = P.makePatient(id, seed + i*131);
-    const r = runOne(board, deck, seed + i*131 + 3, {...opt, hardCap: opt.hardCap||30});
-    out.push({id, out:r.out, turns:r.turns});
-  });
-  return out;
-}
+   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다.
+
+   전용 러너(runRound)는 v25 에서 걷어냈다 — 부르는 곳이 한 곳도 없었다.
+   왕진 배치는 SESSIONS.d3 의 rounds 를 펼친 list 를 runSession 에 넘겨 돈다. */
 
 //@ 파일.30-core/story
 
@@ -2283,7 +2267,6 @@ function storyVerdict(S, dis, policy){
                                 //  v19 는 완치 방침에서만 봐서, 연명 중 병을 끊으면
                                 //  판정이 영영 나지 않고 턴만 흘렀다.
   if(!policy) return null;
-  const others = K.alive(S).filter(n=>n.role!=='disease');
   /* v25 — 활성 부수 자리가 하나도 없으면 이긴다. 병 노드는 보지 않는다.
      휴면도 '비운 것'으로 센다 — 눌러서 내보냈고 병은 그대로다. */
   if(policy==='연명' && !dis.dead && !S.wiped
@@ -2316,9 +2299,9 @@ function act1PlayerTurn(S, aimEvid, ai){
 
 /* 진단 카드 한 장을 검사 파라미터로 쓴다 */
 function spendParam(S, id){
-  const c = C.CARDS[id];
-  if(C.cardCost(S,id) > S.energy) return false;
-  S.energy -= C.cardCost(S,id);
+  const cost = C.cardCost(S, id);
+  if(cost > S.energy) return false;
+  S.energy -= cost;
   S.paramAcc += (id==='환기하세요' ? 2 : 1) + ((S.diagPlus||{})[id] || 0);
   const i=S.hand.indexOf(id); if(i>=0) S.hand.splice(i,1);
   S.discard.push(id); S.played++;
@@ -2586,10 +2569,6 @@ function runDeck(board, deck, seed, opt={}){
    §7 v18 휴리스틱 (대조용)
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* 덱을 쥔 표준 플레이 — 단계 3 */
 
 //@ AI옛.평가 — v18 휴리스틱. 대조용으로만 남는다
@@ -2624,7 +2603,11 @@ function focus(S){
   return reach || c.sort((a,b)=>threat(S,b)-threat(S,a))[0];
 }
 
-//@ AI옛.턴 — v18 한 턴 · 한 판
+//@ AI옛.턴 — v18 한 턴.
+/* 한 판을 끝까지 도는 러너(runDeckH)는 v25 에서 걷어냈다 — 부르는 곳이 없었고,
+   이름은 H 인데 본문이 새 빔 탐색(aiTurn)을 부르고 있어 대조용 구실도 못 했다.
+   옛 AI 로 한 판을 돌리려면 runDeck(board, deck, seed, {ai:'H'}) 를 쓴다 —
+   배치 탭의 「휴리스틱 (v18 대조)」가 타는 길이 그것이다. */
 function aiTurnH(S, opt={}){
   S.played=0;
   let guard=0;
@@ -2676,22 +2659,6 @@ function aiTurnH(S, opt={}){
   }
 }
 
-function runDeckH(board, deck, seed, opt={}){
-  const rng=K.mulberry32(seed);
-  const S=K.newState(board, opt); S.board=board;
-  C.setupDeck(S, deck, rng);
-  const CAP=opt.turnCap||40;
-  for(let t=1;t<=CAP;t++){
-    if(S.hp<=0) return {out:'사망',turns:t,S};
-    if(K.alive(S).length===0) return {out:S.evoLog?'호전':'완치',turns:t,S};
-    aiTurn(S,opt);
-    if(K.alive(S).length===0) return {out:S.evoLog?'호전':'완치',turns:t,S};
-    C.endTurnHand(S);
-    K.turnResolve(S);
-  }
-  return {out:'시간초과',turns:CAP,S};
-}
-
 //@ 자름.커널끝 — 여기까지가 화면 없이 도는 부분
 
 //@ 자름.배선시작 — 점검 스크립트가 이 블록을 붙여 쓴다
@@ -2708,16 +2675,18 @@ const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BA
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
+/* medianBoards 는 화면에서 부르는 곳이 없다. 레벨표 중앙값으로 S 를 되짚는
+   자체 검산이고, 지금 이것을 부르는 것은 sim_check.js 뿐이다. */
 const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
 
-const C={CARDS,DECK_D1,DECK_D2,BAG_D3,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
+const C={CARDS,DECK_D1,DECK_D2,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,hasRevisit,rigTotal,handPicks,pickNeed};
 
 const P={SCRIPT,SESSIONS,makePatient};
 
-const D={aiTurn,runDeck};          // 새 AI 를 기본으로 쓴다
+const D={aiTurn};                  // 새 AI 를 기본으로 쓴다
 
-const H={aiTurn:aiTurnH,runDeck:runDeckH};   // 옛 휴리스틱 (대조용)
+const H={aiTurn:aiTurnH};          // 옛 휴리스틱 (대조용). 갈래는 runDeck 이 opt.ai 로 고른다
 
 //@ 자름.배선끝 — 문서를 열면 여기서 시작한다
 
@@ -2962,7 +2931,7 @@ const RULE_DOC = {
   MIND_BIGHIT:'한 턴에 최대 체력의 몇 %를 잃으면 정신이 무너지는가',
   MIND_ANX_SUP:'불안·공황일 때 억제에서 깎는 값', MIND_ANX_DIAG:'불안·공황일 때 진단에서 깎는 값',
   MIND_CALM_STAB:'평정일 때 안정화에 곱하는 값',
-  RUSH_MAX:'기세 상한', RUSH_PER:'처치 한 번에 얻는 기세', RUSH_SCOPE:'기세가 유지되는 범위',
+  RUSH_MAX:'기세 상한', RUSH_PER:'처치 한 번에 얻는 기세',
   BLEED_PAY:'사혈 단수별 지불 (최대 체력 비율)', BLEED_TURN_CAP:'한 턴 사혈 지불 상한',
   BLEED_FLOOR:'사혈 뒤 남아야 하는 체력',
   REM_MAX:'관해도 상한', REM_START:'관해 개시 시 관해도', REM_UPKEEP:'매 턴 빠지는 관해도',
@@ -2977,7 +2946,6 @@ const RULE_DOC = {
   dmgUp:'환자가 받는 피해 증가',
   SWEEP_K:'광역 억제 — 잘라 낸 잔량에 곱하는 값 (올림). 1/3 이면 셋으로 나눈 것과 같다',
   DIS_SHIELD:'부수 증상이 하나라도 살아 있으면 병 노드가 받는 피해를 이 비율만큼 깎는다',
-  DIS_BASE_ALT:'병기별 병 노드 수치의 격자 탐색값. 채택하지 않았다 — 계산에 쓰지 않는 참고 숫자다',
   SPAWN_LV:'레벨별 부수 증상 자리 상한 (LVTAB.n 상한에서 온다). 보스는 lv.spots 로 어느 레벨을 볼지 정한다',
   CAND_BASE:'차트에 처음 뜨는 후보 병명 수. 증거를 모을 때마다 둘씩 줄고 최소 하나는 남는다',
 };
@@ -3001,10 +2969,6 @@ const RULE_GROUP = {
    §9.1 전역 상태 · 잔손
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 옛 AI 와 견주기 ── */
-
-
-
 /* ═══ 화면 · 배치 · 도구 ═════════════════════════════════════
    v20 — 모드 다섯. 단판 / 세션 / 스토리 / 배치 / 만들기.
    판은 모드마다 따로 살아 있고 탭을 옮겨도 죽지 않는다.
@@ -4446,7 +4410,7 @@ const ovrNote = () => OVR_KEYS.length ? ` · <span class="badred">덮어쓴 값 
 //@ 화면.차트 — §9.9 배치 결과를 글로 뽑는다
 function exportChart(){
   const L = [];
-  L.push('INTERN 전투 시뮬레이터 v22 — 차트');
+  L.push('INTERN 전투 시뮬레이터 v25 — 차트');
   L.push(`뽑은 때 ${new Date().toISOString().slice(0,19).replace('T',' ')}`);
   L.push(`모드 ${MODE} · 시드 ${$('seed').value}`);
   L.push(`규칙 덮어쓰기 ${OVR_KEYS.length ? OVR_KEYS.join(' · ') : '없음 (권위본)'}`);

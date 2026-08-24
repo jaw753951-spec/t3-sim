@@ -272,7 +272,6 @@ function storyVerdict(S, dis, policy){
                                 //  v19 는 완치 방침에서만 봐서, 연명 중 병을 끊으면
                                 //  판정이 영영 나지 않고 턴만 흘렀다.
   if(!policy) return null;
-  const others = K.alive(S).filter(n=>n.role!=='disease');
   /* v25 — 활성 부수 자리가 하나도 없으면 이긴다. 병 노드는 보지 않는다.
      휴면도 '비운 것'으로 센다 — 눌러서 내보냈고 병은 그대로다. */
   if(policy==='연명' && !dis.dead && !S.wiped
@@ -305,9 +304,9 @@ function act1PlayerTurn(S, aimEvid, ai){
 
 /* 진단 카드 한 장을 검사 파라미터로 쓴다 */
 function spendParam(S, id){
-  const c = C.CARDS[id];
-  if(C.cardCost(S,id) > S.energy) return false;
-  S.energy -= C.cardCost(S,id);
+  const cost = C.cardCost(S, id);
+  if(cost > S.energy) return false;
+  S.energy -= cost;
   S.paramAcc += (id==='환기하세요' ? 2 : 1) + ((S.diagPlus||{})[id] || 0);
   const i=S.hand.indexOf(id); if(i>=0) S.hand.splice(i,1);
   S.discard.push(id); S.played++;

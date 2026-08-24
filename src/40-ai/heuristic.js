@@ -2,10 +2,6 @@
    §7 v18 휴리스틱 (대조용)
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
-/* ── 검증 ───────────────────────────────────────────────────── */
-
-
-
 /* 덱을 쥔 표준 플레이 — 단계 3 */
 
 //@ AI옛.평가 — v18 휴리스틱. 대조용으로만 남는다
@@ -40,7 +36,11 @@ function focus(S){
   return reach || c.sort((a,b)=>threat(S,b)-threat(S,a))[0];
 }
 
-//@ AI옛.턴 — v18 한 턴 · 한 판
+//@ AI옛.턴 — v18 한 턴.
+/* 한 판을 끝까지 도는 러너(runDeckH)는 v25 에서 걷어냈다 — 부르는 곳이 없었고,
+   이름은 H 인데 본문이 새 빔 탐색(aiTurn)을 부르고 있어 대조용 구실도 못 했다.
+   옛 AI 로 한 판을 돌리려면 runDeck(board, deck, seed, {ai:'H'}) 를 쓴다 —
+   배치 탭의 「휴리스틱 (v18 대조)」가 타는 길이 그것이다. */
 function aiTurnH(S, opt={}){
   S.played=0;
   let guard=0;
@@ -90,20 +90,4 @@ function aiTurnH(S, opt={}){
     }
     if(!C.play(S,pick,f)) break;
   }
-}
-
-function runDeckH(board, deck, seed, opt={}){
-  const rng=K.mulberry32(seed);
-  const S=K.newState(board, opt); S.board=board;
-  C.setupDeck(S, deck, rng);
-  const CAP=opt.turnCap||40;
-  for(let t=1;t<=CAP;t++){
-    if(S.hp<=0) return {out:'사망',turns:t,S};
-    if(K.alive(S).length===0) return {out:S.evoLog?'호전':'완치',turns:t,S};
-    aiTurn(S,opt);
-    if(K.alive(S).length===0) return {out:S.evoLog?'호전':'완치',turns:t,S};
-    C.endTurnHand(S);
-    K.turnResolve(S);
-  }
-  return {out:'시간초과',turns:CAP,S};
 }

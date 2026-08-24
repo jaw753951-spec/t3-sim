@@ -73,13 +73,7 @@ function runSession(list, deck, budget, seed, opt={}){
 
 /* ── 왕진 ───────────────────────────────────────────────────
    포스터 6팀 중 둘을 고른다. 완충 = 1포스터에 3명, 그 밖 = 1명.
-   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다. */
-function runRound(list, deck, seed, opt={}){
-  const out=[];
-  list.forEach((id,i)=>{
-    const board = P.makePatient(id, seed + i*131);
-    const r = runOne(board, deck, seed + i*131 + 3, {...opt, hardCap: opt.hardCap||30});
-    out.push({id, out:r.out, turns:r.turns});
-  });
-  return out;
-}
+   라운드마다 덱을 다시 짠다. 턴 예산 대신 라운드가 경계다.
+
+   전용 러너(runRound)는 v25 에서 걷어냈다 — 부르는 곳이 한 곳도 없었다.
+   왕진 배치는 SESSIONS.d3 의 rounds 를 펼친 list 를 runSession 에 넘겨 돈다. */

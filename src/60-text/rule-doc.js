@@ -106,7 +106,7 @@ const RULE_DOC = {
   MIND_BIGHIT:'한 턴에 최대 체력의 몇 %를 잃으면 정신이 무너지는가',
   MIND_ANX_SUP:'불안·공황일 때 억제에서 깎는 값', MIND_ANX_DIAG:'불안·공황일 때 진단에서 깎는 값',
   MIND_CALM_STAB:'평정일 때 안정화에 곱하는 값',
-  RUSH_MAX:'기세 상한', RUSH_PER:'처치 한 번에 얻는 기세', RUSH_SCOPE:'기세가 유지되는 범위',
+  RUSH_MAX:'기세 상한', RUSH_PER:'처치 한 번에 얻는 기세',
   BLEED_PAY:'사혈 단수별 지불 (최대 체력 비율)', BLEED_TURN_CAP:'한 턴 사혈 지불 상한',
   BLEED_FLOOR:'사혈 뒤 남아야 하는 체력',
   REM_MAX:'관해도 상한', REM_START:'관해 개시 시 관해도', REM_UPKEEP:'매 턴 빠지는 관해도',
@@ -121,7 +121,6 @@ const RULE_DOC = {
   dmgUp:'환자가 받는 피해 증가',
   SWEEP_K:'광역 억제 — 잘라 낸 잔량에 곱하는 값 (올림). 1/3 이면 셋으로 나눈 것과 같다',
   DIS_SHIELD:'부수 증상이 하나라도 살아 있으면 병 노드가 받는 피해를 이 비율만큼 깎는다',
-  DIS_BASE_ALT:'병기별 병 노드 수치의 격자 탐색값. 채택하지 않았다 — 계산에 쓰지 않는 참고 숫자다',
   SPAWN_LV:'레벨별 부수 증상 자리 상한 (LVTAB.n 상한에서 온다). 보스는 lv.spots 로 어느 레벨을 볼지 정한다',
   CAND_BASE:'차트에 처음 뜨는 후보 병명 수. 증거를 모을 때마다 둘씩 줄고 최소 하나는 남는다',
 };

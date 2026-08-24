@@ -50,12 +50,13 @@ const SCENARIOS = `(() => {
   /* ② 레벨표 중앙값 검산 */
   out.median = L.medianBoards();
 
-  /* ③ 단판 — 새 AI · 옛 AI 둘 다 */
+  /* ③ 단판 — 새 AI · 옛 AI 둘 다.
+     배치 탭이 실제로 타는 경로와 같게 부른다: runDeck 이 opt.ai 로 갈래를 고른다. */
   out.one = [];
-  for (const [tag, ai] of [['새', D], ['옛', H]]) for (let lv = 1; lv <= 5; lv++) for (const seed of [3, 11]) {
+  for (const ai of ['D', 'H']) for (let lv = 1; lv <= 5; lv++) for (const seed of [3, 11]) {
     const b = L.makeBoard(lv, K.mulberry32(seed * 100 + lv));
-    const r = ai.runDeck(b, C.DECK_D2, seed * 7 + lv);
-    out.one.push({ ai: tag, lv, seed, turn: r.turn, hp: r.hp, out: r.out, dead: r.dead });
+    const r = runDeck(b, C.DECK_D2, seed * 7 + lv, { ai });
+    out.one.push({ ai, lv, seed, turns: r.turns, hp: r.S.hp, out: r.out });
   }
 
   /* ④ 세션 — 1~3일차 */

@@ -1,0 +1,145 @@
+<div id="tip"></div>
+<div class="wrap">
+ <div class="col">
+  <h1>INTERN <span>v22</span></h1>
+  <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
+  <div class="tabs">
+    <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
+    <div class="tab" data-m="sess" onclick="setMode('sess')">세션</div>
+    <div class="tab" data-m="story" onclick="setMode('story')">스토리</div>
+    <div class="tab" data-m="batch" onclick="setMode('batch')">배치</div>
+    <div class="tab" data-m="make" onclick="setMode('make')">만들기</div>
+  </div>
+
+  <!-- 공통 — 모드가 바뀌어도 남는 것 -->
+  <label>시드</label>
+  <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
+  <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
+  <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
+
+  <details id="ovrbox"><summary>규칙 덮어쓰기</summary>
+    <div class="note">전투 규칙의 숫자를 여기서 바꾼다. R 은 전투 공통, SR 은 스토리 전용이다.
+      고친 값은 곧바로 적용되고, 노드 수치처럼 판을 짤 때 정해지는 값은 「환자를 들인다」로 새 판을 열어야 반영된다.
+      권위본과 달라진 칸에는 붉은 점이 붙는다.</div>
+    <div id="ovrform"></div>
+    <div class="row2"><button onclick="ovrReset()">전부 권위본으로</button>
+      <button onclick="ovrCopy()">고친 값을 베낀다</button></div>
+    <details style="margin-top:10px"><summary>직접 적기 (JSON)</summary>
+      <div class="note">위 칸으로 안 되는 것을 손으로 적는다. 적용을 누르면 위 칸도 따라 바뀐다.</div>
+      <textarea id="ovr" spellcheck="false" placeholder='{"R":{"KILL_LINE":0.45},"SR":{"STAGE_TURNS":7}}'></textarea>
+      <div class="row2"><button onclick="applyOvr()">적용</button><button onclick="clearOvr()">되돌리기</button></div>
+    </details>
+    <div id="ovrshow" class="ovrshow"></div>
+  </details>
+
+  <div id="side-one">
+    <label>판</label>
+    <select id="src"><option value="level">레벨로 생성</option><option value="custom">만든 환자</option><option value="d1_1">d1_1 · 감기 · 국밥집 셋째 아들, 열일곱</option><option value="d1_2">d1_2 · 경증 열상 · 시장 짐꾼, 마흔</option><option value="d1_3">d1_3 · 급성 장염 · 좌판에서 잘못 먹은 30대</option><option value="d1_4">d1_4 · 흉부 타박·늑막 자극 · 검문소 하급병</option><option value="d1_5">d1_5 · 방치된 봉와직염 · 외곽에서 걸어온 노인</option><option value="d2_1">d2_1 · 종기·농양 · 하역 노동자 합숙소</option><option value="d2_2">d2_2 · 소화성 궤양 · 요릿집 주인</option><option value="d2_3">d2_3 · 치성 농양 · 잇몸이 부은 사내</option><option value="d2_m">d2_m · 시장 급성 식중독 · 외곽 주민</option><option value="d3_1">d3_1 · 바닥층 두목 · 숙취</option><option value="d3_2">d3_2 · 난전 밥장수 · 장티푸스</option><option value="d3_3">d3_3 · 동쪽 노인 · 절단단 감염</option><option value="d3_r1">d3_r1 · 기침 사내, 쉰 · 폐결핵 의심</option><option value="d3_r2">d3_r2 · 눈이 노란 사내, 마흔둘 · 급성 간염</option><option value="d3_r3">d3_r3 · 산후 여성, 스물다섯 · 산후 감염</option><option value="d3_r4">d3_r4 · 아이, 일곱 · 발바닥 상처 감염</option><option value="d3_r5">d3_r5 · 외지 사내, 서른 · 급성 요도염</option><option value="d3_4">d3_4 · 젊은 노동자 · 열상</option><option value="d3_5a">d3_5a · 2일차에 지나친 그 사람</option><option value="d3_5b">d3_5b · 방치된 당뇨의 급성 악화</option><option value="d4_fish">d4_fish · 어부 · 접촉성 피부염</option><option value="d4_song">d4_song · 송이 · 아편 중독</option><option value="d4_child">d4_child · 아이 · 수막알균</option></select>
+    <label>레벨 (레벨 생성일 때)</label>
+    <select id="lv"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+    <label>가방</label>
+    <div id="one_deck" class="deckline"></div>
+    <button id="btn_deck_one" onclick="openDeckOne()">가방을 연다</button>
+    <label>시작 정신 상태</label>
+    <select id="mind"><option selected>평정</option><option>불안</option><option>공황</option><option>의식불명</option></select>
+    <label>체력 태그</label>
+    <div class="tags" id="tagbox"><label><input type="checkbox" class="tag" value="노인" onchange="tagPick('노인')">노인</label><label><input type="checkbox" class="tag" value="소아" onchange="tagPick('소아')">소아</label><label><input type="checkbox" class="tag" value="영양실조" onchange="tagPick('영양실조')">영양실조</label><label><input type="checkbox" class="tag" value="만성기저질환" onchange="tagPick('만성기저질환')">만성기저질환</label><label><input type="checkbox" class="tag" value="노동자" onchange="tagPick('노동자')">노동자</label><label><input type="checkbox" class="tag" value="군인" onchange="tagPick('군인')">군인</label><label><input type="checkbox" class="tag" value="상층" onchange="tagPick('상층')">상층</label></div>
+    <div class="note" id="tagnote">둘까지 · 노인↔소아 · 노동자↔군인↔상층은 함께 붙지 않는다</div>
+    <button class="go" onclick="newGame()">환자를 들인다</button>
+    <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
+  </div>
+
+  <div id="side-sess" style="display:none">
+    <label>세션</label>
+    <select id="ssel"><option value="d1">1일차 아침</option><option value="d2">2일차 아침</option><option value="d2m">2일차 오후 · 시장</option><option value="d3">3일차 왕진 (2라운드)</option></select>
+    <label>턴 예산 직접 지정 (0 = 기준값)</label><input type="number" id="sbudget" value="0">
+    <button class="go" onclick="sessInit()">가방을 연다</button>
+    <div id="se_ctrl" style="margin-top:14px"></div>
+  </div>
+
+  <div id="side-story" style="display:none">
+    <label>보스</label>
+    <select id="boss"><option>아이</option><option>어부</option><option>송이</option><option value="custom">만든 환자</option></select>
+    <label>가방</label>
+    <div id="story_deck" class="deckline"></div>
+    <button id="btn_deck_story" onclick="openDeckStory()">가방을 연다</button>
+    <label>3막부터 시작 (0 = 1막부터)</label>
+    <div class="row2">
+      <select id="sk_pol"><option value="">방침 —</option><option>완치</option><option>연명</option><option>편하게</option></select>
+      <select id="sk_dx"><option value="1">정진단</option><option value="0">오진</option></select>
+    </div>
+    <div class="row2" style="margin-top:8px">
+      <select id="sk_evid"><option value="1">증거 1</option><option value="2">증거 2</option><option value="3" selected>증거 3</option><option value="4">증거 4</option></select>
+      <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
+    </div>
+    <button class="go" onclick="newStory()">전투를 시작한다</button>
+    <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
+    <div id="st_ctrl" style="margin-top:14px"></div>
+  </div>
+
+  <div id="side-batch" style="display:none">
+    <label>표본 수</label><input type="number" id="bn" value="200">
+    <label>자동 플레이</label>
+    <select id="bai"><option value="D" selected>빔 탐색 (v19 기본)</option><option value="H">휴리스틱 (v18 대조)</option></select>
+    <label>대상</label>
+    <select id="bsrc"><option value="levels">레벨 1~5</option><option value="script">대본 환자</option></select>
+    <label>덱</label>
+    <select id="bdeck"><option value="cur">단판 가방 (지금 고른 것)</option><option value="d1">1일차 8종</option><option value="d2" selected>2일차 8종</option>
+      <option value="surg">외과</option><option value="med">내과</option><option value="eng">의공학</option></select>
+    <button class="go" onclick="batch()">단판 배치</button>
+    <label>세션 예산 (0 = 기준값)</label><input type="number" id="bbudget" value="0">
+    <button onclick="batchSession()">외래 세션 배치</button>
+    <button onclick="batchStory()">스토리 방침 배치</button>
+    <div class="prog" id="bprog" style="display:none"><i></i></div>
+    <div class="note" id="bnote"></div>
+  </div>
+
+  <div id="side-make" style="display:none">
+    <label>불러오기</label>
+    <select id="mk_from"><option value="">— 빈 판에서 시작 —</option></select>
+    <button onclick="mkLoadFrom()">이 환자를 본으로 가져온다</button>
+    <label>JSON</label>
+    <textarea id="mk_json" spellcheck="false"></textarea>
+    <div class="row2"><button onclick="mkToJson()">내보내기</button><button onclick="mkFromJson()">읽어들이기</button></div>
+    <button class="go" onclick="mkStart()">이 환자로 시작</button>
+    <div class="note" id="mk_note"></div>
+  </div>
+ </div>
+
+ <div class="col">
+  <div id="pane-one">
+    <div class="pat" id="on_patient"></div>
+    <div class="field"><div>
+      <div class="nodes" id="on_nodes"></div>
+      <div class="wires" id="on_wires"></div>
+      <div id="on_verdict"></div>
+    </div><aside class="state" id="on_state"></aside></div>
+    <div class="bar"><span>손패</span><span id="on_piles"></span></div>
+    <div class="hand" id="on_hand"></div>
+    <div class="row2" style="max-width:340px;margin-top:14px">
+      <button id="on_kill" onclick="killSel()">처치</button><button id="on_end" onclick="endTurn()">턴 종료</button></div>
+  </div>
+  <div id="pane-sess" style="display:none"><div id="se_body"></div></div>
+  <div id="pane-story" style="display:none">
+    <div class="pat" id="st_patient"></div>
+    <div class="field"><div>
+      <div class="nodes" id="st_nodes"></div>
+      <div class="wires" id="st_wires"></div>
+      <div id="st_verdict"></div>
+    </div><aside class="state" id="st_state"></aside></div>
+    <div class="bar"><span>손패</span><span id="st_piles"></span></div>
+    <div class="hand" id="st_hand"></div>
+    <div class="row2" style="max-width:340px;margin-top:14px">
+      <button id="st_kill" onclick="killSel()">처치</button><button id="st_end" onclick="endTurn()">턴 종료</button></div>
+  </div>
+  <div id="pane-batch" style="display:none"><div id="bout" class="empty">왼쪽에서 배치를 실행한다.</div></div>
+  <div id="pane-make" style="display:none"><div id="mk_body"></div></div>
+  <div id="pane-deck" style="display:none"><div id="dk_body"></div></div>
+ </div>
+
+ <div class="col">
+  <div class="row2"><button onclick="undoStep()" id="btnundo" disabled>되돌리기</button><button onclick="exportChart()">차트 내보내기</button></div>
+  <label>기록</label><div id="log"></div>
+  <details id="aiwbox"></details>
+ </div>
+</div>

@@ -21,7 +21,14 @@ const DECK_D2 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투�
 const BASE10 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요',
                 '창상봉합술','지혈 압박','붕대 감기','도와드릴까요?','소매를 걷습니다'];
 
-const DEPT6  = ['박리','몰아붙인다','관해 유도','진행을 붙든다','거치','출력 개방'];
+/* 분과 보급 — 분과마다 두 장. 스토리에서는 이 셋이 각각 한 팩이고 그중 하나만 든다 */
+const SUPPLY = {
+  외과:   ['박리','몰아붙인다'],
+  내과:   ['관해 유도','진행을 붙든다'],
+  의공학: ['거치','출력 개방'],
+};
+
+const DEPT6  = [...SUPPLY.외과, ...SUPPLY.내과, ...SUPPLY.의공학];
 
 const NPC6   = ['그물','곗날','손이 기억한다','빌려온 물건','매듭 짓다','눈 딱 감고'];
 
@@ -39,20 +46,28 @@ const POOL = {
    통째로 나간다 — 어느 팩을 들였는가가 그 판의 밑천이다.
 
      fixed  늘 드는 팩. 뺄 수 없다 — 이것을 빼면 밑천이 없다.
+     group  같은 묶음의 팩은 하나만 든다. 고르면 나머지가 빠진다.
      cards  팩에 든 카드. 여기 적힌 이름이 그 자리의 '기본' 이고,
             SWAP 에 같은 이름이 있으면 그 자리를 다른 카드로 바꿀 수 있다.
 
-   팩을 더하려면 여기 한 줄을 넣는다. 상한을 따로 적지 않는다 —
-   가방 크기는 들인 팩의 합이다. */
+   기본 10 + 보급 2 + 정착지 의사 3 = 15. 가방 상한(STORY_CAP)과 딱 맞는다 —
+   보급을 셋 다 들일 수 있으면 19장이 되어 상한을 넘는다. 그래서 묶음이다. */
 //@ 카드.팩 — 스토리 가방을 이루는 카드팩
 const PACKS = [
-  {id:'base',   name:'기본 카드팩',        fixed:true, cards:BASE10,
+  {id:'base',   name:'기본 카드팩',           fixed:true, cards:BASE10,
    note:'처음 배운 열 장. 이 열 장이 밑천이다'},
-  {id:'supply', name:'보급 카드팩',        cards:DEPT6,
-   note:'분과마다 두 장씩. 어느 분과를 손에 쥘지가 방침과 붙는다'},
-  {id:'settle', name:'정착지 의사 카드팩', cards:['빌려온 물건','손이 기억한다','매듭 짓다'],
+  {id:'surg',   name:'외과 보급 카드팩',      group:'supply', cards:SUPPLY.외과,
+   note:'외과 두 장'},
+  {id:'med',    name:'내과 보급 카드팩',      group:'supply', cards:SUPPLY.내과,
+   note:'내과 두 장'},
+  {id:'eng',    name:'의공학 보급 카드팩',    group:'supply', cards:SUPPLY.의공학,
+   note:'의공학 두 장'},
+  {id:'settle', name:'정착지 의사 카드팩',    cards:['빌려온 물건','손이 기억한다','매듭 짓다'],
    note:'정착지 의사에게서 얻는다. 셈이 거친 대신 값이 크다'},
 ];
+
+/* 묶음 한 줄 설명 — 화면이 묶음 머리에 건다 */
+const PACK_GROUP = {supply:'보급 카드팩 — 분과마다 두 장. 셋 중 하나를 고른다'};
 
 /* ── 대체 카드 풀 ───────────────────────────────────────────
    한 자리에 놓을 수 있는 카드 전부. 첫 장이 팩에 적힌 기본이고
@@ -83,14 +98,30 @@ function packDeck(on, swap){
   return out;
 }
 
+/* 팩 하나를 누른 결과 편성. 묶음 규칙은 여기 한 곳에만 있다.
+   묶음 팩은 고르면 같은 묶음의 나머지가 빠지고, 다시 눌러도 빠지지 않는다 —
+   묶음에서는 하나를 반드시 든다. 묶음이 아닌 팩은 눌러서 넣고 뺀다. */
+function packPick(on, id){
+  const p = PACKS.find(x=>x.id===id); if(!p || p.fixed) return {...on};
+  const next = {...on};
+  if(p.group){
+    for(const q of PACKS) if(q.group===p.group) delete next[q.id];
+    next[id]=1;
+  }
+  else if(next[id]) delete next[id];
+  else next[id]=1;
+  return next;
+}
+
 /* ── 가방 ─────────────────────────────────────────────────── */
-const ONE_CAP = 8;
+/* 덱 상한 8(외래·왕진 1막) / 스토리 15 */
+const ONE_CAP = 8, STORY_CAP = 15;
 
 let ONE_DECK   = DECK_D2.slice();
 
 /* 스토리 가방은 팩 편성 두 벌이 정한다 — 낱장 목록은 그 결과다.
-   기본 카드팩에 보급·정착지 의사 팩을 얹은 것이 시작 편성이다. */
-let STORY_PACKS = {supply:1, settle:1};
+   기본 10 + 외과 보급 2 + 정착지 의사 3 = 15장이 시작 편성이다. */
+let STORY_PACKS = {surg:1, settle:1};
 let STORY_SWAP  = {};
 let STORY_DECK  = packDeck(STORY_PACKS, STORY_SWAP);
 

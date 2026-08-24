@@ -141,14 +141,31 @@ const INVARIANTS = `(() => {
       for (const id of pool.slice(1))
         if (inPack[id]) bad.push('대체 카드 「' + id + '」 가 카드팩 「' + inPack[id] + '」 에도 있다');
     }
-    /* 팩을 다 들이고 자리를 다 바꿔 봐도 1종 1장이어야 한다 */
-    const on = {}; for (const p of C.PACKS) on[p.id] = 1;
+    /* 어느 편성으로 짜도 1종 1장이고 상한을 넘지 않는가.
+       묶음에서는 하나만 드므로 가장 큰 편성은 '묶음마다 하나 + 묶음 아닌 팩 전부' 다.
+       자리를 전부 대체 카드로 바꾼 편성도 같이 본다. */
+    const groups = {};
+    for (const p of C.PACKS) if (p.group) (groups[p.group] = groups[p.group] || []).push(p.id);
     const swap = {}; for (const pool of C.SWAP) swap[pool[0]] = pool[pool.length - 1];
-    for (const s of [{}, swap]) {
+    let combos = [{}];
+    for (const g in groups) combos = combos.flatMap(o => groups[g].map(id => Object.assign({}, o, {[id]: 1})));
+    for (const p of C.PACKS) if (!p.fixed && !p.group) combos = combos.map(o => Object.assign({}, o, {[p.id]: 1}));
+    for (const on of combos) for (const s of [{}, swap]) {
       const deck = C.packDeck(on, s), cnt = {};
       for (const id of deck) { if (cnt[id]) bad.push('스토리 가방에 「' + id + '」 가 두 장이다'); cnt[id] = 1 }
-      if (deck.length !== C.PACKS.reduce((n, p) => n + p.cards.length, 0))
-        bad.push('스토리 가방 장수가 팩의 합과 다르다 — ' + deck.length);
+      if (deck.length > C.STORY_CAP)
+        bad.push('스토리 가방이 상한을 넘는다 — ' + deck.length + '/' + C.STORY_CAP +
+                 ' (' + Object.keys(on).join(' · ') + ')');
+    }
+
+    /* 묶음 팩을 차례로 골라도 둘이 되지 않는가 — packPick 이 규칙을 지키는지 본다 */
+    for (const g in groups) {
+      let on = {};
+      for (const id of groups[g]) on = C.packPick(on, id);
+      const got = groups[g].filter(id => on[id]);
+      if (got.length !== 1) bad.push('묶음 「' + g + '」 에서 팩이 ' + got.length + '개 들렸다 — 하나여야 한다');
+      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 묶음에서는 하나를 반드시 든다 */
+      if (!C.packPick(on, got[0])[got[0]]) bad.push('묶음 「' + g + '」 의 고른 팩이 다시 누르니 빠졌다');
     }
   }
 

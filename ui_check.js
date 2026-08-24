@@ -185,9 +185,9 @@ async function probe(browser, file){
     if (typeof openPackStory !== 'function') return bad;   // 팩이 없던 파일
     const deck = () => packDeck(PK.on, PK.swap);
     setMode('story'); openPackStory();
-    const p = PACKS.find(x => !x.fixed), n0 = deck().length;
+    const p = PACKS.find(x => !x.fixed && !x.group), n0 = deck().length;
 
-    /* ① 팩 — 빼면 그 팩의 카드가 통째로 빠지고, 다시 들이면 통째로 돌아온다 */
+    /* ① 묶음이 아닌 팩 — 빼면 통째로 빠지고, 다시 들이면 통째로 돌아온다 */
     pkToggle(p.id);
     for (const id of p.cards)
       if (deck().includes(id)) bad.push(`카드팩 — 「${p.name}」 을 뺐는데 「${id}」 가 가방에 남았다`);
@@ -199,6 +199,23 @@ async function probe(browser, file){
     const fixed = PACKS.find(x => x.fixed);
     for (const id of fixed.cards)
       if (!deck().includes(id)) bad.push(`카드팩 — 늘 드는 팩의 「${id}」 가 가방에 없다`);
+
+    /* ①ㄴ 묶음 팩 — 하나를 고르면 같은 묶음의 나머지가 빠진다. 장수는 그대로다 */
+    const supply = PACKS.filter(x => x.group === 'supply');
+    for (const q of supply) {
+      pkToggle(q.id);
+      const d = deck();
+      for (const id of q.cards)
+        if (!d.includes(id)) bad.push(`보급 — 「${q.name}」 을 골랐는데 「${id}」 가 가방에 없다`);
+      for (const other of supply) if (other !== q) for (const id of other.cards)
+        if (d.includes(id)) bad.push(`보급 — 「${q.name}」 을 골랐는데 「${other.name}」 의 「${id}」 가 남았다`);
+      if (d.length !== n0) bad.push(`보급 — 분과를 바꿨는데 장수가 달라졌다. ${n0} → ${d.length}`);
+      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 묶음에서는 하나를 반드시 든다 */
+      pkToggle(q.id);
+      if (deck().length !== n0) bad.push(`보급 — 고른 「${q.name}」 을 다시 눌렀더니 편성이 달라졌다`);
+      /* 어느 편성이든 상한을 넘지 않는다 */
+      if (deck().length > STORY_CAP) bad.push(`상한 — 「${q.name}」 편성이 ${deck().length}/${STORY_CAP}장`);
+    }
 
     /* ② 대체 — 자리가 바뀌되 자리 수는 늘지 않는다 */
     const [base, alt] = SWAP[0];

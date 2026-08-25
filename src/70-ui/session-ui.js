@@ -31,9 +31,13 @@ function loadPatient(){
   const list=sessList();
   if(SESS.idx>=list.length){
     if(SESS.round < SESS.def.rounds.length-1){
-      SESS.round++; SESS.idx=0; SESS.phase='deck';
+      /* 라운드가 넘어가도 가방은 다시 열지 않는다 — 하루에 한 벌로 간다.
+         v25 는 라운드마다 여덟 장을 다시 골랐다 */
+      SESS.round++; SESS.idx=0; SESS.phase='intake';
       log(`<span class="d">──── ${SESS.round+1}라운드 ────</span>`);
-      openSessDeck(); return;
+      if(SESS.def.roundSay && SESS.def.roundSay[SESS.round])
+        log(`<span class="say">간호사 — ${SESS.def.roundSay[SESS.round]}</span>`);
+      loadPatient(); return;
     }
     sessEnd(); return;
   }
@@ -54,6 +58,7 @@ function loadPatient(){
   log(`<span class="d">──────── ${SESS.idx+1}번째 · 남은 예산 ${SESS.budget}턴 ────────</span>`);
   log(`<b>${BOARD.script.name}</b>`);
   renderSess();
+  stageBattleStart();                 // 다음 사람이 들어왔다 — 무대로 넘어간다
 }
 
 function ask(qid){

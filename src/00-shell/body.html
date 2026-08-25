@@ -14,6 +14,9 @@
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
+  <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
+    <input type="checkbox" id="sg_use" checked style="width:auto"> 전투를 무대에서 본다</label>
+  <div class="note" style="margin:4px 0 0">끄면 이 작업대에서 그대로 둔다. 배치를 돌릴 때는 꺼 두는 편이 빠르다.</div>
   <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
   <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 

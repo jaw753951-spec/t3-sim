@@ -20,6 +20,9 @@ function forecast(){
 
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다
 function render(){
+  /* 무대가 떠 있으면 그쪽도 같이 맞춘다 — 되돌리기 · 자동 진행 · 세션이
+     무대를 몰라도 되는 이유가 이 한 줄이다 */
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON) stageRender();
   deckLine('one_deck', ONE_DECK, ONE_CAP);
   packLine();
   renderOvr();
@@ -61,6 +64,46 @@ function lineWhy(S, n){
     if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
   }
   return w;
+}
+
+/* ── 자리 하나에 붙는 표딱지들 ────────────────────────────────
+   보호막 · 약화 · 설치물 · 성장 · 진화 시계 · 진단 회차 …
+   3열 화면과 무대가 같은 것을 쓴다 — 두 벌로 적으면 한쪽이 곧 거짓말을 한다.
+   글과 설명(툴팁)이 여기 다 들어 있으므로 부르는 쪽은 자리만 내주면 된다. */
+//@ 화면.자리표딱지 — 한 자리에 붙는 값과 그 설명
+function nodeMarks(S, n){
+  const gAdd = growAmt(S,n);
+  return [
+    /* 처치선은 늘 보인다. 뱃지는 이미 끊을 수 있을 때만 뜨는데,
+      정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
+    `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
+    n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
+    n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
+    n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
+    n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
+    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+    n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
+    gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
+    n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
+    n.role==='disease'?'':(n.evolved
+      ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
+      :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
+    n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
+    (SYMDOC[n.sym] && n.role!=='disease')
+      ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
+      + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
+      + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
+      }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
+    `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
+      + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
+    n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
+    n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
+    n.muted?`<span class="m dm">이번 턴 잠잠</span>`:'',
+    (S.pendKill||[]).includes(S.nodes.indexOf(n))
+      ?`<span class="m"${tip(TT('처치 예약 · 공황','공황이라 손이 늦다. 다음 턴 시작에 터진다.<br>터질 때 다시 판정하므로 그 사이 이 자리가 처치선 위로 올라가면 헛손질로 끝난다. 코스트는 돌아오지 않는다.'))} style="color:var(--blood);border-color:var(--blood)">처치 예약</span>`:'',
+    (n.evolved && (n.sym==='통증'||n.sym==='호흡곤란'))
+      ?`<span class="m ev"${tip(TT('완화 면역',`진화한 ${n.sym}은 <b>자신에게 걸린 완화를 턴당 한 번</b> 튕겨 낸다.<br>판 전체가 아니라 이 자리만이고, 한 번 튕기면 그 턴은 다시 안 튕긴다.<br>「붕대 감기」의 정신 악화 방어는 완화가 아니라서 그대로 붙는다.`))}>완화 면역 ${n.calmUsed?'소진':'1회'}</span>`:'',
+  ].filter(Boolean).join('');
 }
 
 function renderInto(h){
@@ -120,38 +163,7 @@ function renderInto(h){
           +(r==='strong'?'<br><br>강반응은 전이 · 촉발을 강하게 터뜨리고 정신을 한 단계 무너뜨린다.':'')
           +(r==='none'?'<br><br>휴면에서 끊으면 광역 억제가 0이다.':'')))}>${r==='strong'?'강반응':r==='weak'?'약반응':'휴면'} · 처치 ${R.KILL_COST}코 · 전체 −${sweepAmt(n)}</span>`);
 
-    const gAdd = growAmt(S,n);
-    const marks=[
-      /* 처치선은 늘 보인다. 뱃지는 이미 끊을 수 있을 때만 뜨는데,
-         정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
-      `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
-      n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
-      n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
-      n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
-      n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
-      n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
-      n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
-      gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
-      n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
-      n.role==='disease'?'':(n.evolved
-        ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
-        :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
-      n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
-      (SYMDOC[n.sym] && n.role!=='disease')
-        ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
-            + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
-            + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
-          }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
-      `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
-        + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
-      n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
-      n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
-      n.muted?`<span class="m dm">이번 턴 잠잠</span>`:'',
-      (S.pendKill||[]).includes(S.nodes.indexOf(n))
-        ?`<span class="m"${tip(TT('처치 예약 · 공황','공황이라 손이 늦다. 다음 턴 시작에 터진다.<br>터질 때 다시 판정하므로 그 사이 이 자리가 처치선 위로 올라가면 헛손질로 끝난다. 코스트는 돌아오지 않는다.'))} style="color:var(--blood);border-color:var(--blood)">처치 예약</span>`:'',
-      (n.evolved && (n.sym==='통증'||n.sym==='호흡곤란'))
-        ?`<span class="m ev"${tip(TT('완화 면역',`진화한 ${n.sym}은 <b>자신에게 걸린 완화를 턴당 한 번</b> 튕겨 낸다.<br>판 전체가 아니라 이 자리만이고, 한 번 튕기면 그 턴은 다시 안 튕긴다.<br>「붕대 감기」의 정신 악화 방어는 완화가 아니라서 그대로 붙는다.`))}>완화 면역 ${n.calmUsed?'소진':'1회'}</span>`:'',
-    ].filter(Boolean).join('');
+    const marks = nodeMarks(S, n);
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     const symTip = n.role==='disease'
       ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))

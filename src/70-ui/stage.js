@@ -154,26 +154,15 @@ function stagePatient(){
   const bust = $('sg_bust');
   if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
 
-  const cuts = comfortCuts(S);
-  const hpTip = tip(TT('환자 체력',
-      `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
-    + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
-    + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
-    + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')}`:'')
-    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 1 아래로 내려가지 않는다.</span>':'')));
+  /* 설명은 작업대와 같은 것을 쓴다. 여기는 속성에 직접 다는 자리라 열쇠만 받는다 */
   const hpEl = $('sg_hp');
   hpEl.innerHTML = `${(MODE==='sess'&&!S.tagsShown)?'?':hp}<i>${f.dmg?'−'+f.dmg:''}</i>`;
-  hpEl.setAttribute('data-tip', (hpTip.match(/data-tip="([^"]+)"/)||[])[1] || '');
+  hpEl.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
 
   const m = $('sg_mind');
   m.textContent = S.mind;
   m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
-  m.setAttribute('data-tip', (tip(TT('정신 · '+S.mind,
-      '평정 = 안정화 ×1.3<br>불안 · 공황 = 억제 −1 · 진단 −1<br>의식불명 = 진단이 한 번 더 빠진다<br><br>'
-    + `한 자리를 한 턴에 ${R.HIT_ANX} 이상 억제하거나, 한 턴에 최대 체력의 ${Math.round(R.MIND_BIGHIT*100)}% 이상 잃으면 한 단계 무너진다.<br>`
-    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
-    + (S.mind==='공황'?'<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.':'')))
-    .match(/data-tip="([^"]+)"/)||[])[1] || '');
+  m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
 }
 
 /* 고른 자리 한 줄 — 지금 끊으면 무슨 일이 나는가 */
@@ -250,26 +239,16 @@ function stageHand(){
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
   + S.hand.map((id, ix)=>{
-      const c = CARDS[id];
       if(pend){
         const okPick = left.includes(id);
         return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick,
           onclick: okPick?`stagePickCard('${id}')`:''});
       }
-      let ok = canPlay(S,id), why='';
-      if(!ok) why = cardCost(S,id)>S.energy ? '코스트 모자람'
-                 : (c.bleed && !canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
-                 : (c.target==='hand' ? '고를 카드가 없다' : '지금은 못 냄'));
-      else if(c.target==='node' && selNode){
-        if(c.need && c.need.length<2 && !c.need(selNode)){ ok=false; why=`${selNode.sym}에는 못 쓴다` }
-        else if(immune(S,selNode) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
-        else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
-      }
+      const {ok, why} = cardWhy(S, id, selNode);
       const aiming = STAGE_MODE==='card' && STAGE_CARD===id;
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
         onclick:`stageCardClick('${id}')`, keyhint: ix<9?ix+1:'',
-        foot: why?`<span class="keep why">${why}</span>`
-             : (c.target==='node' && !selNode ? '<span class="keep">자리를 고른 뒤 낸다</span>' : '')});
+        foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
 }
 
@@ -331,8 +310,6 @@ function stageTreatBtn(){
   if(STAGE_MODE) stageToast('끊을 자리를 고른다');
   stageRender();
 }
-
-function stageDeclareBtn(){ stageDeclare() }
 
 function stageSettleBtn(){
   if(FX_BUSY || MODE!=='sess' || !SESS || SESS.phase!=='fight') return;
@@ -397,8 +374,8 @@ function fxSnap(S){
   const dis = S.nodes.find(n=>n.role==='disease');
   return {
     hp:S.hp, mind:S.mind, turn:S.turn,
-    rush:S.rush||0, rem:!!S.rem, remGauge:S.remGauge||0,
-    act:S.act, evid:S.evid, stage: dis?dis.stage:0,
+    rush:S.rush||0, remGauge:S.remGauge||0,
+    evid:S.evid, stage: dis?dis.stage:0,
     len:S.nodes.length,
     nodes:S.nodes.map(n=>({
       dead:!!n.dead, val:n.val, shielded:!!n.shielded, dormT:n.dormT||0,

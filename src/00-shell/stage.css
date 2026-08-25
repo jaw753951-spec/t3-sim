@@ -250,7 +250,7 @@ body.sgon{overflow:hidden}
   flex:1;min-height:0;overflow:auto}
 
 /* 상태판 — stateHTML() 이 뱉은 것을 무대 옷으로 갈아입힌다 */
-#sg .state{border:0;background:transparent;padding:0;position:static}
+#sg .state{border:0;background:transparent;padding:0;position:relative}
 #sg .state h4{margin:0 0 8px;font:700 10px var(--sans);letter-spacing:.16em;color:var(--ink2)}
 #sg .st{margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,.14)}
 #sg .st:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
@@ -262,7 +262,7 @@ body.sgon{overflow:hidden}
 #sg .pip.rm.on{background:var(--mut);border-color:var(--mut)}
 #sg .pip.bl.on{background:var(--red);border-color:var(--red)}
 #sg .stnote{font:10.5px/1.45 var(--sans);color:var(--ink2);margin-top:4px}
-#sg .stempty,#sg .gempty{font:11px/1.5 var(--sans);color:var(--mut)}
+#sg .stempty{font:11px/1.5 var(--sans);color:var(--mut)}
 
 /* ── 손패 ─────────────────────────────────────────────────── */
 #sg_hand{position:absolute;left:18.2%;right:18.2%;bottom:2.2%;z-index:25;
@@ -292,7 +292,6 @@ body.sgon{overflow:hidden}
 #sg .key{margin-left:auto;font:9.5px var(--mono);color:var(--ink2);border:1px solid var(--line);padding:0 5px}
 #sg .vup{color:#2F6B4F;font-weight:800}
 #sg .vdn{color:var(--red);font-weight:800}
-#sg .voff{opacity:.42}
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 

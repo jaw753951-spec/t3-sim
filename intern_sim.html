@@ -449,7 +449,7 @@ body.sgon{overflow:hidden}
   flex:1;min-height:0;overflow:auto}
 
 /* 상태판 — stateHTML() 이 뱉은 것을 무대 옷으로 갈아입힌다 */
-#sg .state{border:0;background:transparent;padding:0;position:static}
+#sg .state{border:0;background:transparent;padding:0;position:relative}
 #sg .state h4{margin:0 0 8px;font:700 10px var(--sans);letter-spacing:.16em;color:var(--ink2)}
 #sg .st{margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,.14)}
 #sg .st:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
@@ -461,7 +461,7 @@ body.sgon{overflow:hidden}
 #sg .pip.rm.on{background:var(--mut);border-color:var(--mut)}
 #sg .pip.bl.on{background:var(--red);border-color:var(--red)}
 #sg .stnote{font:10.5px/1.45 var(--sans);color:var(--ink2);margin-top:4px}
-#sg .stempty,#sg .gempty{font:11px/1.5 var(--sans);color:var(--mut)}
+#sg .stempty{font:11px/1.5 var(--sans);color:var(--mut)}
 
 /* ── 손패 ─────────────────────────────────────────────────── */
 #sg_hand{position:absolute;left:18.2%;right:18.2%;bottom:2.2%;z-index:25;
@@ -491,7 +491,6 @@ body.sgon{overflow:hidden}
 #sg .key{margin-left:auto;font:9.5px var(--mono);color:var(--ink2);border:1px solid var(--line);padding:0 5px}
 #sg .vup{color:#2F6B4F;font-weight:800}
 #sg .vdn{color:var(--red);font-weight:800}
-#sg .voff{opacity:.42}
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 
@@ -3912,7 +3911,11 @@ const FIXT = {};
 
 function tipReset(){ TIPS = {}; TIPN = 0 }
 
-function tip(html){ if(!html) return ''; const k='t'+(++TIPN); TIPS[k]=html; return ` data-tip="${k}"` }
+/* 등록만 하고 열쇠를 돌려준다. 속성 문자열이 아니라 열쇠가 필요한 자리
+   (setAttribute 로 직접 다는 무대 쪽)가 쓴다 */
+function tipKey(html){ if(!html) return ''; const k='t'+(++TIPN); TIPS[k]=html; return k }
+
+function tip(html){ const k = tipKey(html); return k ? ` data-tip="${k}"` : '' }
 
 function tipFixReset(panel){
   for(const k of Object.keys(FIXT)) if(k.startsWith(panel+':')) delete FIXT[k];
@@ -4201,6 +4204,26 @@ function sayShow(txt, ctx){
    판이 정산할 때 쓰는 함수가 같은 것이다 — 갈리면 카드가 거짓말을 한다.
    ══════════════════════════════════════════════════════════════════ */
 
+/* ── 지금 이 카드를 낼 수 있는가 ────────────────────────────
+   작업대와 무대가 같은 답을 쓴다. 두 벌로 적혀 있던 동안 「자리를 고른다」와
+   「손패에서 n장 고른다」가 무대에만 빠져 있었다. */
+//@ 화면.카드가능 — 낼 수 있는가, 못 낸다면 왜
+function cardWhy(S, id, node){
+  const c = CARDS[id];
+  let ok = canPlay(S, id), why = '';
+  if(!ok) why = cardCost(S,id) > S.energy ? '코스트 모자람'
+             : (c.bleed && !canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
+             : (c.target==='hand' ? (c.kw==='재진'?'붙일 진단 카드가 없다':'고를 카드가 없다') : '지금은 못 냄'));
+  else if(c.target==='node'){
+    if(!node) why = '자리를 고른다';
+    else if(c.need && c.need.length<2 && !c.need(node)){ ok=false; why=`${node.sym}에는 못 쓴다` }
+    else if(immune(S,node) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
+    else if(c.verb==='진단' && !canDiag(S,node,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
+  }
+  else if(c.target==='hand') why = `손패에서 ${pickNeed(S,id)}장 고른다`;
+  return {ok, why};
+}
+
 /* 사혈 단수 아이콘 — 코스트 옆에 붙는다 */
 //@ 화면.카드그리기 — §9.4 카드 한 장의 겉모습
 function bleedIcon(c, S){
@@ -4333,7 +4356,11 @@ function forecast(){
 function render(){
   /* 무대가 떠 있으면 그쪽도 같이 맞춘다 — 되돌리기 · 자동 진행 · 세션이
      무대를 몰라도 되는 이유가 이 한 줄이다 */
-  if(typeof STAGE_ON!=='undefined' && STAGE_ON) stageRender();
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON){
+    /* 무대가 덮고 있는 동안 작업대는 보이지 않는다. 그리지 않는다 —
+       나갈 때 stageClose() 가 render() 를 한 번 더 불러 맞춘다 */
+    stageRender(); return;
+  }
   deckLine('one_deck', ONE_DECK, ONE_CAP);
   packLine();
   renderOvr();
@@ -4345,6 +4372,35 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+}
+
+/* ── 환자 머리에 붙는 설명 둘 ────────────────────────────────
+   작업대와 무대가 같은 것을 쓴다. 두 벌로 적혀 있던 동안 작업대 쪽이
+   「한 턴에 두 번 억제」·「15%」를 글자로 박아 두고 커널과 갈라져 있었다.
+   실제 규칙은 이렇다 (kernel.suppress · hurtPatient):
+     · 한 자리를 한 턴에 HIT_ANX 번째로 억제할 때, 평정이면 불안으로.
+       억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제는 안 센다.
+     · 한 턴 누적 손실이 최대 체력의 MIND_BIGHIT 을 넘으면 한 단계. 턴당 한 번. */
+//@ 화면.정신설명 — 무엇이 정신을 흔드는가
+function mindTipBody(S){
+  return `평정 = 안정화 ×${R.MIND_CALM_STAB}<br>불안 · 공황 = 억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}`
+    + `<br>의식불명 = 진단이 −${R.MIND_KO_DIAG} 더<br><br>`
+    + `한 자리를 한 턴에 <b>${R.HIT_ANX}번째</b>로 억제하면 불안으로 간다 — 평정일 때만이고,`
+    + ' 억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제(광역 · 설치물)는 세지 않는다.<br>'
+    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 한 단계 무너진다 — 턴당 한 번이다.<br>`
+    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
+    + (S.mind==='공황' ? '<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.' : '');
+}
+
+//@ 화면.체력설명 — 이번 턴에 얼마를 잃는가
+function hpTipBody(S, f){
+  const cuts = comfortCuts(S);
+  return `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
+    + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
+    + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
+    + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
+    + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
+    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'');
 }
 
 /* ── 자리의 처치선 ── 규칙이 정한 바탕값과, 이 판에서 실제로 걸린 값 ──
@@ -4428,17 +4484,8 @@ function renderInto(h){
   const tagTip = (BOARD.tags||[]).length
     ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>×${HP_TAG[t]}</b>`).join('<br>')
         + `<br><br>기본 체력 ${LVTAB[BOARD.level]?LVTAB[BOARD.level].hp:'—'} 에 곱연산으로 걸린다.`)) : '';
-  const mindTip = tip(TT('정신 · '+S.mind,
-      '평정 = 안정화 ×1.3<br>불안 · 공황 = 억제 −1 · 진단 −1<br><br>'
-      +'한 노드를 한 턴에 두 번 억제하거나, 한 턴에 최대 체력의 15% 이상 잃으면 한 단계 악화한다.<br>'
-      +'처치 · 진단 성공 · 휴면 도달은 한 단계 호전시킨다.'));
-  const hpTip = tip(TT('환자 체력',
-      `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
-      + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
-      + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
-      + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
-      + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
-      + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'')));
+  const mindTip = tip(TT('정신 · '+S.mind, mindTipBody(S)));
+  const hpTip   = tip(TT('환자 체력', hpTipBody(S, f)));
 
   $(h+'_patient').innerHTML=`
     <div class="prow"><span class="ptitle">환자</span>
@@ -4513,24 +4560,13 @@ function renderInto(h){
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
     + S.hand.map((id,ix)=>{
-    const c=CARDS[id];
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
       return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
-    let ok=canPlay(S,id), why='';
-    if(!ok) why = cardCost(S,id)>S.energy ? '코스트 모자람'
-               : (c.bleed&&!canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
-               : (c.target==='hand' ? (c.kw==='재진'?'붙일 진단 카드가 없다':'고를 카드가 없다') : '지금은 못 냄'));
-    else if(c.target==='node'){
-      if(!selNode) why='자리를 고른다';
-      else if(c.need && c.need.length<2 && !c.need(selNode)){ ok=false; why=`${selNode.sym}에는 못 쓴다` }
-      else if(immune(S,selNode) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
-      else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
-    }
-    else if(c.target==='hand') why=`손패에서 ${pickNeed(S,id)}장 고른다`;
+    const {ok, why} = cardWhy(S, id, selNode);
     return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
       foot: why?`<span class="keep why">${why}</span>`:''});
   }).join('') || '<div class="empty">손이 비었다.</div>';
@@ -5954,16 +5990,17 @@ const FXQ = [];
 function fxq(fn){ if(FX_ON) FXQ.push(fn) }
 
 async function fxFlush(after){
-  if(!FX_ON){ FXQ.length = 0; if(after) after(); if(typeof stageRender==='function') stageRender(); return }
+  if(!FX_ON){ FXQ.length = 0; if(after) after(); stageRender(); return }
   FX_BUSY = true; document.body.classList.add('fxbusy');
   while(FXQ.length){
+    if(!STAGE_ON){ FXQ.length = 0; break }   // 한창일 때 나갔다 — 남은 줄은 버린다
     const f = FXQ.shift();
     try{ await f() }catch(e){ /* 연출이 깨져도 판은 이미 옳다 */ }
-    if(typeof stageSync==='function') stageSync();
+    stageSync();
   }
   FX_BUSY = false; document.body.classList.remove('fxbusy');
   if(after) after();
-  if(typeof stageRender==='function') stageRender();
+  stageRender();
 }
 
 /* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다 */
@@ -6003,6 +6040,13 @@ function fxSilent(fn){
 const STAGE_ELS = new Map();          // 자리 번호 → 계기판 DOM
 
 const stageBoard = () => $('sg_board');
+
+/* 같은 내용이면 innerHTML 을 건드리지 않는다 — 건드리면 SVG 를 다시 파싱하고
+   그 안에 붙어 있던 연출 조각도 함께 날아간다 */
+function setHTML(el, html){
+  if(!el || el.__h === html) return;
+  el.__h = html; el.innerHTML = html;
+}
 function stageEl(n){
   if(!n || !S) return null;
   return STAGE_ELS.get(S.nodes.indexOf(n)) || null;
@@ -6040,7 +6084,7 @@ function stgArt(n){
 }
 
 /* ── 바깥에 매다는 계측기 ── 노드 밖으로 나가므로 자리 수가 많으면 접는다 ── */
-function attArt(S, n, small){
+function attArt(n, small){
   if(small) return '';
   const p = Math.min(1, n.val / Math.max(1, n.init));
   let out = '';
@@ -6131,7 +6175,7 @@ function dialSVG(S, n){
 }
 
 /* ── 진단 링 ── 테를 두르는 점선. 이번 회차에 얼마나 쌓았는가 ── */
-function diagRing(S, n){
+function diagRing(n){
   const need = Math.max(1, n.diagNeed||R.DIAG_NEED), acc = Math.min(need, n.diagAcc||0);
   const V=200, c=V/2, rr=V*0.455;
   let s='';
@@ -6167,6 +6211,7 @@ function stageLayout(){
 /* ── 계기판 맞추기 ── 있는 것은 고치고, 없어진 것은 걷고, 난 것은 세운다 ── */
 //@ 무대.계기판맞춤 — DOM 을 판에 맞춘다
 function stageSync(){
+  if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
   const B = stageBoard(); if(!B || !S) return;
   const SZ = stageLayout();
   const small = SZ < 180;
@@ -6210,10 +6255,12 @@ function stageSync(){
     el.classList.toggle('evo',   !!n.evolved);
     el.classList.toggle('held',  n.growHold>0 || n.delayed>0);
 
-    el.querySelector('.stg').innerHTML   = stgArt(n);
-    el.querySelector('.dial').innerHTML  = dialSVG(S, n);
-    el.querySelector('.dring').innerHTML = diagRing(S, n);
-    el.querySelector('.atts').innerHTML  = attArt(S, n, small);
+    /* 그림은 안 바뀌었으면 다시 꽂지 않는다. SVG 를 매 수마다 새로 파싱하는
+       것이 그리기 비용의 절반이었다 — 문자열이 같으면 손대지 않는다 */
+    setHTML(el.querySelector('.stg'),   stgArt(n));
+    setHTML(el.querySelector('.dial'),  dialSVG(S, n));
+    setHTML(el.querySelector('.dring'), diagRing(n));
+    setHTML(el.querySelector('.atts'),  attArt(n, small));
 
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     el.querySelector('.nm2').textContent = nm + (n.evolved ? ' ✦' : '');
@@ -6260,7 +6307,7 @@ function stageLinks(){
     out += `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="#14181C" stroke-width="${w+6}" stroke-linecap="round"${dash}/>`
          + `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${dash} marker-end="url(#sgah${ci})"/>`;
   }
-  const svg = $('sg_links'); if(svg) svg.innerHTML = out;
+  setHTML($('sg_links'), out);
 }
 
 //@ 파일.70-ui/stage
@@ -6421,26 +6468,15 @@ function stagePatient(){
   const bust = $('sg_bust');
   if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
 
-  const cuts = comfortCuts(S);
-  const hpTip = tip(TT('환자 체력',
-      `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
-    + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
-    + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
-    + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')}`:'')
-    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 1 아래로 내려가지 않는다.</span>':'')));
+  /* 설명은 작업대와 같은 것을 쓴다. 여기는 속성에 직접 다는 자리라 열쇠만 받는다 */
   const hpEl = $('sg_hp');
   hpEl.innerHTML = `${(MODE==='sess'&&!S.tagsShown)?'?':hp}<i>${f.dmg?'−'+f.dmg:''}</i>`;
-  hpEl.setAttribute('data-tip', (hpTip.match(/data-tip="([^"]+)"/)||[])[1] || '');
+  hpEl.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
 
   const m = $('sg_mind');
   m.textContent = S.mind;
   m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
-  m.setAttribute('data-tip', (tip(TT('정신 · '+S.mind,
-      '평정 = 안정화 ×1.3<br>불안 · 공황 = 억제 −1 · 진단 −1<br>의식불명 = 진단이 한 번 더 빠진다<br><br>'
-    + `한 자리를 한 턴에 ${R.HIT_ANX} 이상 억제하거나, 한 턴에 최대 체력의 ${Math.round(R.MIND_BIGHIT*100)}% 이상 잃으면 한 단계 무너진다.<br>`
-    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
-    + (S.mind==='공황'?'<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.':'')))
-    .match(/data-tip="([^"]+)"/)||[])[1] || '');
+  m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
 }
 
 /* 고른 자리 한 줄 — 지금 끊으면 무슨 일이 나는가 */
@@ -6517,26 +6553,16 @@ function stageHand(){
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
   + S.hand.map((id, ix)=>{
-      const c = CARDS[id];
       if(pend){
         const okPick = left.includes(id);
         return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick,
           onclick: okPick?`stagePickCard('${id}')`:''});
       }
-      let ok = canPlay(S,id), why='';
-      if(!ok) why = cardCost(S,id)>S.energy ? '코스트 모자람'
-                 : (c.bleed && !canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
-                 : (c.target==='hand' ? '고를 카드가 없다' : '지금은 못 냄'));
-      else if(c.target==='node' && selNode){
-        if(c.need && c.need.length<2 && !c.need(selNode)){ ok=false; why=`${selNode.sym}에는 못 쓴다` }
-        else if(immune(S,selNode) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
-        else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
-      }
+      const {ok, why} = cardWhy(S, id, selNode);
       const aiming = STAGE_MODE==='card' && STAGE_CARD===id;
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
         onclick:`stageCardClick('${id}')`, keyhint: ix<9?ix+1:'',
-        foot: why?`<span class="keep why">${why}</span>`
-             : (c.target==='node' && !selNode ? '<span class="keep">자리를 고른 뒤 낸다</span>' : '')});
+        foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
 }
 
@@ -6598,8 +6624,6 @@ function stageTreatBtn(){
   if(STAGE_MODE) stageToast('끊을 자리를 고른다');
   stageRender();
 }
-
-function stageDeclareBtn(){ stageDeclare() }
 
 function stageSettleBtn(){
   if(FX_BUSY || MODE!=='sess' || !SESS || SESS.phase!=='fight') return;
@@ -6664,8 +6688,8 @@ function fxSnap(S){
   const dis = S.nodes.find(n=>n.role==='disease');
   return {
     hp:S.hp, mind:S.mind, turn:S.turn,
-    rush:S.rush||0, rem:!!S.rem, remGauge:S.remGauge||0,
-    act:S.act, evid:S.evid, stage: dis?dis.stage:0,
+    rush:S.rush||0, remGauge:S.remGauge||0,
+    evid:S.evid, stage: dis?dis.stage:0,
     len:S.nodes.length,
     nodes:S.nodes.map(n=>({
       dead:!!n.dead, val:n.val, shielded:!!n.shielded, dormT:n.dormT||0,
@@ -6994,7 +7018,6 @@ function stageVerdGo(){
 //@ 무대.결산 — 하루가 끝났다
 function stageEndShow(){
   if(!SESS){ stageRender(); return }
-  const used = SESS.def ? 0 : 0;
   $('sg_ehead').textContent = SESS.def.visit ? '왕진이 끝났다' : '오전이 끝났다';
   $('sg_esub').textContent = `남은 예산 ${Math.max(0,SESS.budget)}턴`
     + (SESS.def.visit ? ` · 평판 ${SESS.rep>0?'+':''}${SESS.rep}` : '');

@@ -163,7 +163,6 @@ function stageVerdGo(){
 //@ 무대.결산 — 하루가 끝났다
 function stageEndShow(){
   if(!SESS){ stageRender(); return }
-  const used = SESS.def ? 0 : 0;
   $('sg_ehead').textContent = SESS.def.visit ? '왕진이 끝났다' : '오전이 끝났다';
   $('sg_esub').textContent = `남은 예산 ${Math.max(0,SESS.budget)}턴`
     + (SESS.def.visit ? ` · 평판 ${SESS.rep>0?'+':''}${SESS.rep}` : '');

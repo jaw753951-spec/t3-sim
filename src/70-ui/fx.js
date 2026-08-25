@@ -286,16 +286,17 @@ const FXQ = [];
 function fxq(fn){ if(FX_ON) FXQ.push(fn) }
 
 async function fxFlush(after){
-  if(!FX_ON){ FXQ.length = 0; if(after) after(); if(typeof stageRender==='function') stageRender(); return }
+  if(!FX_ON){ FXQ.length = 0; if(after) after(); stageRender(); return }
   FX_BUSY = true; document.body.classList.add('fxbusy');
   while(FXQ.length){
+    if(!STAGE_ON){ FXQ.length = 0; break }   // 한창일 때 나갔다 — 남은 줄은 버린다
     const f = FXQ.shift();
     try{ await f() }catch(e){ /* 연출이 깨져도 판은 이미 옳다 */ }
-    if(typeof stageSync==='function') stageSync();
+    stageSync();
   }
   FX_BUSY = false; document.body.classList.remove('fxbusy');
   if(after) after();
-  if(typeof stageRender==='function') stageRender();
+  stageRender();
 }
 
 /* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다 */

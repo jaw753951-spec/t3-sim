@@ -26,6 +26,13 @@
 const STAGE_ELS = new Map();          // 자리 번호 → 계기판 DOM
 
 const stageBoard = () => $('sg_board');
+
+/* 같은 내용이면 innerHTML 을 건드리지 않는다 — 건드리면 SVG 를 다시 파싱하고
+   그 안에 붙어 있던 연출 조각도 함께 날아간다 */
+function setHTML(el, html){
+  if(!el || el.__h === html) return;
+  el.__h = html; el.innerHTML = html;
+}
 function stageEl(n){
   if(!n || !S) return null;
   return STAGE_ELS.get(S.nodes.indexOf(n)) || null;
@@ -63,7 +70,7 @@ function stgArt(n){
 }
 
 /* ── 바깥에 매다는 계측기 ── 노드 밖으로 나가므로 자리 수가 많으면 접는다 ── */
-function attArt(S, n, small){
+function attArt(n, small){
   if(small) return '';
   const p = Math.min(1, n.val / Math.max(1, n.init));
   let out = '';
@@ -154,7 +161,7 @@ function dialSVG(S, n){
 }
 
 /* ── 진단 링 ── 테를 두르는 점선. 이번 회차에 얼마나 쌓았는가 ── */
-function diagRing(S, n){
+function diagRing(n){
   const need = Math.max(1, n.diagNeed||R.DIAG_NEED), acc = Math.min(need, n.diagAcc||0);
   const V=200, c=V/2, rr=V*0.455;
   let s='';
@@ -190,6 +197,7 @@ function stageLayout(){
 /* ── 계기판 맞추기 ── 있는 것은 고치고, 없어진 것은 걷고, 난 것은 세운다 ── */
 //@ 무대.계기판맞춤 — DOM 을 판에 맞춘다
 function stageSync(){
+  if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
   const B = stageBoard(); if(!B || !S) return;
   const SZ = stageLayout();
   const small = SZ < 180;
@@ -233,10 +241,12 @@ function stageSync(){
     el.classList.toggle('evo',   !!n.evolved);
     el.classList.toggle('held',  n.growHold>0 || n.delayed>0);
 
-    el.querySelector('.stg').innerHTML   = stgArt(n);
-    el.querySelector('.dial').innerHTML  = dialSVG(S, n);
-    el.querySelector('.dring').innerHTML = diagRing(S, n);
-    el.querySelector('.atts').innerHTML  = attArt(S, n, small);
+    /* 그림은 안 바뀌었으면 다시 꽂지 않는다. SVG 를 매 수마다 새로 파싱하는
+       것이 그리기 비용의 절반이었다 — 문자열이 같으면 손대지 않는다 */
+    setHTML(el.querySelector('.stg'),   stgArt(n));
+    setHTML(el.querySelector('.dial'),  dialSVG(S, n));
+    setHTML(el.querySelector('.dring'), diagRing(n));
+    setHTML(el.querySelector('.atts'),  attArt(n, small));
 
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     el.querySelector('.nm2').textContent = nm + (n.evolved ? ' ✦' : '');
@@ -283,5 +293,5 @@ function stageLinks(){
     out += `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="#14181C" stroke-width="${w+6}" stroke-linecap="round"${dash}/>`
          + `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${dash} marker-end="url(#sgah${ci})"/>`;
   }
-  const svg = $('sg_links'); if(svg) svg.innerHTML = out;
+  setHTML($('sg_links'), out);
 }

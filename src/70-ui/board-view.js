@@ -22,7 +22,11 @@ function forecast(){
 function render(){
   /* 무대가 떠 있으면 그쪽도 같이 맞춘다 — 되돌리기 · 자동 진행 · 세션이
      무대를 몰라도 되는 이유가 이 한 줄이다 */
-  if(typeof STAGE_ON!=='undefined' && STAGE_ON) stageRender();
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON){
+    /* 무대가 덮고 있는 동안 작업대는 보이지 않는다. 그리지 않는다 —
+       나갈 때 stageClose() 가 render() 를 한 번 더 불러 맞춘다 */
+    stageRender(); return;
+  }
   deckLine('one_deck', ONE_DECK, ONE_CAP);
   packLine();
   renderOvr();
@@ -34,6 +38,35 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+}
+
+/* ── 환자 머리에 붙는 설명 둘 ────────────────────────────────
+   작업대와 무대가 같은 것을 쓴다. 두 벌로 적혀 있던 동안 작업대 쪽이
+   「한 턴에 두 번 억제」·「15%」를 글자로 박아 두고 커널과 갈라져 있었다.
+   실제 규칙은 이렇다 (kernel.suppress · hurtPatient):
+     · 한 자리를 한 턴에 HIT_ANX 번째로 억제할 때, 평정이면 불안으로.
+       억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제는 안 센다.
+     · 한 턴 누적 손실이 최대 체력의 MIND_BIGHIT 을 넘으면 한 단계. 턴당 한 번. */
+//@ 화면.정신설명 — 무엇이 정신을 흔드는가
+function mindTipBody(S){
+  return `평정 = 안정화 ×${R.MIND_CALM_STAB}<br>불안 · 공황 = 억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}`
+    + `<br>의식불명 = 진단이 −${R.MIND_KO_DIAG} 더<br><br>`
+    + `한 자리를 한 턴에 <b>${R.HIT_ANX}번째</b>로 억제하면 불안으로 간다 — 평정일 때만이고,`
+    + ' 억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제(광역 · 설치물)는 세지 않는다.<br>'
+    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 한 단계 무너진다 — 턴당 한 번이다.<br>`
+    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
+    + (S.mind==='공황' ? '<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.' : '');
+}
+
+//@ 화면.체력설명 — 이번 턴에 얼마를 잃는가
+function hpTipBody(S, f){
+  const cuts = comfortCuts(S);
+  return `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
+    + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
+    + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
+    + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
+    + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
+    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'');
 }
 
 /* ── 자리의 처치선 ── 규칙이 정한 바탕값과, 이 판에서 실제로 걸린 값 ──
@@ -117,17 +150,8 @@ function renderInto(h){
   const tagTip = (BOARD.tags||[]).length
     ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>×${HP_TAG[t]}</b>`).join('<br>')
         + `<br><br>기본 체력 ${LVTAB[BOARD.level]?LVTAB[BOARD.level].hp:'—'} 에 곱연산으로 걸린다.`)) : '';
-  const mindTip = tip(TT('정신 · '+S.mind,
-      '평정 = 안정화 ×1.3<br>불안 · 공황 = 억제 −1 · 진단 −1<br><br>'
-      +'한 노드를 한 턴에 두 번 억제하거나, 한 턴에 최대 체력의 15% 이상 잃으면 한 단계 악화한다.<br>'
-      +'처치 · 진단 성공 · 휴면 도달은 한 단계 호전시킨다.'));
-  const hpTip = tip(TT('환자 체력',
-      `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
-      + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
-      + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
-      + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
-      + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
-      + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'')));
+  const mindTip = tip(TT('정신 · '+S.mind, mindTipBody(S)));
+  const hpTip   = tip(TT('환자 체력', hpTipBody(S, f)));
 
   $(h+'_patient').innerHTML=`
     <div class="prow"><span class="ptitle">환자</span>
@@ -202,24 +226,13 @@ function renderInto(h){
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
     + S.hand.map((id,ix)=>{
-    const c=CARDS[id];
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
       return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
-    let ok=canPlay(S,id), why='';
-    if(!ok) why = cardCost(S,id)>S.energy ? '코스트 모자람'
-               : (c.bleed&&!canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
-               : (c.target==='hand' ? (c.kw==='재진'?'붙일 진단 카드가 없다':'고를 카드가 없다') : '지금은 못 냄'));
-    else if(c.target==='node'){
-      if(!selNode) why='자리를 고른다';
-      else if(c.need && c.need.length<2 && !c.need(selNode)){ ok=false; why=`${selNode.sym}에는 못 쓴다` }
-      else if(immune(S,selNode) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
-      else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
-    }
-    else if(c.target==='hand') why=`손패에서 ${pickNeed(S,id)}장 고른다`;
+    const {ok, why} = cardWhy(S, id, selNode);
     return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
       foot: why?`<span class="keep why">${why}</span>`:''});
   }).join('') || '<div class="empty">손이 비었다.</div>';

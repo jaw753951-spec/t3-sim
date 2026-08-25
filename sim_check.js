@@ -174,9 +174,9 @@ const INVARIANTS = `(() => {
      판을 바꿔야 한다. 「고유가 헛돌면 성장으로 대신한다」는 규약이 여기서 걸린다 —
      고유가 실패하고도 문자열을 돌려주면 그 턴은 병이 통째로 노는 턴이 된다.
      세 가지 판에 세워 본다: 자리 하나 · 자리가 꽉 참 · 자리 하나에 정신이 바닥.
-     비트 화면이 없던 옛 파일에는 diseaseAct 가 없다 — 그때는 건너뛴다. */
-  if (typeof diseaseAct === 'function') {
-    const REST = {'같은 박자': 1};
+     쉬는 비트는 BEAT_REST 가 정한다 — 여기에 목록을 또 적지 않는다.
+     그 표가 없는 옛 파일은 이 조건이 서기 전의 것이다 — 그때는 건너뛴다. */
+  if (typeof BEAT_REST !== 'undefined') {
     const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length,
       clock: S.nodes[0].stageClock, stage: S.nodes[0].stage,
       nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0, x.evoLeft, x.dormT])});
@@ -199,7 +199,7 @@ const INVARIANTS = `(() => {
         const full = b.roster ? b.roster[stage].map(r => r[0])
                               : new Array(SR.SPAWN_LV[SLV(boss, 'spots', stage)]).fill('발열');
         b.beats[st].forEach((beat, i) => {
-          if (REST[beat]) return;
+          if (BEAT_REST[beat]) return;
           for (const [what, fill, mind] of [['자리 하나', ['발열'], null],
                                             ['자리가 꽉 참', full, null],
                                             ['자리 하나 · 공황', ['발열'], '공황']]) {

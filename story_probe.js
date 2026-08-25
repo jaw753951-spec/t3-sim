@@ -19,7 +19,7 @@
 const fs = require('fs'), vm = require('vm');
 
 const BOSSES = ['아이','어부','송이'], POLS = ['완치','연명','편하게'];
-const CAP = 30;                                  // 한 판에서 볼 3막 턴 수
+const FILE = 'intern_sim.html', SEEDS = 40, TURNS = 30;
 
 /* 화면 없이 도는 구간만 떼어 돌린다 */
 function load(file){
@@ -36,15 +36,18 @@ function load(file){
 }
 
 /* 3막을 한 턴씩 돌며 그 턴에 병이 무엇을 했는지 적는다.
-   ★ storyPhase 를 그대로 부르지 않고 그 안을 펼쳐 쓴다 — 비트 앞뒤로 판을 찍으려면
-     diseaseAct 하나만 따로 감싸야 한다. 시계 처리는 storyPhase 와 같은 순서다. */
+   턴 순서(병 행동 → 시계 → 손패 → 정산)는 storyPhase 를 그대로 부른다 —
+   여기에 다시 적으면 언젠가 갈라지고, 갈라지면 이 자가 거짓말을 한다.
+   비트 앞뒤로 판을 찍어야 하므로 diseaseAct 만 감싸 두고 storyPhase 가 그것을 부르게 한다. */
 const ROWS = `((boss, policy, seed, cap) => {
   const rng = K.mulberry32(seed);
   const board = makeDisease(boss, rng);
   const S = K.newState(board, {}); S.board = board; S.rng = rng;
-  C.setupDeck(S, STORY_DECK, K.mulberry32(seed + 1)); S.rng = rng;
+  /* 스토리 가방 그대로 돌린다 — 그 표가 서기 전의 옛 파일이면 2일차 8종으로 대신한다 */
+  const deck = typeof STORY_DECK !== 'undefined' ? STORY_DECK : C.DECK_D2;
+  C.setupDeck(S, deck, K.mulberry32(seed + 1)); S.rng = rng;
   const dis = S.nodes[0];
-  const a1 = act1(S, STORY_DECK, {});
+  const a1 = act1(S, deck, {});
   applyPolicy(S, dis, policy, a1.correct);
 
   /* 비트가 판을 바꿨는가 — 비트 번호는 빼고 본다 (그것만 늘 오른다) */
@@ -52,34 +55,51 @@ const ROWS = `((boss, policy, seed, cap) => {
     dis:[dis.val, dis.stage, dis.stageClock, dis.dead?1:0],
     nodes:S.nodes.filter(x=>x.role!=='disease').map(x=>[x.sym,x.val,x.dead?1:0,x.shielded?1:0,x.evoLeft]) });
 
+  /* 병 행동만 따로 찍는다 — 비트 이름은 diseaseAct 가 세기 전에 읽어야 한다 */
+  let mark = null;
+  const orig = diseaseAct;
+  globalThis.diseaseAct = (s, d, act) => {
+    const beat = nextBeat(s, d), before = snap();
+    const line = orig(s, d, act);
+    mark = { beat, line, moved: snap() !== before };
+    return line;
+  };
+
   const rows = []; let t = 0;
-  while (t < cap) {
-    const v = storyVerdict(S, dis, policy);
-    if (v) { rows.push({ t:t+1, end:v }); break }
-    t++;
-    S.played = 0; storyTurn(S, dis, policy);
-    const hp0 = S.hp;
-    const live = K.active(S).filter(x=>x.role!=='disease').length;
-    const neuro = K.active(S).filter(x=>x.role!=='disease' && (x.sym==='통증'||x.sym==='호흡곤란')).length;
-    const beat = nextBeat(S, dis), before = snap();
-    const line = diseaseAct(S, dis, null);
-    const moved = snap() !== before;
-    dis.stageClock--;
-    let up = null;
-    if (dis.stageClock <= 0) { if (stageUp(S, dis)) up = dis.stage; else dis.stageClock = SR.STAGE_TURNS }
-    C.endTurnHand(S); K.turnResolve(S); storyTick(S);
-    rows.push({ t, stage:dis.stage, clock:dis.stageClock, beat, line, moved, live, neuro, up,
-                liveAfter:K.active(S).filter(x=>x.role!=='disease').length,
-                dmg:hp0-S.hp, hp:S.hp, disVal:dis.val });
-  }
+  try {
+    while (t < cap) {
+      const v = storyVerdict(S, dis, policy);
+      if (v) { rows.push({ t:t+1, end:v }); break }
+      t++;
+      S.played = 0; storyTurn(S, dis, policy);
+      const hp0 = S.hp;
+      const live = K.active(S).filter(x=>x.role!=='disease').length;
+      const neuro = K.active(S).filter(x=>x.role!=='disease' && (x.sym==='통증'||x.sym==='호흡곤란')).length;
+      mark = null;
+      const ph = storyPhase(S, dis) || {};
+      C.endTurnHand(S); K.turnResolve(S); storyTick(S);
+      /* storyPhase 가 병을 안 움직인 턴 — 3막에서는 없지만, 없다고 터지지는 않게 한다 */
+      const m = mark || { beat:'—', line:'병이 움직이지 않았다', moved:false };
+      rows.push({ t, stage:dis.stage, clock:dis.stageClock, up:ph.up, live, neuro,
+                  beat:m.beat, line:m.line, moved:m.moved,
+                  liveAfter:K.active(S).filter(x=>x.role!=='disease').length,
+                  dmg:hp0-S.hp, hp:S.hp, disVal:dis.val });
+    }
+  } finally { globalThis.diseaseAct = orig }
   return rows;
 })`;
 
 const seedList = n => { const a = []; for (let i = 0; i < n; i++) a.push(1000 + i * 37); return a };
 
+/* 한 판을 몇 턴까지 볼 것인가 — 그 파일의 손잡이를 그대로 쓴다.
+   그 손잡이가 서기 전의 옛 파일이면 TURNS 로 대신한다. 0 이 되면 한 턴도 안 돌아
+   「아무 일도 없다」로 조용히 잘못 읽힌다 — 그래서 여기서 한 번에 막는다. */
+const capOf = ev => ev('typeof SR.ACT3_CAP === "number" ? SR.ACT3_CAP : 0') || TURNS;
+
 /* ── trace ── 한 판을 턴별로 ── */
 function trace(boss, pol, seed, file){
-  const rows = load(file)(ROWS)(boss, pol, seed, CAP);
+  const ev = load(file);
+  const rows = ev(ROWS)(boss, pol, seed, capOf(ev));
   console.log(`=== ${boss} · ${pol} · 씨앗 ${seed} · ${file} ===`);
   console.log(' 턴 병기 시계 비트        판  자리   피해 병노드  줄');
   for (const r of rows) {
@@ -97,15 +117,17 @@ function trace(boss, pol, seed, file){
       비트 하나하나가 규약을 지켜도 배열 때문에 세 턴이 빌 수 있다. ③ㄷ 는 이것을 못 본다
    ③ 창 뒤로 몇 턴이 비는가 */
 function sweep(bosses, file){
-  const run = load(file)(ROWS);
-  const seeds = seedList(40);
+  const ev = load(file), run = ev(ROWS), cap = capOf(ev);
+  /* 쉬는 비트는 그 파일의 표가 정한다. 표가 서기 전의 옛 파일이면 빈 표로 본다 */
+  const rest = ev('typeof BEAT_REST !== "undefined" ? BEAT_REST : {}');
+  const seeds = seedList(SEEDS);
   const miss = {}, idleRun = {}, win = [];
   for (const boss of bosses) for (const pol of POLS) for (const seed of seeds) {
-    const rows = run(boss, pol, seed, CAP);
+    const rows = run(boss, pol, seed, cap);
     let streak = 0;
     rows.forEach((r, i) => {
       if (r.end) return;
-      if (!r.moved && r.live > 0 && r.beat !== '같은 박자') {      // 「같은 박자」는 설계상 쉼이다
+      if (!r.moved && r.live > 0 && !rest[r.beat]) {              // 쉬는 비트는 헛도는 것이 아니다
         const k = `${boss} · 병기${r.stage} · ${r.beat}`;
         miss[k] = miss[k] || { n:0, ex:null };
         miss[k].n++;
@@ -148,7 +170,7 @@ function diff(a, b){
   const RUN = `((boss, pol, seed) => { const r = runStory(boss, C.DECK_D2, seed, pol, {});
                                        return r.out + '/' + r.turns + '/' + r.stage })`;
   const A = load(a)(RUN), B = load(b)(RUN);
-  const seeds = seedList(40);
+  const seeds = seedList(SEEDS);
   let same = 0, moved = 0;
   const byCase = {}, outA = {}, outB = {};
   for (const boss of BOSSES) for (const pol of POLS) for (const s of seeds) {
@@ -169,16 +191,18 @@ function diff(a, b){
 }
 
 /* ── 손잡이 ── */
-const [mode, ...rest] = process.argv.slice(2);
+const [mode, ...arg] = process.argv.slice(2);
 try {
-  if (mode === 'trace') trace(rest[0] || '아이', rest[1] || '완치', +(rest[2] || 777), rest[3] || 'intern_sim.html');
-  else if (mode === 'sweep') sweep((rest[0] || BOSSES.join(',')).split(','), rest[1] || 'intern_sim.html');
+  if (mode === 'trace') trace(arg[0] || '아이', arg[1] || '완치', +(arg[2] || 777), arg[3] || FILE);
+  else if (mode === 'sweep') sweep((arg[0] || BOSSES.join(',')).split(','), arg[1] || FILE);
   else if (mode === 'diff') {
-    if (!rest[1]) { console.error('두 파일을 넘긴다 — node story_probe.js diff A.html B.html'); process.exit(2) }
-    diff(rest[0], rest[1]);
+    if (!arg[1]) throw new Error('두 파일을 넘긴다 — node story_probe.js diff A.html B.html');
+    diff(arg[0], arg[1]);
   }
   else {
-    console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0].split('\n').slice(2, 9).join('\n'));
+    /* 사용법은 머리말에 이미 적혀 있다 — 두 벌로 적지 않고 거기서 뽑는다 */
+    console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0]
+      .split('\n').filter(l => l.includes('node story_probe.js')).join('\n'));
     process.exit(mode ? 2 : 0);
   }
 } catch (e) { console.error(e.message); process.exit(2) }

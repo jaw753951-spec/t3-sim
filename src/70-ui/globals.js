@@ -9,7 +9,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 //@ 화면.전역 — §9.1 전역 상태 · 잔손
-let S=null, BOARD=null, SEL=null, LOG=[], MODE='one', UNDO=[], SESS=null, DB=null;
+let S=null, BOARD=null, SEL=null, LOG=[], MODE='one', UNDO=[], SESS=null, DB=null, PK=null;
 
 const $ = id => document.getElementById(id);
 

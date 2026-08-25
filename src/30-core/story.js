@@ -92,6 +92,13 @@ function growBeat(S){
   return '증상이 자란다';
 }
 
+/* 설계상 쉬는 비트 — 아무 일도 하지 않는 것이 이 비트의 값이다.
+   diseaseAct 가 이 표를 보고 쉬고, 검사기(sim_check 불변 조건 ③ㄷ ·
+   story_probe sweep)도 '헛도는 비트' 를 셀 때 이 표를 빼고 센다.
+   두 곳에 따로 적으면 쉼과 버그가 갈리지 않는다. */
+//@ 스토리.쉼 — 아무 일도 하지 않는 것이 값인 비트
+const BEAT_REST = {'같은 박자':1};
+
 //@ 스토리.박자 — 병이 이번 턴에 무엇을 하는가
 function nextBeat(S,dis){ const b=BOSS[S.board.boss].beats; const sc=b[dis.stage]||b[dis.stage0]||['분화','고유']; return sc[dis.beat % sc.length] }
 
@@ -120,7 +127,9 @@ function diseaseAct(S, dis, act){
         spawned:true, born:S.turn, role:'sym'});
       return `분화 — ${s}`;
     }
-    return '분화 — 자리가 다 찼다';
+    /* 자리가 다 찼다 — 명부가 있는 보스와 같게 성장으로 넘긴다.
+       전에는 여기서만 문자열을 돌려줘 어부·송이의 분화가 빈 턴이 됐다. */
+    return growBeat(S);
   }
   if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   /* ── v25 신설 ── 창은 아이 전용. 나머지 셋은 공용, 아래 넷은 보스 고유 ── */
@@ -183,7 +192,7 @@ function diseaseAct(S, dis, act){
     return '가라앉는다';
   }
   if(beat==='성장') return growBeat(S);
-  if(beat==='같은 박자') return '같은 박자';
+  if(BEAT_REST[beat]) return beat;                  // 쉬는 비트 — 아무것도 하지 않는 것이 값이다
   return b.unique(S, dis) || growBeat(S);           // 고유가 헛돌면 성장으로 대신한다
 }
 

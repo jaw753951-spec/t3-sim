@@ -52,6 +52,7 @@ const ORDER = [
   'src/70-ui/board-view.js',
   'src/70-ui/hand.js',
   'src/70-ui/deck-ui.js',
+  'src/70-ui/pack-ui.js',
   'src/70-ui/one.js',
   'src/70-ui/story-ui.js',
   'src/70-ui/session-ui.js',

@@ -10,6 +10,8 @@ const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · 
 document.addEventListener('keydown', e=>{
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
+  /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
+  if(PK){ if(e.key==='Escape'){ e.preventDefault(); PK.open ? pkClose() : pkCancel() } return }
   if(DB || MODE==='batch' || MODE==='make' || !S) return;
   const inFight = MODE!=='sess' || (SESS && SESS.phase==='fight');
   const k=e.key;
@@ -40,7 +42,7 @@ function showPane(m){
 
 function setMode(m){
   PICK = null;
-  if(DB){ DB=null; syncDeckBtn() }
+  if(DB || PK){ DB=null; PK=null; syncDeckBtn() }
   PANES[MODE] = {...PANES[MODE], S, BOARD, SEL, LOG, UNDO, SESS};
   MODE=m;
   const P = PANES[m]||{};

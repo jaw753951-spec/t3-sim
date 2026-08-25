@@ -6,7 +6,7 @@
 renderTagBox();
 deckLine('one_deck', ONE_DECK, ONE_CAP);
 
-deckLine('story_deck', STORY_DECK, STORY_CAP);
+packLine();
 
 renderOvr();
 

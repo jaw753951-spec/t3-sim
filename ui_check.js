@@ -177,6 +177,104 @@ async function probe(browser, file){
   /* ⑧ 툴팁 — 등록된 설명 개수와 내용 */
   snap.tips = await page.evaluate(()=>({ n: Object.keys(TIPS).length, fix: Object.keys(FIXT).length }));
 
+  /* ⑨ 카드팩 편성 — 팩을 빼면 그 카드가 빠지고, 대체하면 자리가 바뀐다.
+     여기도 견주기가 아니라 그 파일 하나가 스스로 앞뒤가 맞는지 본다.
+     ★ 툴팁까지 다 센 뒤에 돌린다 — 이 조작이 앞의 스냅숏을 흔들면 안 된다. */
+  snap.packs = await page.evaluate(() => {
+    const bad = [];
+    if (typeof openPackStory !== 'function') return bad;   // 팩이 없던 파일
+    const deck = () => packDeck(PK.on, PK.swap);
+    setMode('story'); openPackStory();
+    const p = PACKS.find(x => !x.fixed && !x.group), n0 = deck().length;
+
+    /* ① 묶음이 아닌 팩 — 빼면 통째로 빠지고, 다시 들이면 통째로 돌아온다 */
+    pkToggle(p.id);
+    for (const id of p.cards)
+      if (deck().includes(id)) bad.push(`카드팩 — 「${p.name}」 을 뺐는데 「${id}」 가 가방에 남았다`);
+    if (deck().length !== n0 - p.cards.length)
+      bad.push(`카드팩 — 뺀 장수가 팩 장수와 다르다. ${n0} → ${deck().length} · 팩 ${p.cards.length}장`);
+    pkToggle(p.id);
+    if (deck().length !== n0) bad.push('카드팩 — 다시 들였는데 장수가 안 돌아왔다');
+    /* 늘 드는 팩은 뺄 손잡이가 아예 없어야 한다 */
+    const fixed = PACKS.find(x => x.fixed);
+    for (const id of fixed.cards)
+      if (!deck().includes(id)) bad.push(`카드팩 — 늘 드는 팩의 「${id}」 가 가방에 없다`);
+
+    /* ①ㄴ 묶음 팩 — 하나를 고르면 같은 묶음의 나머지가 빠진다. 장수는 그대로다 */
+    const supply = PACKS.filter(x => x.group === 'supply');
+    for (const q of supply) {
+      pkToggle(q.id);
+      const d = deck();
+      for (const id of q.cards)
+        if (!d.includes(id)) bad.push(`보급 — 「${q.name}」 을 골랐는데 「${id}」 가 가방에 없다`);
+      for (const other of supply) if (other !== q) for (const id of other.cards)
+        if (d.includes(id)) bad.push(`보급 — 「${q.name}」 을 골랐는데 「${other.name}」 의 「${id}」 가 남았다`);
+      if (d.length !== n0) bad.push(`보급 — 분과를 바꿨는데 장수가 달라졌다. ${n0} → ${d.length}`);
+      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 묶음에서는 하나를 반드시 든다 */
+      pkToggle(q.id);
+      if (deck().length !== n0) bad.push(`보급 — 고른 「${q.name}」 을 다시 눌렀더니 편성이 달라졌다`);
+      /* 어느 편성이든 상한을 넘지 않는다 */
+      if (deck().length > STORY_CAP) bad.push(`상한 — 「${q.name}」 편성이 ${deck().length}/${STORY_CAP}장`);
+    }
+
+    /* ② 대체 — 자리가 바뀌되 자리 수는 늘지 않는다 */
+    const [base, alt] = SWAP[0];
+    pkSwap(base, alt);
+    if (deck().includes(base)) bad.push(`대체 — 「${base}」 자리를 바꿨는데 그대로 있다`);
+    if (!deck().includes(alt)) bad.push(`대체 — 「${alt}」 가 자리에 안 들어왔다`);
+    if (deck().length !== n0) bad.push('대체 — 자리 수가 달라졌다. 바꾸는 것이지 더하는 것이 아니다');
+    pkSwap(base, base);
+    if (!deck().includes(base)) bad.push(`대체 — 기본으로 되돌렸는데 「${base}」 가 안 돌아왔다`);
+
+    /* ③ 레터박스 — 카드 밑에 그린 숫자가 대체 풀 장수와 같은가 */
+    const slots = [...document.querySelectorAll('#dk_body .slot')];
+    const seats = PACKS.flatMap(x => x.cards);
+    if (slots.length !== seats.length)
+      bad.push(`레터박스 — 자리 ${slots.length}개 · 팩 카드 ${seats.length}장`);
+    slots.forEach((el, i) => {
+      const got = +el.querySelector('.lbox b').textContent, want = swapPool(seats[i]).length;
+      if (got !== want) bad.push(`레터박스 — 「${seats[i]}」 자리에 ${got} 이라 적혔는데 대체 풀은 ${want}장`);
+    });
+
+    /* ④ 카드를 누르면 옆에 대체 풀이 펼쳐지고 나머지 화면이 페이드 아웃된다 */
+    pkOpen(base);
+    if (!document.querySelector('#dk_body .swaps')) bad.push('대체 풀 — 카드를 눌렀는데 옆에 안 떴다');
+    if (!document.querySelector('#dk_body .fade')) bad.push('페이드 아웃 — 카드를 눌렀는데 화면이 안 덮였다');
+    if (!document.querySelector('#dk_body .slot.on')) bad.push('페이드 아웃 — 누른 자리가 위로 안 올라왔다');
+    const alone = seats.find(c => !swapPool(c).length);
+    pkOpen(alone);
+    if (!document.querySelector('#dk_body .swaps'))
+      bad.push(`대체 풀 — 0장인 자리(「${alone}」)를 눌렀는데 아무것도 안 떴다`);
+    pkClose();
+    if (document.querySelector('#dk_body .fade')) bad.push('페이드 아웃 — 닫았는데 안 걷혔다');
+
+    /* ④ㄴ 판은 어느 자리에서 열어도 화면 안에 통째로 들어와야 한다.
+       아래쪽 팩(정착지 의사)에서 열면 밑이 잘려 안 보이던 자리다. */
+    for (const seat of seats) {
+      pkOpen(seat);
+      const box = document.querySelector('#dk_body .swaps');
+      if (!box) { pkClose(); continue }
+      const r = box.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > innerHeight + 1 || r.left < 0 || r.right > innerWidth + 1)
+        bad.push(`대체 풀 — 「${seat}」 자리에서 연 판이 화면 밖으로 나갔다 ` +
+                 `(top ${Math.round(r.top)} · bottom ${Math.round(r.bottom)} / ${innerHeight})`);
+      if (r.height > innerHeight) bad.push(`대체 풀 — 「${seat}」 자리의 판이 화면보다 길다`);
+      pkClose();
+    }
+
+    /* ⑤ 확정하기 전에는 판의 가방이 안 바뀐다 */
+    const keep = STORY_DECK.slice();
+    pkToggle(p.id);
+    if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 확정하기 전에 판의 가방이 바뀌었다');
+    pkCancel();
+    if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 그만뒀는데 판의 가방이 바뀌었다');
+    openPackStory(); pkToggle(p.id); pkDone();
+    if (STORY_DECK.join() === keep.join()) bad.push('편성 — 확정했는데 판의 가방이 그대로다');
+    openPackStory(); pkToggle(p.id); pkDone();
+    if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 도로 들였는데 가방이 안 돌아왔다');
+    return bad;
+  });
+
   await page.close();
   return { snap, errs };
 }
@@ -196,12 +294,13 @@ async function probe(browser, file){
     if(st.length){ bad++; console.log(`\n=== ${f} — 손잡이를 안 따라오는 설명문 ${st.length} ===\n` + st.map(x=>'  '+x).join('\n')) }
   }
   for(const [f, r] of [[a, A], [b, B]]){
-    const dp = r.snap.deep || [];
+    const dp = [...(r.snap.deep || []), ...(r.snap.packs || [])];
     if(dp.length){ bad++; console.log(`\n=== ${f} — 깊은 경로가 어긋난 곳 ${dp.length} ===\n` + dp.map(x=>'  '+x).join('\n')) }
   }
   /* 목록 자체는 파일마다 다를 수 있으니 견주기에서는 뺀다 */
   delete A.snap.stuckTips; delete B.snap.stuckTips;
   delete A.snap.deep; delete B.snap.deep;
+  delete A.snap.packs; delete B.snap.packs;
 
   const d = [];
   (function walk(x, y, p){
@@ -213,6 +312,6 @@ async function probe(browser, file){
   })(A.snap, B.snap, '');
 
   if(d.length){ console.log(`\n=== 화면이 다른 곳 ${d.length} ===\n` + d.slice(0,12).join('\n\n')); bad++ }
-  else console.log('화면 같다 — 조작 8묶음 · 탭 5개 · 깊은 경로 5 · 설명문 추적 · 오류 0');
+  else console.log('화면 같다 — 조작 8묶음 · 탭 5개 · 깊은 경로 5 + 카드팩 5 · 설명문 추적 · 오류 0');
   process.exit(bad ? 1 : 0);
 })();

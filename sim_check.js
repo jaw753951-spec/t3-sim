@@ -117,6 +117,105 @@ const INVARIANTS = `(() => {
   for (const k in pools) for (const id of pools[k])
     if (!C.CARDS[id]) bad.push(k + ' 에 없는 카드 「' + id + '」');
 
+  /* ③ㄴ 카드팩과 대체 풀 — 스토리 가방이 이 둘에서 나온다.
+     팩에 없는 카드 · 두 팩에 걸친 카드 · 어느 팩에도 없는 자리를 잡는다.
+     팩이 없는 옛 파일에서는 건너뛴다. */
+  if (C.PACKS) {
+    const inPack = {};
+    for (const p of C.PACKS) for (const id of p.cards) {
+      if (!C.CARDS[id]) bad.push('카드팩 「' + p.name + '」 에 없는 카드 「' + id + '」');
+      if (inPack[id]) bad.push('카드 「' + id + '」 가 카드팩 둘에 있다 — ' + inPack[id] + ' · ' + p.name);
+      inPack[id] = p.name;
+    }
+    if (!C.PACKS.some(p => p.fixed)) bad.push('늘 드는 카드팩(fixed)이 없다 — 가방이 빌 수 있다');
+    const inSwap = {};
+    for (const pool of C.SWAP) {
+      for (const id of pool) {
+        if (!C.CARDS[id]) bad.push('대체 풀에 없는 카드 「' + id + '」');
+        if (inSwap[id]) bad.push('카드 「' + id + '」 가 대체 풀 둘에 있다 — 어느 자리 것인지 갈린다');
+        inSwap[id] = 1;
+      }
+      if (pool.length < 2) bad.push('대체 풀 「' + pool[0] + '」 에 대신할 카드가 없다');
+      if (!inPack[pool[0]]) bad.push('대체 풀의 첫 장 「' + pool[0] + '」 이 어느 카드팩에도 없다 — 놓일 자리가 없다');
+      /* 대체 카드는 자리를 '바꾸는' 것이다. 팩에도 들어 있으면 한 판에 두 장이 된다 */
+      for (const id of pool.slice(1))
+        if (inPack[id]) bad.push('대체 카드 「' + id + '」 가 카드팩 「' + inPack[id] + '」 에도 있다');
+    }
+    /* 어느 편성으로 짜도 1종 1장이고 상한을 넘지 않는가.
+       묶음에서는 하나만 드므로 가장 큰 편성은 '묶음마다 하나 + 묶음 아닌 팩 전부' 다.
+       자리를 전부 대체 카드로 바꾼 편성도 같이 본다. */
+    const groups = {};
+    for (const p of C.PACKS) if (p.group) (groups[p.group] = groups[p.group] || []).push(p.id);
+    const swap = {}; for (const pool of C.SWAP) swap[pool[0]] = pool[pool.length - 1];
+    let combos = [{}];
+    for (const g in groups) combos = combos.flatMap(o => groups[g].map(id => Object.assign({}, o, {[id]: 1})));
+    for (const p of C.PACKS) if (!p.fixed && !p.group) combos = combos.map(o => Object.assign({}, o, {[p.id]: 1}));
+    for (const on of combos) for (const s of [{}, swap]) {
+      const deck = C.packDeck(on, s), cnt = {};
+      for (const id of deck) { if (cnt[id]) bad.push('스토리 가방에 「' + id + '」 가 두 장이다'); cnt[id] = 1 }
+      if (deck.length > C.STORY_CAP)
+        bad.push('스토리 가방이 상한을 넘는다 — ' + deck.length + '/' + C.STORY_CAP +
+                 ' (' + Object.keys(on).join(' · ') + ')');
+    }
+
+    /* 묶음 팩을 차례로 골라도 둘이 되지 않는가 — packPick 이 규칙을 지키는지 본다 */
+    for (const g in groups) {
+      let on = {};
+      for (const id of groups[g]) on = C.packPick(on, id);
+      const got = groups[g].filter(id => on[id]);
+      if (got.length !== 1) bad.push('묶음 「' + g + '」 에서 팩이 ' + got.length + '개 들렸다 — 하나여야 한다');
+      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 묶음에서는 하나를 반드시 든다 */
+      if (!C.packPick(on, got[0])[got[0]]) bad.push('묶음 「' + g + '」 의 고른 팩이 다시 누르니 빠졌다');
+    }
+  }
+
+  /* ③ㄷ 병 노드의 비트가 헛돌지 않는가.
+     살아 있는 자리가 하나라도 있으면 「같은 박자」(설계상 쉼) 말고는 어떤 비트든
+     판을 바꿔야 한다. 「고유가 헛돌면 성장으로 대신한다」는 규약이 여기서 걸린다 —
+     고유가 실패하고도 문자열을 돌려주면 그 턴은 병이 통째로 노는 턴이 된다.
+     세 가지 판에 세워 본다: 자리 하나 · 자리가 꽉 참 · 자리 하나에 정신이 바닥.
+     쉬는 비트는 BEAT_REST 가 정한다 — 여기에 목록을 또 적지 않는다.
+     그 표가 없는 옛 파일은 이 조건이 서기 전의 것이다 — 그때는 건너뛴다. */
+  if (typeof BEAT_REST !== 'undefined') {
+    const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length,
+      clock: S.nodes[0].stageClock, stage: S.nodes[0].stage,
+      nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0, x.evoLeft, x.dormT])});
+    /* 병기 st 의 판을 세우고 자리를 fill 개만 살려 둔다 */
+    const stand = (boss, stage, fill, mind) => {
+      const rng = K.mulberry32(99);
+      const board = makeDisease(boss, rng);
+      const S = K.newState(board, {}); S.board = board; S.rng = rng; S.act = 3;
+      S.nodes[0].stage = stage;
+      for (const n of S.nodes) if (n.role !== 'disease') { n.dead = true; n.val = 0 }
+      for (const sym of fill) { const n = mkSpot(sym, 50, 0); n.val = 20; S.nodes.push(n) }
+      if (mind) S.mind = mind;
+      return S;
+    };
+    for (const boss in BOSS) {
+      const b = BOSS[boss];
+      for (const st in b.beats) {
+        const stage = +st;
+        /* 자리가 꽉 찬 판 — 명부가 있으면 명부대로, 없으면 자리 상한만큼 */
+        const full = b.roster ? b.roster[stage].map(r => r[0])
+                              : new Array(SR.SPAWN_LV[SLV(boss, 'spots', stage)]).fill('발열');
+        b.beats[st].forEach((beat, i) => {
+          if (BEAT_REST[beat]) return;
+          for (const [what, fill, mind] of [['자리 하나', ['발열'], null],
+                                            ['자리가 꽉 참', full, null],
+                                            ['자리 하나 · 공황', ['발열'], '공황']]) {
+            const S = stand(boss, stage, fill, mind);
+            S.nodes[0].beat = i;
+            const before = snap(S);
+            const line = diseaseAct(S, S.nodes[0], null);
+            if (snap(S) === before)
+              bad.push('비트가 헛돈다 — ' + boss + ' 병기' + stage + ' ' + (i + 1) + '번째 「' + beat +
+                       '」 · ' + what + ' → 「' + line + '」');
+          }
+        });
+      }
+    }
+  }
+
   /* ④ 대본 환자가 부르는 증상이 증상표에 있는가 */
   for (const id in P.SCRIPT) for (const s of (P.SCRIPT[id].syms || []))
     if (!K.SYM[s]) bad.push('대본 「' + id + '」 이 모르는 증상 「' + s + '」 를 부른다');

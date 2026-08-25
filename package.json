@@ -7,7 +7,8 @@
     "build": "node build.js",
     "check": "node build.js --check && node sim_check.js",
     "diff": "node sim_check.js reference/intern_sim_v25.html intern_sim.html",
-    "diff:ui": "node ui_check.js reference/intern_sim_v25.html intern_sim.html"
+    "diff:ui": "node ui_check.js reference/intern_sim_v25.html intern_sim.html",
+    "probe": "node story_probe.js"
   },
   "devDependencies": { "playwright-core": "^1.49.0" }
 }

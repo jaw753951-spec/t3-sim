@@ -14,7 +14,13 @@
 function stageOvHideAll(){
   for(const e of document.querySelectorAll('#sg .ov')) e.classList.remove('on');
 }
-function stageOvShow(id){ stageOvHideAll(); const e=$(id); if(e) e.classList.add('on') }
+/* 막을 올릴 때 머리띠도 같이 맞춘다 — 판은 이미 넘어갔는데 남은 예산과
+   대기 인원이 한 박자 늦게 따라오던 자리다 */
+function stageOvShow(id){
+  stageOvHideAll();
+  if(STAGE_ON && S) stageHud();
+  const e=$(id); if(e) e.classList.add('on');
+}
 
 /* ── 호소 증상 ───────────────────────────────────────────────
    대본에 적힌 것이 있으면 그것을 쓰고, 없으면 핵심 증상에서 만든다.
@@ -54,15 +60,28 @@ function stageQueueShow(){
   }).join('');
 
   const over = SESS.budget<=0;
+  /* 이 라운드를 다 봤는가 — 왕진이면 다음 라운드 앞에 가방을 다시 짠다 */
+  const roundDone = SESS.idx >= list.length;
+  const more = SESS.round < def.rounds.length-1;
+  const redeck = roundDone && more && def.visit;
   $('sg_qnote').innerHTML = over
     ? '예산이 다 됐다. 남은 사람은 <b>악화</b>로 남는다.'
-    : '턴 예산을 다 쓰면 남은 사람은 못 본다. 못 본 사람은 <b>악화</b>로 남는다.<br><span class="d">진료를 시작하면 예산에서 1턴이 나간다.</span>';
-  $('sg_qgo').textContent = over ? '오전을 마친다' : '다음 환자를 부른다';
+    : redeck
+    ? `${SESS.round+1}라운드를 다 봤다. 다음 라운드는 <b>가방을 다시 짜고</b> 나간다.`
+      + '<br><span class="d">고르는 자리는 작업대다 — 무대가 잠깐 비켜선다.</span>'
+    : '턴 예산을 다 쓰면 남은 사람은 못 본다. 못 본 사람은 <b>악화</b>로 남는다.'
+      + '<br><span class="d">진료를 시작하면 예산에서 1턴이 나간다.</span>';
+  $('sg_qgo').textContent = over ? (def.visit?'왕진을 마친다':'오전을 마친다')
+    : redeck ? '가방을 다시 연다'
+    : roundDone && more ? `${SESS.round+2}라운드로 간다`
+    : '다음 환자를 부른다';
   stageOvShow('sg_ovQueue');
 }
 
+/* 명단에서 「다음」 — 여기서 비로소 다음 사람을 들인다.
+   왕진이고 라운드가 끝났으면 loadPatient 이 가방 화면을 연다 (무대는 비켜선다) */
 function stageQueueGo(){
-  if(SESS && SESS.phase==='after'){ sessNext(); }
+  if(SESS && SESS.phase==='after') sessNext();
   stageFlow();
 }
 
@@ -133,8 +152,10 @@ function stageVerdShow(){
   stageOvShow('sg_ovVerd');
 }
 
+/* 결과에서 「다음」 — 곧바로 다음 사람으로 넘어가지 않는다.
+   누구를 부를지 보는 자리가 명단이므로 한 번 거쳐 간다 */
 function stageVerdGo(){
-  if(MODE==='sess' && SESS){ sessNext(); stageFlow(); return }
+  if(MODE==='sess' && SESS){ stageQueueShow(); return }
   stageClose();
 }
 

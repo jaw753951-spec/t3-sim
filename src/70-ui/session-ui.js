@@ -16,6 +16,9 @@ function sessInit(){
 
 function openSessDeck(){
   const def=SESS.def, pool=POOL[def.pool];
+  /* 가방을 고르는 곳은 작업대다. 무대가 덮고 있으면 잠깐 비켜 준다 —
+     고르고 나면 loadPatient 끝에서 무대가 도로 올라온다 */
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON) stageClose();
   if(def.roundSay && def.roundSay[SESS.round]) log(`<span class="say">간호사 — ${def.roundSay[SESS.round]}</span>`);
   openDeck({pool, cap:def.cap, min:4, init:(SESS.deck||pool.slice(0,def.cap)),
     title:`${def.name}${def.rounds.length>1?` · ${SESS.round+1}라운드`:''} 가방`,
@@ -31,10 +34,12 @@ function loadPatient(){
   const list=sessList();
   if(SESS.idx>=list.length){
     if(SESS.round < SESS.def.rounds.length-1){
-      /* 라운드가 넘어가도 가방은 다시 열지 않는다 — 하루에 한 벌로 간다.
-         v25 는 라운드마다 여덟 장을 다시 골랐다 */
-      SESS.round++; SESS.idx=0; SESS.phase='intake';
+      SESS.round++; SESS.idx=0;
       log(`<span class="d">──── ${SESS.round+1}라운드 ────</span>`);
+      /* 왕진은 라운드마다 가방을 다시 짠다 — 나가 있는 동안 무엇을 들고
+         있는가가 왕진의 판단거리다. 외래는 하루 한 벌로 간다 */
+      if(SESS.def.visit){ SESS.phase='deck'; openSessDeck(); return }
+      SESS.phase='intake';
       if(SESS.def.roundSay && SESS.def.roundSay[SESS.round])
         log(`<span class="say">간호사 — ${SESS.def.roundSay[SESS.round]}</span>`);
       loadPatient(); return;

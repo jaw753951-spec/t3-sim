@@ -9,6 +9,7 @@ const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · 
 
 document.addEventListener('keydown', e=>{
   if(typeof STAGE_ON!=='undefined' && STAGE_ON) return;   // 무대에 제 자판이 있다
+  if(typeof PN_OPEN!=='undefined' && PN_OPEN) return;     // 패치 노트가 덮고 있다 — 판에 손대지 않는다
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */

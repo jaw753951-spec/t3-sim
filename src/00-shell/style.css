@@ -8,7 +8,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
 .wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
 .col{padding:16px;border-right:1px solid var(--line)}
 .col:last-child{border-right:0;border-left:1px solid var(--line)}
-h1{font:600 15px/1 var(--sans);letter-spacing:.22em;margin:0 0 4px}h1 span{color:var(--blood)}
+h1{font:600 15px/1 var(--sans);letter-spacing:.16em;margin:0 0 4px}h1 span{color:var(--blood)}
 .sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
@@ -194,3 +194,59 @@ td input[type=checkbox]{width:auto}
 .swaps .card{margin-bottom:8px}
 .swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
 .swhead b{color:var(--ink);font-size:13px}
+
+/* ══ 패치 노트 ══════════════════════════════════════════════
+   판본 옆 단추 → 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 눌러서 편다 (스팀 패치 내역과 같은 결).
+   글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
+/* 이름표 옆에 붙는 작은 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다 */
+.pnbtn{width:auto;margin:0 0 0 8px;padding:2px 7px;vertical-align:middle;
+  font:10px var(--mono);letter-spacing:.06em;color:var(--dim);
+  border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
+.pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+#pn{position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;padding:24px;
+  background:rgba(221,216,198,.86);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .22s ease}
+#pn.on{display:flex;opacity:1}
+body.pnon{overflow:hidden}
+
+.pnbox{width:720px;max-width:100%;max-height:100%;display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18);
+  transform:translateY(8px);transition:transform .22s ease}
+#pn.on .pnbox{transform:none}
+
+.pntop{display:flex;align-items:baseline;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.pnttl{font:600 15px var(--mono);letter-spacing:.2em}
+.pnsub{font:12px var(--mono);color:var(--dim)}
+.pnsub b{color:var(--blood)}
+.pnx{width:auto;margin:0 0 0 auto;padding:3px 9px;font:12px var(--mono);
+  border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.pnx:hover{color:var(--ink);border-color:var(--ink)}
+
+.pnlist{overflow:auto;padding:10px 12px;flex:1;min-height:0}
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.22);margin-bottom:8px}
+.pnrow.on{background:rgba(255,255,255,.42);border-color:var(--dim)}
+.pnhead{display:flex;align-items:baseline;gap:10px;width:100%;margin:0;
+  padding:11px 13px;border:0;background:transparent;cursor:pointer;text-align:left}
+.pnhead:hover{background:rgba(28,35,33,.05)}
+.pnarw{font:11px var(--mono);color:var(--dim);width:10px}
+.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--ink);min-width:44px}
+.pntag{font:10px var(--mono);letter-spacing:.06em;padding:1px 6px;border:1px solid var(--line);color:var(--dim)}
+.pntag.major{color:var(--blood);border-color:var(--blood)}
+.pntag.minor{color:var(--t3);border-color:#C3AE68}
+.pntag.fix{color:var(--calm);border-color:#8DB49C}
+.pnh{font:12.5px var(--sans);color:var(--ink);flex:1}
+.pnh i{color:var(--dim);font-style:normal}
+.pnd{font:11px var(--mono);color:var(--dim)}
+
+.pnbody{display:none;padding:2px 14px 13px 33px;border-top:1px solid var(--line)}
+.pnrow.on .pnbody{display:block}
+.pngrp{margin-top:11px}
+.pngn{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:6px 0 0;padding-left:17px}
+.pngrp li{font:12.5px/1.7 var(--sans);color:var(--ink)}
+.pnempty{font:12px var(--mono);color:var(--dim);padding:12px 0}
+
+.pnfoot{padding:11px 18px;border-top:1px solid var(--line);font:11px var(--mono);color:var(--dim)}

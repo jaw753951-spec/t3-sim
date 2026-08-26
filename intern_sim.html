@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>INTERN 전투 시뮬레이터 v25</title><style>
+<title>인턴 심 0.1 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -11,7 +11,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
 .wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
 .col{padding:16px;border-right:1px solid var(--line)}
 .col:last-child{border-right:0;border-left:1px solid var(--line)}
-h1{font:600 15px/1 var(--sans);letter-spacing:.22em;margin:0 0 4px}h1 span{color:var(--blood)}
+h1{font:600 15px/1 var(--sans);letter-spacing:.16em;margin:0 0 4px}h1 span{color:var(--blood)}
 .sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
@@ -197,6 +197,62 @@ td input[type=checkbox]{width:auto}
 .swaps .card{margin-bottom:8px}
 .swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
 .swhead b{color:var(--ink);font-size:13px}
+
+/* ══ 패치 노트 ══════════════════════════════════════════════
+   판본 옆 단추 → 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 눌러서 편다 (스팀 패치 내역과 같은 결).
+   글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
+/* 이름표 옆에 붙는 작은 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다 */
+.pnbtn{width:auto;margin:0 0 0 8px;padding:2px 7px;vertical-align:middle;
+  font:10px var(--mono);letter-spacing:.06em;color:var(--dim);
+  border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
+.pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+#pn{position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;padding:24px;
+  background:rgba(221,216,198,.86);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .22s ease}
+#pn.on{display:flex;opacity:1}
+body.pnon{overflow:hidden}
+
+.pnbox{width:720px;max-width:100%;max-height:100%;display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18);
+  transform:translateY(8px);transition:transform .22s ease}
+#pn.on .pnbox{transform:none}
+
+.pntop{display:flex;align-items:baseline;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.pnttl{font:600 15px var(--mono);letter-spacing:.2em}
+.pnsub{font:12px var(--mono);color:var(--dim)}
+.pnsub b{color:var(--blood)}
+.pnx{width:auto;margin:0 0 0 auto;padding:3px 9px;font:12px var(--mono);
+  border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.pnx:hover{color:var(--ink);border-color:var(--ink)}
+
+.pnlist{overflow:auto;padding:10px 12px;flex:1;min-height:0}
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.22);margin-bottom:8px}
+.pnrow.on{background:rgba(255,255,255,.42);border-color:var(--dim)}
+.pnhead{display:flex;align-items:baseline;gap:10px;width:100%;margin:0;
+  padding:11px 13px;border:0;background:transparent;cursor:pointer;text-align:left}
+.pnhead:hover{background:rgba(28,35,33,.05)}
+.pnarw{font:11px var(--mono);color:var(--dim);width:10px}
+.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--ink);min-width:44px}
+.pntag{font:10px var(--mono);letter-spacing:.06em;padding:1px 6px;border:1px solid var(--line);color:var(--dim)}
+.pntag.major{color:var(--blood);border-color:var(--blood)}
+.pntag.minor{color:var(--t3);border-color:#C3AE68}
+.pntag.fix{color:var(--calm);border-color:#8DB49C}
+.pnh{font:12.5px var(--sans);color:var(--ink);flex:1}
+.pnh i{color:var(--dim);font-style:normal}
+.pnd{font:11px var(--mono);color:var(--dim)}
+
+.pnbody{display:none;padding:2px 14px 13px 33px;border-top:1px solid var(--line)}
+.pnrow.on .pnbody{display:block}
+.pngrp{margin-top:11px}
+.pngn{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:6px 0 0;padding-left:17px}
+.pngrp li{font:12.5px/1.7 var(--sans);color:var(--ink)}
+.pnempty{font:12px var(--mono);color:var(--dim);padding:12px 0}
+
+.pnfoot{padding:11px 18px;border-top:1px solid var(--line);font:11px var(--mono);color:var(--dim)}
 /* ══════════════════════════════════════════════════════════════════
    무대 — 전투 화면
    ──────────────────────────────────────────────────────────────────
@@ -603,7 +659,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN <span>v25</span></h1>
+  <h1>INTERN SIM <span>0.1</span><button class="pnbtn" onclick="openPatch()"
+      title="패치 노트를 연다">패치</button></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -749,6 +806,19 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <details id="aiwbox"></details>
  </div>
 </div>
+
+<!-- ══ 패치 노트 ══ 판본 옆 단추가 연다. 글은 60-text/patch-notes.js 에 있다 ══ -->
+<div id="pn">
+  <div class="pnbox">
+    <div class="pntop">
+      <div class="pnttl">패치 노트</div>
+      <div class="pnsub">인턴 심 <b>0.1</b></div>
+      <button class="pnx" onclick="closePatch()" title="닫는다 (Esc)">✕</button>
+    </div>
+    <div class="pnlist" id="pn_list"></div>
+    <div class="pnfoot">판본을 누르면 그 아래가 열린다 · <span class="d">Esc 로 닫는다</span></div>
+  </div>
+</div>
 <!-- ══════════════════════════════════════════════════════════════════
      무대 — 전투 화면. 작업대 위에 통째로 덮는다.
      칸만 있고 글은 없다. 채우는 것은 70-ui/stage*.js 다.
@@ -884,7 +954,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
    껍데기(HTML)는 {{VERSION}} 이라 적어 두면 build.js 가 갈아 넣는다.
    ══════════════════════════════════════════════════════════════════ */
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = 'v25';
+const VERSION = '0.1';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -3891,6 +3961,42 @@ const RULE_GROUP = {
       ['방침', ['POLICY']]],
 };
 
+//@ 파일.60-text/patch-notes
+
+/* ══════════════════════════════════════════════════════════════════
+   패치 노트
+   ──────────────────────────────────────────────────────────────────
+   판본마다 한 덩이. 위에 적힌 것이 최신이다 — 화면도 이 순서 그대로 쓴다.
+
+   한 덩이의 생김새
+     v      판본. 화면에 그대로 찍힌다
+     date   날짜. 비우면 안 찍는다
+     head   한 줄 요약. 접힌 상태에서도 보인다
+     tag    'major' | 'minor' | 'fix' | ''  — 이름표 색이 갈린다
+     groups 펼쳤을 때 나오는 묶음들
+              {name:'묶음 이름', items:['한 줄', '한 줄', …]}
+
+   groups 가 비어 있으면 화면이 「아직 적지 않았다」로 대신 채운다.
+   지금은 전부 그 상태다 — 자리만 뚫어 두고 내용을 비워 둔 것이다.
+
+   새 판본을 낼 때는 이 배열 맨 위에 한 덩이를 얹고,
+   10-config/version.js 의 VERSION 을 같은 값으로 맞춘다.
+   ══════════════════════════════════════════════════════════════════ */
+//@ 패치노트 — 판본별 변경 내역. 지금은 내용을 비워 뒀다
+const PATCH_NOTES = [
+  {
+    v: '0.1',
+    date: '',
+    head: '',
+    tag: 'major',
+    groups: [
+      // {name:'전투',   items:['…']},
+      // {name:'화면',   items:['…']},
+      // {name:'고친 것', items:['…']},
+    ],
+  },
+];
+
 //@ 파일.70-ui/globals
 
 /* ══════════════════════════════════════════════════════════════════
@@ -5691,6 +5797,7 @@ const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · 
 
 document.addEventListener('keydown', e=>{
   if(typeof STAGE_ON!=='undefined' && STAGE_ON) return;   // 무대에 제 자판이 있다
+  if(typeof PN_OPEN!=='undefined' && PN_OPEN) return;     // 패치 노트가 덮고 있다 — 판에 손대지 않는다
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
@@ -5745,6 +5852,79 @@ function setMode(m){
   }
   render();
 }
+
+//@ 파일.70-ui/patch-ui
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.25 패치 노트 창
+   ──────────────────────────────────────────────────────────────────
+   판본 옆의 단추를 누르면 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 줄을 누르면 그 아래가 열린다 (한 번에 여럿 열린다).
+   맨 위 — 지금 판본 — 은 처음부터 열려 있다.
+
+   글은 60-text/patch-notes.js 에만 있다. 여기는 그리기만 한다.
+   ══════════════════════════════════════════════════════════════════ */
+
+//@ 화면.패치노트 — 판본별 변경 내역 창
+let PN_OPEN = false;
+let PN_ROWS = null;            // 어느 줄이 펼쳐져 있는가 (판본 → true)
+
+function openPatch(){
+  if(!PN_ROWS){
+    /* 처음 열 때는 맨 윗줄만 펼쳐 둔다 — 대개 보고 싶은 것이 지금 판본이다 */
+    PN_ROWS = {};
+    if(PATCH_NOTES.length) PN_ROWS[PATCH_NOTES[0].v] = true;
+  }
+  PN_OPEN = true;
+  $('pn').classList.add('on');
+  document.body.classList.add('pnon');
+  renderPatch();
+}
+
+function closePatch(){
+  PN_OPEN = false;
+  $('pn').classList.remove('on');
+  document.body.classList.remove('pnon');
+}
+
+function togglePatch(v){
+  PN_ROWS[v] = !PN_ROWS[v];
+  renderPatch();
+}
+
+function renderPatch(){
+  const box = $('pn_list'); if(!box) return;
+  box.innerHTML = PATCH_NOTES.map(n=>{
+    const open = !!PN_ROWS[n.v];
+    const empty = !n.groups || !n.groups.length;
+    const body = empty
+      ? '<div class="pnempty">아직 적지 않았다.</div>'
+      : n.groups.map(g=>
+          `<div class="pngrp"><div class="pngn">${esc(g.name)}</div>`
+          + `<ul>${(g.items||[]).map(t=>`<li>${t}</li>`).join('')}</ul></div>`).join('');
+    return `<div class="pnrow ${open?'on':''}">
+      <button class="pnhead" onclick="togglePatch('${n.v}')">
+        <span class="pnarw">${open?'▾':'▸'}</span>
+        <span class="pnv">${esc(n.v)}</span>
+        ${n.tag?`<span class="pntag ${n.tag}">${({major:'큰 판',minor:'작은 판',fix:'고침'})[n.tag]||n.tag}</span>`:''}
+        <span class="pnh">${n.head?esc(n.head):'<i>—</i>'}</span>
+        <span class="pnd">${n.date?esc(n.date):''}</span>
+      </button>
+      <div class="pnbody">${body}</div>
+    </div>`;
+  }).join('') || '<div class="pnempty">적어 둔 판본이 없다.</div>';
+}
+
+/* 바깥을 눌러도 닫힌다. 창 안을 누른 것은 통과시킨다 */
+document.addEventListener('click', e=>{
+  if(!PN_OPEN) return;
+  const box = $('pn'); if(!box) return;
+  if(e.target === box) closePatch();
+});
+
+document.addEventListener('keydown', e=>{
+  if(PN_OPEN && e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closePatch() }
+}, true);
 
 //@ 파일.70-ui/fx
 

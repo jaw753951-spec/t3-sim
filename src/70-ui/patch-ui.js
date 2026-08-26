@@ -13,11 +13,9 @@
 let PN_OPEN = false;
 let PN_ROWS = null;            // 어느 줄이 펼쳐져 있는가 (판본 → true)
 
-/* 딱지 — 적는 쪽은 우리말로 적고, 색은 css 가 영문 이름으로 붙인다.
-   옛 표기(major·minor·fix)로 적어도 그대로 알아듣는다 */
-const PN_TAG_CLS  = {'큰 판':'major', '작은 판':'minor', '고침':'fix',
-                     major:'major', minor:'minor', fix:'fix'};
-const PN_TAG_TEXT = {major:'큰 판', minor:'작은 판', fix:'고침'};
+/* 딱지 — 적는 쪽은 우리말 그대로 적는다. 여기서는 색만 붙인다.
+   여기 없는 말을 적어도 찍히기는 한다. 색이 안 붙을 뿐이다 */
+const PN_TAG_CLS = {'게임플레이 변경':'play', '버그 수정':'bug', '편의성 개선':'qol'};
 
 function openPatch(){
   if(!PN_ROWS){
@@ -85,13 +83,11 @@ function renderPatch(){
   box.innerHTML = PATCH_NOTES.map(n=>{
     const open = !!PN_ROWS[n.v];
     const cls  = PN_TAG_CLS[n.tag] || '';
-    const tag  = PN_TAG_TEXT[n.tag] || n.tag;
     return `<div class="pnrow ${open?'on':''}">
       <button class="pnhead" onclick="togglePatch('${n.v}')">
         <span class="pnarw">${open?'▾':'▸'}</span>
         <span class="pnv">${esc(n.v)}</span>
-        ${n.tag?`<span class="pntag ${cls}">${esc(tag)}</span>`:''}
-        <span class="pnh">${n.head?esc(n.head):'<i>—</i>'}</span>
+        ${n.tag?`<span class="pntag ${cls}">${esc(n.tag)}</span>`:''}
         <span class="pnd">${n.date?esc(n.date):''}</span>
       </button>
       <div class="pnbody">${pnBody(n)}</div>

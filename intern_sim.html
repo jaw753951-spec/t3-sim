@@ -11,7 +11,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
 .wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
 .col{padding:16px;border-right:1px solid var(--line)}
 .col:last-child{border-right:0;border-left:1px solid var(--line)}
-h1{font:600 15px/1 var(--sans);letter-spacing:.16em;margin:0 0 4px}h1 span{color:var(--blood)}
+h1{font:600 15px/1 var(--sans);letter-spacing:.10em;margin:0 0 4px}h1 span{color:var(--blood)}
 .sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
@@ -202,57 +202,53 @@ td input[type=checkbox]{width:auto}
    판본 옆 단추 → 작업대가 흐려지고 가운데에 뜬다.
    판본 하나가 한 줄이고, 눌러서 편다 (스팀 패치 내역과 같은 결).
    글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
-/* 이름표 옆에 붙는 작은 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다 */
-.pnbtn{width:auto;margin:0 0 0 8px;padding:2px 7px;vertical-align:middle;
-  font:10px var(--mono);letter-spacing:.06em;color:var(--dim);
+/* 이름표 옆 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다.
+   그래서 글자 수는 두 자로 묶어 두고 크기만 키웠다 */
+.pnbtn{width:auto;margin:0 0 0 9px;padding:3px 9px;vertical-align:middle;
+  font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
   border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
 .pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
 
 #pn{position:fixed;inset:0;z-index:300;display:none;
-  align-items:center;justify-content:center;padding:24px;
+  align-items:center;justify-content:center;padding:28px;
   background:rgba(221,216,198,.86);backdrop-filter:blur(2px);
   opacity:0;transition:opacity .22s ease}
 #pn.on{display:flex;opacity:1}
 body.pnon{overflow:hidden}
 
-.pnbox{width:720px;max-width:100%;max-height:100%;display:flex;flex-direction:column;
+/* 읽으라고 띄우는 창이다 — 넓게 잡고 글자도 본문 크기로 둔다 */
+.pnbox{width:1000px;max-width:100%;height:min(860px,100%);display:flex;flex-direction:column;
   background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18);
   transform:translateY(8px);transition:transform .22s ease}
 #pn.on .pnbox{transform:none}
 
-.pntop{display:flex;align-items:baseline;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
-.pnttl{font:600 15px var(--mono);letter-spacing:.2em}
-.pnsub{font:12px var(--mono);color:var(--dim)}
-.pnsub b{color:var(--blood)}
-.pnx{width:auto;margin:0 0 0 auto;padding:3px 9px;font:12px var(--mono);
+.pntop{display:flex;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid var(--line)}
+.pnttl{font:600 17px var(--mono);letter-spacing:.2em}
+.pnx{width:auto;margin:0 0 0 auto;padding:4px 11px;font:14px var(--mono);
   border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
 .pnx:hover{color:var(--ink);border-color:var(--ink)}
 
-.pnlist{overflow:auto;padding:10px 12px;flex:1;min-height:0}
-.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.22);margin-bottom:8px}
+.pnlist{overflow:auto;padding:14px 16px;flex:1;min-height:0}
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.22);margin-bottom:10px}
 .pnrow.on{background:rgba(255,255,255,.42);border-color:var(--dim)}
-.pnhead{display:flex;align-items:baseline;gap:10px;width:100%;margin:0;
-  padding:11px 13px;border:0;background:transparent;cursor:pointer;text-align:left}
+.pnhead{display:flex;align-items:center;gap:13px;width:100%;margin:0;
+  padding:14px 16px;border:0;background:transparent;cursor:pointer;text-align:left}
 .pnhead:hover{background:rgba(28,35,33,.05)}
-.pnarw{font:11px var(--mono);color:var(--dim);width:10px}
-.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--ink);min-width:44px}
-.pntag{font:10px var(--mono);letter-spacing:.06em;padding:1px 6px;border:1px solid var(--line);color:var(--dim)}
-.pntag.major{color:var(--blood);border-color:var(--blood)}
-.pntag.minor{color:var(--t3);border-color:#C3AE68}
-.pntag.fix{color:var(--calm);border-color:#8DB49C}
-.pnh{font:12.5px var(--sans);color:var(--ink);flex:1}
-.pnh i{color:var(--dim);font-style:normal}
-.pnd{font:11px var(--mono);color:var(--dim)}
+.pnarw{font:13px var(--mono);color:var(--dim);width:12px}
+.pnv{font:600 18px var(--mono);letter-spacing:.06em;color:var(--ink);min-width:52px}
+.pntag{font:12px var(--mono);letter-spacing:.06em;padding:2px 9px;border:1px solid var(--line);color:var(--dim)}
+.pntag.play{color:var(--blood);border-color:var(--blood)}    /* 게임플레이 변경 */
+.pntag.bug {color:var(--calm);border-color:#8DB49C}           /* 버그 수정 */
+.pntag.qol {color:var(--t3);border-color:#C3AE68}             /* 편의성 개선 */
+.pnd{font:13px var(--mono);color:var(--dim);margin-left:auto}
 
-.pnbody{display:none;padding:2px 14px 13px 33px;border-top:1px solid var(--line)}
+.pnbody{display:none;padding:4px 20px 18px 41px;border-top:1px solid var(--line)}
 .pnrow.on .pnbody{display:block}
-.pngrp{margin-top:11px}
-.pngn{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
-.pngrp ul{margin:6px 0 0;padding-left:17px}
-.pngrp li{font:12.5px/1.7 var(--sans);color:var(--ink)}
-.pnempty{font:12px var(--mono);color:var(--dim);padding:12px 0}
-
-.pnfoot{padding:11px 18px;border-top:1px solid var(--line);font:11px var(--mono);color:var(--dim)}
+.pngrp{margin-top:15px}
+.pngn{font:600 13px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:8px 0 0;padding-left:20px}
+.pngrp li{font:15px/1.8 var(--sans);color:var(--ink)}
+.pnempty{font:14px var(--mono);color:var(--dim);padding:14px 0}
 /* ══════════════════════════════════════════════════════════════════
    무대 — 전투 화면
    ──────────────────────────────────────────────────────────────────
@@ -812,11 +808,9 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <div class="pnbox">
     <div class="pntop">
       <div class="pnttl">패치 노트</div>
-      <div class="pnsub">인턴 심 <b>0.1</b></div>
       <button class="pnx" onclick="closePatch()" title="닫는다 (Esc)">✕</button>
     </div>
     <div class="pnlist" id="pn_list"></div>
-    <div class="pnfoot">판본을 누르면 그 아래가 열린다 · <span class="d">Esc 로 닫는다</span></div>
   </div>
 </div>
 <!-- ══════════════════════════════════════════════════════════════════
@@ -3973,7 +3967,7 @@ const RULE_GROUP = {
 
    ■ 한 덩이 적는 법
 
-     {v:'0.2', date:'2026-09-01', tag:'작은 판', head:'한 줄 요약', body:`
+     {v:'0.2', date:'2026-09-01', tag:'버그 수정', body:`
      묶음 이름
      - 한 줄
      - 한 줄
@@ -3984,9 +3978,8 @@ const RULE_GROUP = {
 
      v      판본. 이것만 있으면 나머지는 다 없어도 된다
      date   날짜. 없으면 안 찍는다
-     tag    '큰 판' · '작은 판' · '고침'. 없으면 안 찍는다
+     tag    '게임플레이 변경' · '버그 수정' · '편의성 개선'. 없으면 안 찍는다
             (딴 말을 적어도 그대로 찍힌다. 색만 안 붙는다)
-     head   접힌 줄에도 보이는 한 줄 요약. 없으면 — 로 나온다
      body   펼쳤을 때 나오는 본문. 아래 규칙대로 읽는다
 
    ■ body 읽는 규칙 — 세 줄이 전부다
@@ -4003,7 +3996,7 @@ const RULE_GROUP = {
 
    ■ 예시 — 이대로 베껴 쓰면 된다
 
-     {v:'0.2', date:'2026-09-01', tag:'작은 판', head:'왕진을 손봤다', body:`
+     {v:'0.2', date:'2026-09-01', tag:'게임플레이 변경', body:`
      전투
      - 「감초 탕약」 억제를 6에서 7로 올렸다
      - 약화가 처치선을 미는 폭을 <b>5%p</b> 로 맞췄다
@@ -4025,7 +4018,7 @@ const RULE_GROUP = {
 //@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
 const PATCH_NOTES = [
 
-  {v:'0.1', date:'', tag:'큰 판', head:'', body:``},
+  {v:'0.1', date:'', tag:'게임플레이 변경', body:``},
 
 ];
 
@@ -5902,11 +5895,9 @@ function setMode(m){
 let PN_OPEN = false;
 let PN_ROWS = null;            // 어느 줄이 펼쳐져 있는가 (판본 → true)
 
-/* 딱지 — 적는 쪽은 우리말로 적고, 색은 css 가 영문 이름으로 붙인다.
-   옛 표기(major·minor·fix)로 적어도 그대로 알아듣는다 */
-const PN_TAG_CLS  = {'큰 판':'major', '작은 판':'minor', '고침':'fix',
-                     major:'major', minor:'minor', fix:'fix'};
-const PN_TAG_TEXT = {major:'큰 판', minor:'작은 판', fix:'고침'};
+/* 딱지 — 적는 쪽은 우리말 그대로 적는다. 여기서는 색만 붙인다.
+   여기 없는 말을 적어도 찍히기는 한다. 색이 안 붙을 뿐이다 */
+const PN_TAG_CLS = {'게임플레이 변경':'play', '버그 수정':'bug', '편의성 개선':'qol'};
 
 function openPatch(){
   if(!PN_ROWS){
@@ -5974,13 +5965,11 @@ function renderPatch(){
   box.innerHTML = PATCH_NOTES.map(n=>{
     const open = !!PN_ROWS[n.v];
     const cls  = PN_TAG_CLS[n.tag] || '';
-    const tag  = PN_TAG_TEXT[n.tag] || n.tag;
     return `<div class="pnrow ${open?'on':''}">
       <button class="pnhead" onclick="togglePatch('${n.v}')">
         <span class="pnarw">${open?'▾':'▸'}</span>
         <span class="pnv">${esc(n.v)}</span>
-        ${n.tag?`<span class="pntag ${cls}">${esc(tag)}</span>`:''}
-        <span class="pnh">${n.head?esc(n.head):'<i>—</i>'}</span>
+        ${n.tag?`<span class="pntag ${cls}">${esc(n.tag)}</span>`:''}
         <span class="pnd">${n.date?esc(n.date):''}</span>
       </button>
       <div class="pnbody">${pnBody(n)}</div>

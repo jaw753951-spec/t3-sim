@@ -31,6 +31,7 @@ function render(){
   packLine();
   renderOvr();
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;
+  syncBackBtn();
   if(DB){ renderDeck(); return }
   if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }

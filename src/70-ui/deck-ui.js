@@ -20,6 +20,7 @@ function syncDeckBtn(){
     if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
+  syncBackBtn();          // 가방을 펼친 동안에는 무대로 돌아가는 문을 잠근다
 }
 
 function dbToggle(c){

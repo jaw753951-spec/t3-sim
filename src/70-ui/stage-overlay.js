@@ -263,3 +263,25 @@ function stageBattleStart(){
   stageOpen();
   return true;
 }
+
+/* 「환자를 들인다」는 새 판을 깐다. 이것은 깔려 있는 판으로 되돌아간다.
+   무대에서 작업대로 나오면 판이 없어진 것처럼 보이던 구멍을 메운다 —
+   판은 그대로 있었고 돌아갈 문만 없었다.
+   가방을 여는 중(DB · PK)에는 막는다. 그 화면 위에 무대를 덮으면
+   닫고 나왔을 때 어디에 있었는지가 흐려진다 */
+//@ 무대.복귀 — 보던 판을 그대로 다시 띄운다
+function stageResumable(){
+  return !!S && !STAGE_ON && !DB && !PK;
+}
+
+/* 돌아갈 판이 없으면 문도 잠가 둔다.
+   그리기(render)와 가방 여닫기(syncDeckBtn) 두 곳이 부른다 —
+   가방을 펼치는 동안에는 render 가 가방 화면에서 멈춰 서기 때문이다 */
+function syncBackBtn(){
+  for(const b of document.querySelectorAll('.sgback')) b.disabled = !stageResumable();
+}
+
+function stageResume(){
+  if(!stageResumable()) return;
+  stageOpen();
+}

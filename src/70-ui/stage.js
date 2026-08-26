@@ -76,6 +76,11 @@ function stageFlow(){
 //@ 무대.그리기 — 계기판 · 카르테 · 손패 · 상태판
 function stageRender(){
   if(!STAGE_ON || !S || STAGE_QUIET) return;
+  /* 겨누던 카드가 손에서 사라졌으면 겨눔을 푼다.
+     되돌리기가 판을 통째로 갈아 끼우면 그 카드는 덱으로 돌아가는데 겨눔만 남아,
+     다음에 자리를 누르는 순간 손에 없는 카드가 나간다. 판을 바꾸는 길이 여럿이라
+     (되돌리기 · 다음 환자 · 새 판) 길목마다 지우는 대신 그릴 때 스스로 맞춘다. */
+  if(STAGE_CARD && !S.hand.includes(STAGE_CARD)){ STAGE_MODE = null; STAGE_CARD = null }
   tipReset();
   stageSync();
   stageHud();

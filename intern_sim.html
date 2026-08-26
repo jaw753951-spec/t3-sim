@@ -2645,6 +2645,14 @@ function hasRevisit(S, id){
 
 function canPlay(S, id){
   const c = CARDS[id]; if(!c) return false;
+  /* 카드는 손에서 나간다. 그동안 이 전제는 부르는 쪽에만 있었고 여기엔 없었다 —
+     부르는 자리 열네 곳이 모두 S.hand 에서 골라 넘겼기 때문에 드러나지 않았을 뿐이다.
+     그 전제가 한 번 깨지면 play() 가 손에서 빼지도 않고 버림에만 넣어서 카드가
+     불어난다 (i>=0 일 때만 빼고, 넣는 것은 언제나 넣는다).
+     실제로 두 번 깨졌다 — 빔 탐색이 clone 에서 짠 계획을 그대로 얹을 때,
+     그리고 무대에서 카드를 겨눈 채 되돌리기를 했을 때. 둘 다 그 자리에서 고쳤지만
+     세 번째 자리가 생기면 또 조용히 불어난다. 전제를 여기 적어 둔다. */
+  if(!S.hand.includes(id)) return false;
   if(cardCost(S,id) > S.energy) return false;
   if(c.once && (S.oncePlayed||{})[id]) return false;
   if(c.bleed && !K.canBleed(S, c.bleed)) return false;      // 사혈을 못 치르면 못 낸다

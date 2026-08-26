@@ -226,23 +226,43 @@ body.pnon{overflow:hidden}
 .pnx:hover{color:var(--ink);border-color:var(--ink)}
 
 .pnlist{overflow:auto;padding:14px 16px;flex:1;min-height:0}
-.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.22);margin-bottom:10px}
-.pnrow.on{background:rgba(255,255,255,.42);border-color:var(--dim)}
-.pnhead{display:flex;align-items:center;gap:13px;width:100%;margin:0;
-  padding:14px 16px;border:0;background:transparent;cursor:pointer;text-align:left}
+
+/* ── 작은 판올림 = 기본값 ── 줄도 글자도 눌러 둔다 */
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.18);margin-bottom:7px}
+.pnrow.on{background:rgba(255,255,255,.38);border-color:var(--dim)}
+.pnhead{display:flex;align-items:center;gap:11px;width:100%;margin:0;
+  padding:10px 15px;border:0;background:transparent;cursor:pointer;text-align:left}
 .pnhead:hover{background:rgba(28,35,33,.05)}
-.pnarw{font:13px var(--mono);color:var(--dim);width:12px}
-.pnv{font:600 18px var(--mono);letter-spacing:.06em;color:var(--ink);min-width:52px}
-.pntag{font:12px var(--mono);letter-spacing:.06em;padding:2px 9px;border:1px solid var(--line);color:var(--dim)}
+.pnarw{font:11px var(--mono);color:var(--dim);width:11px}
+.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--dim);min-width:48px}
+.pnrow.on .pnv{color:var(--ink)}
+.pntag{font:11px var(--mono);letter-spacing:.06em;padding:1px 7px;border:1px solid var(--line);color:var(--dim)}
 .pntag.play{color:var(--blood);border-color:var(--blood)}    /* 게임플레이 변경 */
 .pntag.bug {color:var(--calm);border-color:#8DB49C}           /* 버그 수정 */
 .pntag.qol {color:var(--t3);border-color:#C3AE68}             /* 편의성 개선 */
-.pnd{font:13px var(--mono);color:var(--dim);margin-left:auto}
+.pnd{font:12px var(--mono);color:var(--dim);margin-left:auto}
 
-.pnbody{display:none;padding:4px 20px 18px 41px;border-top:1px solid var(--line)}
+.pnbody{display:none;padding:2px 18px 14px 37px;border-top:1px solid var(--line)}
 .pnrow.on .pnbody{display:block}
-.pngrp{margin-top:15px}
-.pngn{font:600 13px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
-.pngrp ul{margin:8px 0 0;padding-left:20px}
-.pngrp li{font:15px/1.8 var(--sans);color:var(--ink)}
-.pnempty{font:14px var(--mono);color:var(--dim);padding:14px 0}
+.pngrp{margin-top:12px}
+.pngn{font:600 12px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:7px 0 0;padding-left:19px}
+.pngrp li{font:13.5px/1.75 var(--sans);color:var(--ink)}
+.pnempty{font:13px var(--mono);color:var(--dim);padding:12px 0}
+
+/* ── 큰 판올림 ── 목록만 훑어도 어디가 마디인지 보이도록 통째로 키운다.
+   판본 앞에 세로 획을 하나 세워 작은 줄들과 갈라 놓는다 */
+.pnrow.big{margin:16px 0 12px;border-color:var(--dim);background:rgba(255,255,255,.30)}
+.pnrow.big:first-child{margin-top:0}
+.pnrow.big.on{background:rgba(255,255,255,.48);border-color:var(--ink)}
+.pnrow.big .pnhead{padding:17px 19px;gap:14px;border-left:3px solid var(--ink)}
+.pnrow.big .pnarw{font-size:13px;width:12px}
+.pnrow.big .pnv{font-size:24px;letter-spacing:.03em;color:var(--ink);min-width:70px}
+.pnrow.big .pntag{font-size:12.5px;padding:3px 10px}
+.pnrow.big .pnd{font-size:13px}
+.pnrow.big .pnbody{padding:4px 22px 20px 46px}
+.pnrow.big .pngrp{margin-top:16px}
+.pnrow.big .pngn{font-size:13px}
+.pnrow.big .pngrp ul{padding-left:21px}
+.pnrow.big .pngrp li{font-size:15px;line-height:1.8}
+.pnrow.big .pnempty{font-size:14px}

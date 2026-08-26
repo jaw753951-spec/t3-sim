@@ -4,6 +4,7 @@
    판본 옆의 단추를 누르면 작업대가 흐려지고 가운데에 뜬다.
    판본 하나가 한 줄이고, 줄을 누르면 그 아래가 열린다 (한 번에 여럿 열린다).
    맨 위 — 지금 판본 — 은 처음부터 열려 있다.
+   major 를 단 판본은 줄과 글자가 커진다 (.pnrow.big).
 
    글은 60-text/patch-notes.js 에만 있다. 여기는 그리기만 한다.
    본문을 읽는 규칙도 거기 주석에 적혀 있다 — 두 벌로 적지 않는다.
@@ -83,7 +84,8 @@ function renderPatch(){
   box.innerHTML = PATCH_NOTES.map(n=>{
     const open = !!PN_ROWS[n.v];
     const cls  = PN_TAG_CLS[n.tag] || '';
-    return `<div class="pnrow ${open?'on':''}">
+    /* 큰 판올림은 줄째로 커진다 — 목록만 훑어도 어디가 마디인지 보인다 */
+    return `<div class="pnrow ${n.major?'big':''} ${open?'on':''}">
       <button class="pnhead" onclick="togglePatch('${n.v}')">
         <span class="pnarw">${open?'▾':'▸'}</span>
         <span class="pnv">${esc(n.v)}</span>

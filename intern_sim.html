@@ -6022,11 +6022,14 @@ async function fxFlush(after){
   stageRender();
 }
 
-/* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다 */
+/* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다.
+   도는 동안은 무대를 안 그리고, 끝나고 딱 한 번 그린다. 그리는 일을 여기서
+   맡는 이유는 부르는 쪽이 잊으면 무대가 옛 판을 그대로 이고 있기 때문이다 */
 function fxSilent(fn){
   const was = FX_ON, wasQ = STAGE_QUIET;
   FX_ON = false; STAGE_QUIET = true;
   try{ fn() } finally { FX_ON = was; STAGE_QUIET = wasQ; FXQ.length = 0 }
+  stageRender();
 }
 
 //@ 파일.70-ui/stage-node
@@ -6059,6 +6062,16 @@ function fxSilent(fn){
 const STAGE_ELS = new Map();          // 자리 번호 → 계기판 DOM
 
 const stageBoard = () => $('sg_board');
+
+/* 판의 크기. 무대는 통째로 transform 으로 줄이므로 창을 줄여도 이 값은 그대로다
+   (1920×1080 안의 % 다). 그런데 clientWidth 를 읽는 순간 브라우저가 밀어 둔
+   쓰기를 전부 정산한다 — 매 수마다 그 값을 다시 읽던 것이 그리기 비용의 대부분이었다.
+   한 번 재서 들고 있다가 무대를 열거나 창이 바뀔 때만 다시 잰다 */
+let SG_BW = 0, SG_BH = 0;
+function stageMeasure(){
+  const B = stageBoard(); if(!B) return;
+  SG_BW = B.clientWidth; SG_BH = B.clientHeight;
+}
 
 /* 같은 내용이면 innerHTML 을 건드리지 않는다 — 건드리면 SVG 를 다시 파싱하고
    그 안에 붙어 있던 연출 조각도 함께 날아간다 */
@@ -6213,8 +6226,9 @@ function diagRing(n){
 
 /* ── 자리 놓기 ── 위쪽에 부채꼴로 편다 ─────────────────────── */
 function stageLayout(){
-  const B = stageBoard(); if(!B || !S) return 0;
-  const W = B.clientWidth, H = B.clientHeight;
+  if(!S) return 0;
+  if(!SG_BW) stageMeasure();
+  const W = SG_BW, H = SG_BH;
   const live = alive(S), CN = live.length || 1;
   const CX=W*.5, CY=H*.19, RX=W*.35, RY=H*.40, A0=203, A1=337;
   const SZ = Math.min(252, W*.205) * (CN>5 ? 0.78 : CN>3 ? 0.9 : 1);
@@ -6299,8 +6313,9 @@ function stageSync(){
 
 /* ── 연결선 ── 촉발 · 전이 · 경화를 자리 사이에 긋는다 ─────── */
 function stageLinks(){
-  const B = stageBoard(); if(!B || !S) return;
-  const W = B.clientWidth, H = B.clientHeight;
+  if(!S) return;
+  if(!SG_BW) stageMeasure();
+  const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
   const shown = alive(S).some(n=>n.revealed);
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
@@ -6359,8 +6374,11 @@ function stageOpen(){
   const b = stageBoard(); if(b) for(const e of [...b.querySelectorAll('.gz')]) e.remove();
   $('sg').classList.add('on');
   document.body.classList.add('sgon');
-  stageFit();
-  stageFlow();
+  /* 무대를 여는 것은 사람이 보자고 한 일이다 — 조용한 구간 안에서 열렸더라도
+     첫 판만은 반드시 그린다. 안 그러면 계기판이 하나도 안 선 빈 무대가 뜨고
+     다음 그리기까지 그대로 남는다 */
+  const wasQuiet = STAGE_QUIET; STAGE_QUIET = false;
+  try{ stageFit(); stageFlow() } finally { STAGE_QUIET = wasQuiet }
 }
 
 function stageClose(){
@@ -6382,6 +6400,7 @@ function stageFit(){
   g.style.transform = `scale(${k})`;
   w.style.width  = (1920*k)+'px';
   w.style.height = (1080*k)+'px';
+  stageMeasure();
   if(STAGE_ON) stageRender();
 }
 window.addEventListener('resize', ()=>{ if(STAGE_ON) stageFit() });
@@ -6855,7 +6874,7 @@ document.addEventListener('keydown', e=>{
     stageClose(); return;
   }
   if(FX_BUSY || document.querySelector('#sg .ov.on')) return;
-  if(k==='z'||k==='Z'){ e.preventDefault(); fxSilent(()=>undoStep()); stageRender(); return }
+  if(k==='z'||k==='Z'){ e.preventDefault(); fxSilent(()=>undoStep()); return }
   if(!S) return;
   if(k>='1'&&k<='9'){ const id=S.hand[+k-1];
     if(id){ e.preventDefault(); PICK ? stagePickCard(id) : stageCardClick(id) } return }
@@ -6867,7 +6886,7 @@ document.addEventListener('keydown', e=>{
   }
   if(k==='x'||k==='X'){ e.preventDefault(); stageTreatBtn(); return }
   if(k===' '||k==='Enter'){ e.preventDefault(); stageEndBtn(); return }
-  if(k==='a'||k==='A'){ e.preventDefault(); fxSilent(()=>autoTurn()); stageRender(); return }
+  if(k==='a'||k==='A'){ e.preventDefault(); fxSilent(()=>autoTurn()); return }
 });
 
 //@ 파일.70-ui/stage-overlay

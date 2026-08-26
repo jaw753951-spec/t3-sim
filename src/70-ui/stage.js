@@ -26,8 +26,11 @@ function stageOpen(){
   const b = stageBoard(); if(b) for(const e of [...b.querySelectorAll('.gz')]) e.remove();
   $('sg').classList.add('on');
   document.body.classList.add('sgon');
-  stageFit();
-  stageFlow();
+  /* 무대를 여는 것은 사람이 보자고 한 일이다 — 조용한 구간 안에서 열렸더라도
+     첫 판만은 반드시 그린다. 안 그러면 계기판이 하나도 안 선 빈 무대가 뜨고
+     다음 그리기까지 그대로 남는다 */
+  const wasQuiet = STAGE_QUIET; STAGE_QUIET = false;
+  try{ stageFit(); stageFlow() } finally { STAGE_QUIET = wasQuiet }
 }
 
 function stageClose(){
@@ -49,6 +52,7 @@ function stageFit(){
   g.style.transform = `scale(${k})`;
   w.style.width  = (1920*k)+'px';
   w.style.height = (1080*k)+'px';
+  stageMeasure();
   if(STAGE_ON) stageRender();
 }
 window.addEventListener('resize', ()=>{ if(STAGE_ON) stageFit() });
@@ -522,7 +526,7 @@ document.addEventListener('keydown', e=>{
     stageClose(); return;
   }
   if(FX_BUSY || document.querySelector('#sg .ov.on')) return;
-  if(k==='z'||k==='Z'){ e.preventDefault(); fxSilent(()=>undoStep()); stageRender(); return }
+  if(k==='z'||k==='Z'){ e.preventDefault(); fxSilent(()=>undoStep()); return }
   if(!S) return;
   if(k>='1'&&k<='9'){ const id=S.hand[+k-1];
     if(id){ e.preventDefault(); PICK ? stagePickCard(id) : stageCardClick(id) } return }
@@ -534,5 +538,5 @@ document.addEventListener('keydown', e=>{
   }
   if(k==='x'||k==='X'){ e.preventDefault(); stageTreatBtn(); return }
   if(k===' '||k==='Enter'){ e.preventDefault(); stageEndBtn(); return }
-  if(k==='a'||k==='A'){ e.preventDefault(); fxSilent(()=>autoTurn()); stageRender(); return }
+  if(k==='a'||k==='A'){ e.preventDefault(); fxSilent(()=>autoTurn()); return }
 });

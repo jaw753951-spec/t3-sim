@@ -27,6 +27,16 @@ const STAGE_ELS = new Map();          // 자리 번호 → 계기판 DOM
 
 const stageBoard = () => $('sg_board');
 
+/* 판의 크기. 무대는 통째로 transform 으로 줄이므로 창을 줄여도 이 값은 그대로다
+   (1920×1080 안의 % 다). 그런데 clientWidth 를 읽는 순간 브라우저가 밀어 둔
+   쓰기를 전부 정산한다 — 매 수마다 그 값을 다시 읽던 것이 그리기 비용의 대부분이었다.
+   한 번 재서 들고 있다가 무대를 열거나 창이 바뀔 때만 다시 잰다 */
+let SG_BW = 0, SG_BH = 0;
+function stageMeasure(){
+  const B = stageBoard(); if(!B) return;
+  SG_BW = B.clientWidth; SG_BH = B.clientHeight;
+}
+
 /* 같은 내용이면 innerHTML 을 건드리지 않는다 — 건드리면 SVG 를 다시 파싱하고
    그 안에 붙어 있던 연출 조각도 함께 날아간다 */
 function setHTML(el, html){
@@ -180,8 +190,9 @@ function diagRing(n){
 
 /* ── 자리 놓기 ── 위쪽에 부채꼴로 편다 ─────────────────────── */
 function stageLayout(){
-  const B = stageBoard(); if(!B || !S) return 0;
-  const W = B.clientWidth, H = B.clientHeight;
+  if(!S) return 0;
+  if(!SG_BW) stageMeasure();
+  const W = SG_BW, H = SG_BH;
   const live = alive(S), CN = live.length || 1;
   const CX=W*.5, CY=H*.19, RX=W*.35, RY=H*.40, A0=203, A1=337;
   const SZ = Math.min(252, W*.205) * (CN>5 ? 0.78 : CN>3 ? 0.9 : 1);
@@ -266,8 +277,9 @@ function stageSync(){
 
 /* ── 연결선 ── 촉발 · 전이 · 경화를 자리 사이에 긋는다 ─────── */
 function stageLinks(){
-  const B = stageBoard(); if(!B || !S) return;
-  const W = B.clientWidth, H = B.clientHeight;
+  if(!S) return;
+  if(!SG_BW) stageMeasure();
+  const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
   const shown = alive(S).some(n=>n.revealed);
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),

@@ -299,9 +299,12 @@ async function fxFlush(after){
   stageRender();
 }
 
-/* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다 */
+/* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다.
+   도는 동안은 무대를 안 그리고, 끝나고 딱 한 번 그린다. 그리는 일을 여기서
+   맡는 이유는 부르는 쪽이 잊으면 무대가 옛 판을 그대로 이고 있기 때문이다 */
 function fxSilent(fn){
   const was = FX_ON, wasQ = STAGE_QUIET;
   FX_ON = false; STAGE_QUIET = true;
   try{ fn() } finally { FX_ON = was; STAGE_QUIET = wasQ; FXQ.length = 0 }
+  stageRender();
 }

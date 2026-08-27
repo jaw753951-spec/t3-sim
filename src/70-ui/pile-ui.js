@@ -48,11 +48,11 @@ function pileRender(){
     : '<div class="empty">비었다.</div>';
 }
 
-/* 작업대 손패 줄 맨 앞에 세우는 더미 둘 */
+/* 작업대 손패 줄 맨 앞에 세우는 더미 둘 — 카드 한 장 높이 안에 위아래로 포갠다 */
 function pileTiles(){
-  return ['deck','discard'].map(k=>
+  return `<div class="piles2">` + ['deck','discard'].map(k=>
     `<div class="pilebox" onclick="pileToggle('${k}')"${tip(
       `<span class="tt">${PILE_DEF[k].ttl}</span>눌러서 남은 카드를 본다.<br>${PILE_DEF[k].note}`)}>
       <div class="pn2">${k==='deck'?S.deck.length:S.discard.length}</div>
-      <div class="pl2">${PILE_DEF[k].ttl}</div></div>`).join('');
+      <div class="pl2">${PILE_DEF[k].ttl}</div></div>`).join('') + `</div>`;
 }

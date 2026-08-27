@@ -282,9 +282,12 @@ td input[type=checkbox]{width:auto}
 .pvnote{font:11.5px var(--mono);color:var(--dim)}
 .pvlist{overflow:auto;padding:16px;min-height:0;align-content:flex-start;justify-content:center}
 
-/* 손패 줄 맨 앞에 나란히 서는 작은 상자 둘 — 카드 옆에 붙는 것이므로
-   카드와 같은 색을 쓰고 크기만 작다. 눌러서 그 더미에 남은 카드를 본다 */
-.pilebox{flex:0 0 auto;align-self:flex-start;width:64px;padding:9px 0;cursor:pointer;
+/* 손패 줄 맨 앞에 서는 작은 상자 둘 — 카드 한 장 높이 안에 위아래로 포갠다.
+   카드 옆에 붙는 것이므로 색은 작업대 것을 쓰고 크기만 작다.
+   눌러서 그 더미에 남은 카드를 본다 */
+.piles2{flex:0 0 auto;align-self:stretch;display:flex;flex-direction:column;gap:8px}
+.pilebox{flex:1;min-height:54px;width:72px;padding:9px 0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
 .pilebox:hover{border-color:var(--ink);background:var(--panel)}
 .pn2{font:600 17px/1 var(--mono);color:var(--ink)}
@@ -5497,13 +5500,13 @@ function pileRender(){
     : '<div class="empty">비었다.</div>';
 }
 
-/* 작업대 손패 줄 맨 앞에 세우는 더미 둘 */
+/* 작업대 손패 줄 맨 앞에 세우는 더미 둘 — 카드 한 장 높이 안에 위아래로 포갠다 */
 function pileTiles(){
-  return ['deck','discard'].map(k=>
+  return `<div class="piles2">` + ['deck','discard'].map(k=>
     `<div class="pilebox" onclick="pileToggle('${k}')"${tip(
       `<span class="tt">${PILE_DEF[k].ttl}</span>눌러서 남은 카드를 본다.<br>${PILE_DEF[k].note}`)}>
       <div class="pn2">${k==='deck'?S.deck.length:S.discard.length}</div>
-      <div class="pl2">${PILE_DEF[k].ttl}</div></div>`).join('');
+      <div class="pl2">${PILE_DEF[k].ttl}</div></div>`).join('') + `</div>`;
 }
 
 //@ 파일.70-ui/pack-ui

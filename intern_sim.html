@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>인턴 심 0.1.2 — 전투 시뮬레이터</title><style>
+<title>인턴 심 0.1.2.1 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -680,7 +680,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN SIM <span>0.1.2</span><button class="pnbtn" onclick="openPatch()"
+  <h1>INTERN SIM <span>0.1.2.1</span><button class="pnbtn" onclick="openPatch()"
       title="패치 노트를 연다">패치</button></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
@@ -977,7 +977,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
    껍데기(HTML)는 {{VERSION}} 이라 적어 두면 build.js 가 갈아 넣는다.
    ══════════════════════════════════════════════════════════════════ */
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = '0.1.2';
+const VERSION = '0.1.2.1';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -4004,6 +4004,13 @@ const RULE_GROUP = {
    ══════════════════════════════════════════════════════════════════ */
 //@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
 const PATCH_NOTES = [
+{v:'0.1.2.1', size:'m', date:'2026-08-27', tag:'편의성 개선', body:`
+시뮬레이터
+
+-패치노트 내용을 메이저와 마이너로 구분
+`},
+
+   
 {v:'0.1.2', size:'m', date:'2026-08-26', tag:'편의성 개선', body:`
 시뮬레이터
 

@@ -15,12 +15,6 @@
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
-  <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
-    <input type="checkbox" id="sg_use" checked style="width:auto"> 진료 시작 → 전투 화면</label>
-  <div class="note" style="margin:4px 0 0">세션에서 가방을 확정하는 「진료를 시작한다」가 이것을 본다.
-    끄면 세션도 이 작업대에서 그대로 본다. 어느 쪽이든 「전투 화면으로 간다」로 언제든 넘어갈 수 있다.</div>
-  <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
-  <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
   <details><summary>규칙 덮어쓰기</summary>
     <div class="note">전투 규칙의 숫자를 여기서 바꾼다. R 은 전투 공통, SR 은 스토리 전용이다.
@@ -81,7 +75,7 @@
       <select id="sk_evid"><option value="1">증거 1</option><option value="2">증거 2</option><option value="3" selected>증거 3</option><option value="4">증거 4</option></select>
       <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
     </div>
-    <button class="go" onclick="newStory()">전투를 시작한다</button>
+    <button class="go" id="btn_story_go" onclick="newStory()">전투를 시작한다</button>
     <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
     <div id="st_ctrl" style="margin-top:14px"></div>
@@ -90,7 +84,10 @@
   <div id="side-batch" style="display:none">
     <label>표본 수</label><input type="number" id="bn" value="200">
     <label>자동 플레이</label>
-    <select id="bai"><option value="D" selected>빔 탐색 (v19 기본)</option><option value="H">휴리스틱 (v18 대조)</option></select>
+    <select id="bai"><option value="D" selected>빔 탐색 (기본)</option><option value="H">휴리스틱 (옛 대조군)</option></select>
+    <div class="note" style="margin:4px 0 0">빔 탐색은 몇 수 앞을 넓게 펼쳐 보고 고른다 — 기록 칸 아래
+      「자동 진행 규칙」의 저울과 빔 폭·깊이를 그대로 쓴다. 휴리스틱은 그 규칙을 안 보고 정해진 순서로만
+      두는 옛 손이다. 새 규칙이 판을 얼마나 바꾸는지 견줄 때만 쓴다.</div>
     <label>대상</label>
     <select id="bsrc"><option value="levels">레벨 1~5</option><option value="script">대본 환자</option></select>
     <label>덱</label>

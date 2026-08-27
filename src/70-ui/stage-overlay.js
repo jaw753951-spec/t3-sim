@@ -252,16 +252,11 @@ function stageDeclare(){
 /* ── 작업대에서 무대로 ────────────────────────────────────────
    판이 깔린다고 무대가 열리지는 않는다 — 작업대가 기본 화면이다.
    저절로 넘어가는 길은 하나뿐이다: 세션에서 가방을 확정하는
-   「진료를 시작한다」. 그것도 무대를 꺼 두면 작업대에 머문다.
-   나머지 모드는 「전투 화면으로 간다」(stageResume)로 사람이 연다. */
+   「진료를 시작한다」. 나머지 모드는 「전투 화면으로 간다」(stageResume)로
+   사람이 연다. */
 //@ 무대.진입 — 판이 깔린 뒤 무대를 연다
-function stageWanted(){
-  const c = $('sg_use');
-  return !c || c.checked;
-}
-
 function stageBattleStart(){
-  if(!stageWanted() || !S) return false;
+  if(!S) return false;
   stageOpen();
   return true;
 }

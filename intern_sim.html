@@ -373,16 +373,16 @@ body.sgon{overflow:hidden}
   background:var(--steelD);border:2px solid var(--brass);padding:5px 10px}
 
 /* ── 카르테 ── 우측 패널 아래칸(.rbot) 안에 산다 ───────────── */
-#sg .kname{font:800 19px/1.25 var(--sans);color:var(--ink3)}
-#sg .kmeta{font:11.5px/1.5 var(--sans);color:var(--ink2);margin-top:3px}
+#sg .kname{font:800 23px/1.25 var(--sans);color:var(--ink3)}
+#sg .kmeta{font:14px/1.5 var(--sans);color:var(--ink2);margin-top:3px}
 #sg .ktags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
-#sg .ktag{font:700 10.5px/1 var(--sans);border:2px solid var(--line);padding:4px 7px;color:var(--ink2)}
+#sg .ktag{font:700 12.5px/1 var(--sans);border:2px solid var(--line);padding:5px 8px;color:var(--ink2)}
 #sg .ktag.hid{border-style:dashed;color:var(--mut)}
-#sg .kfield{font:12px/1.5 var(--sans);padding:6px 0;border-top:1px solid rgba(0,0,0,.14)}
-#sg .kfield b{display:block;font:700 9.5px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:4px}
-#sg .ai{display:block;font:600 12px/1.4 var(--sans);color:var(--ink3);
+#sg .kfield{font:14.5px/1.55 var(--sans);padding:8px 0;border-top:1px solid rgba(0,0,0,.14)}
+#sg .kfield b{display:block;font:700 11.5px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:5px}
+#sg .ai{display:block;font:600 14px/1.45 var(--sans);color:var(--ink3);
   border-left:3px solid var(--t3);padding:3px 0 3px 8px;margin-top:5px}
-#sg .ai em{display:block;font-style:normal;font:10.5px/1.3 var(--sans);color:var(--t3);margin-top:2px}
+#sg .ai em{display:block;font-style:normal;font:12.5px/1.35 var(--sans);color:var(--t3);margin-top:2px}
 
 /* ── 판 ───────────────────────────────────────────────────── */
 #sg_board{position:absolute;left:1.4%;top:8%;width:78.8%;height:65%;z-index:15}
@@ -423,11 +423,13 @@ body.sgon{overflow:hidden}
   width:0;height:0;border:11px solid transparent;border-top-color:var(--steelD)}
 
 /* 고른 자리에 대한 한 줄 — 지금 끊으면 무슨 일이 나는가 */
-#sg_actbar{position:absolute;left:50%;bottom:-2%;transform:translateX(-50%);z-index:35;
-  padding:8px 16px;display:none;align-items:baseline;gap:14px;max-width:86%}
+/* 고른 자리 한 줄 — 자리 이름표와 손패 사이 좁은 틈에 낀다.
+   내리면 카드가 덮고 올리면 이름표를 가리므로 높이부터 줄여 놓는다 */
+#sg_actbar{position:absolute;left:50%;bottom:4.5%;transform:translateX(-50%);z-index:35;
+  padding:6px 14px;display:none;align-items:baseline;gap:12px;max-width:86%}
 #sg_actbar.on{display:flex}
-#sg_actbar .n{font:800 15px/1 var(--sans);color:var(--ink3);white-space:nowrap}
-#sg_actbar .v{font:12.5px/1.4 var(--sans);color:var(--ink2)}
+#sg_actbar .n{font:800 14px/1 var(--sans);color:var(--ink3);white-space:nowrap}
+#sg_actbar .v{font:12px/1.35 var(--sans);color:var(--ink2)}
 #sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
 /* ── 계기판 ───────────────────────────────────────────────── */
@@ -686,12 +688,6 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
-  <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
-    <input type="checkbox" id="sg_use" checked style="width:auto"> 진료 시작 → 전투 화면</label>
-  <div class="note" style="margin:4px 0 0">세션에서 가방을 확정하는 「진료를 시작한다」가 이것을 본다.
-    끄면 세션도 이 작업대에서 그대로 본다. 어느 쪽이든 「전투 화면으로 간다」로 언제든 넘어갈 수 있다.</div>
-  <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
-  <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
   <details><summary>규칙 덮어쓰기</summary>
     <div class="note">전투 규칙의 숫자를 여기서 바꾼다. R 은 전투 공통, SR 은 스토리 전용이다.
@@ -752,7 +748,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
       <select id="sk_evid"><option value="1">증거 1</option><option value="2">증거 2</option><option value="3" selected>증거 3</option><option value="4">증거 4</option></select>
       <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
     </div>
-    <button class="go" onclick="newStory()">전투를 시작한다</button>
+    <button class="go" id="btn_story_go" onclick="newStory()">전투를 시작한다</button>
     <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
     <div id="st_ctrl" style="margin-top:14px"></div>
@@ -761,7 +757,10 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <div id="side-batch" style="display:none">
     <label>표본 수</label><input type="number" id="bn" value="200">
     <label>자동 플레이</label>
-    <select id="bai"><option value="D" selected>빔 탐색 (v19 기본)</option><option value="H">휴리스틱 (v18 대조)</option></select>
+    <select id="bai"><option value="D" selected>빔 탐색 (기본)</option><option value="H">휴리스틱 (옛 대조군)</option></select>
+    <div class="note" style="margin:4px 0 0">빔 탐색은 몇 수 앞을 넓게 펼쳐 보고 고른다 — 기록 칸 아래
+      「자동 진행 규칙」의 저울과 빔 폭·깊이를 그대로 쓴다. 휴리스틱은 그 규칙을 안 보고 정해진 순서로만
+      두는 옛 손이다. 새 규칙이 판을 얼마나 바꾸는지 견줄 때만 쓴다.</div>
     <label>대상</label>
     <select id="bsrc"><option value="levels">레벨 1~5</option><option value="script">대본 환자</option></select>
     <label>덱</label>
@@ -5269,6 +5268,9 @@ function syncDeckBtn(){
     if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
+  /* 카드팩을 편 동안에는 새 판을 까는 버튼도 잠근다 — 지금 짜는 가방이
+     들어갈 판을 그 사이에 갈아 치우면 무엇을 짜던 것인지 흐려진다 */
+  const sg = $('btn_story_go'); if(sg) sg.disabled = !!PK;
   syncBackBtn();          // 가방을 펼친 동안에는 무대로 돌아가는 문을 잠근다
 }
 
@@ -5676,7 +5678,6 @@ function pickPolicy(p){
 function sessInit(){
   PICK = null;
   const key=$('ssel').value, def=SESSIONS[key];
-  BUDGET_SRC = $('bsrcbud').value;
   SESS={key, def, round:0, idx:0, budget:(+$('sbudget').value)||sessBudget(def),
         used:0, results:[], rep:0, phase:'deck', deck:null};
   LOG=[]; UNDO=[]; PANES.sess.started=true;
@@ -7527,16 +7528,11 @@ function stageDeclare(){
 /* ── 작업대에서 무대로 ────────────────────────────────────────
    판이 깔린다고 무대가 열리지는 않는다 — 작업대가 기본 화면이다.
    저절로 넘어가는 길은 하나뿐이다: 세션에서 가방을 확정하는
-   「진료를 시작한다」. 그것도 무대를 꺼 두면 작업대에 머문다.
-   나머지 모드는 「전투 화면으로 간다」(stageResume)로 사람이 연다. */
+   「진료를 시작한다」. 나머지 모드는 「전투 화면으로 간다」(stageResume)로
+   사람이 연다. */
 //@ 무대.진입 — 판이 깔린 뒤 무대를 연다
-function stageWanted(){
-  const c = $('sg_use');
-  return !c || c.checked;
-}
-
 function stageBattleStart(){
-  if(!stageWanted() || !S) return false;
+  if(!S) return false;
   stageOpen();
   return true;
 }
@@ -7831,12 +7827,11 @@ async function batch(){
 
 async function batchSession(){
   const n=+$('bn').value, B=+$('bbudget').value, ai=$('bai').value, rows=[];
-  BUDGET_SRC = $('bsrcbud') ? $('bsrcbud').value : BUDGET_SRC;
   let done=0; const keys=Object.keys(SESSIONS); const total=keys.length*n;
   for(const sk of keys){
     const sess=SESSIONS[sk];
     const tally={}; let unseen=0, used=0;
-    /* v19 와 견줄 수 있게 같은 대응을 쓴다 — d1→1일차 8종, d2 계열→2일차 8종, 왕진→가방 앞 8장 */
+    /* 옛 판본과 견줄 수 있게 같은 대응을 쓴다 — d1→1일차 8종, d2 계열→2일차 8종, 왕진→가방 앞 8장 */
     const deck = sess.pool==='d1' ? DECK_D1 : sess.pool==='d2' ? DECK_D2 : POOL.d3.slice(0, sess.cap);
     for(let i=0;i<n;i++){
       const s=runSession(sess.list, deck, B||sessBudget(sess), 80000+i*13, {ai});

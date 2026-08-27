@@ -20,6 +20,9 @@ function syncDeckBtn(){
     if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
+  /* 카드팩을 편 동안에는 새 판을 까는 버튼도 잠근다 — 지금 짜는 가방이
+     들어갈 판을 그 사이에 갈아 치우면 무엇을 짜던 것인지 흐려진다 */
+  const sg = $('btn_story_go'); if(sg) sg.disabled = !!PK;
   syncBackBtn();          // 가방을 펼친 동안에는 무대로 돌아가는 문을 잠근다
 }
 

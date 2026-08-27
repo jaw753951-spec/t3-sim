@@ -17,7 +17,11 @@ const FIXT = {};
 
 function tipReset(){ TIPS = {}; TIPN = 0 }
 
-function tip(html){ if(!html) return ''; const k='t'+(++TIPN); TIPS[k]=html; return ` data-tip="${k}"` }
+/* 등록만 하고 열쇠를 돌려준다. 속성 문자열이 아니라 열쇠가 필요한 자리
+   (setAttribute 로 직접 다는 무대 쪽)가 쓴다 */
+function tipKey(html){ if(!html) return ''; const k='t'+(++TIPN); TIPS[k]=html; return k }
+
+function tip(html){ const k = tipKey(html); return k ? ` data-tip="${k}"` : '' }
 
 function tipFixReset(panel){
   for(const k of Object.keys(FIXT)) if(k.startsWith(panel+':')) delete FIXT[k];

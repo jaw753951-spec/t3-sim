@@ -8,7 +8,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
 .wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
 .col{padding:16px;border-right:1px solid var(--line)}
 .col:last-child{border-right:0;border-left:1px solid var(--line)}
-h1{font:600 15px/1 var(--sans);letter-spacing:.22em;margin:0 0 4px}h1 span{color:var(--blood)}
+h1{font:600 15px/1 var(--sans);letter-spacing:.10em;margin:0 0 4px}h1 span{color:var(--blood)}
 .sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
@@ -194,3 +194,80 @@ td input[type=checkbox]{width:auto}
 .swaps .card{margin-bottom:8px}
 .swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
 .swhead b{color:var(--ink);font-size:13px}
+
+/* ══ 패치 노트 ══════════════════════════════════════════════
+   판본 옆 단추 → 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 눌러서 편다 (스팀 패치 내역과 같은 결).
+   글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
+/* 이름표 옆 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다.
+   그래서 글자 수는 두 자로 묶어 두고 크기만 키웠다 */
+.pnbtn{width:auto;margin:0 0 0 9px;padding:3px 9px;vertical-align:middle;
+  font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
+  border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
+.pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+#pn{position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(221,216,198,.86);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .22s ease}
+#pn.on{display:flex;opacity:1}
+body.pnon{overflow:hidden}
+
+/* 읽으라고 띄우는 창이다 — 넓게 잡고 글자도 본문 크기로 둔다 */
+.pnbox{width:1000px;max-width:100%;height:min(860px,100%);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18);
+  transform:translateY(8px);transition:transform .22s ease}
+#pn.on .pnbox{transform:none}
+
+.pntop{display:flex;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid var(--line)}
+.pnttl{font:600 17px var(--mono);letter-spacing:.2em}
+.pnx{width:auto;margin:0 0 0 auto;padding:4px 11px;font:14px var(--mono);
+  border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.pnx:hover{color:var(--ink);border-color:var(--ink)}
+
+.pnlist{overflow:auto;padding:14px 16px;flex:1;min-height:0}
+
+/* ── 작은 판올림 = 기본값 ── 줄도 글자도 눌러 둔다 */
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.18);margin-bottom:7px}
+.pnrow.on{background:rgba(255,255,255,.38);border-color:var(--dim)}
+.pnhead{display:flex;align-items:center;gap:11px;width:100%;margin:0;
+  padding:10px 15px;border:0;background:transparent;cursor:pointer;text-align:left}
+.pnhead:hover{background:rgba(28,35,33,.05)}
+.pnarw{font:11px var(--mono);color:var(--dim);width:11px}
+.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--dim);min-width:48px}
+.pnrow.on .pnv{color:var(--ink)}
+.pntag{font:11px var(--mono);letter-spacing:.06em;padding:1px 7px;border:1px solid var(--line);color:var(--dim)}
+.pntag.play{color:var(--blood);border-color:var(--blood)}    /* 게임플레이 변경 */
+.pntag.bug {color:var(--calm);border-color:#8DB49C}           /* 버그 수정 */
+.pntag.qol {color:var(--t3);border-color:#C3AE68}             /* 편의성 개선 */
+.pnd{font:12px var(--mono);color:var(--dim);margin-left:auto}
+
+.pnbody{display:none;padding:2px 18px 14px 37px;border-top:1px solid var(--line)}
+.pnrow.on .pnbody{display:block}
+.pngrp{margin-top:12px}
+.pngn{font:600 12px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:7px 0 0;padding-left:19px}
+.pngrp li{font:13.5px/1.75 var(--sans);color:var(--ink)}
+/* 「*」로 적은 딸린 줄 — 한 칸 들어가고 한 톤 죽인다 */
+.pnsub{margin:2px 0 4px;padding-left:14px;list-style:none}
+.pnsub li{font-size:12.5px;color:var(--dim);position:relative}
+.pnsub li::before{content:'–';position:absolute;left:-13px}
+.pnempty{font:13px var(--mono);color:var(--dim);padding:12px 0}
+
+/* ── 큰 판올림 ── 목록만 훑어도 어디가 마디인지 보이도록 통째로 키운다.
+   판본 앞에 세로 획을 하나 세워 작은 줄들과 갈라 놓는다 */
+.pnrow.big{margin:16px 0 12px;border-color:var(--dim);background:rgba(255,255,255,.30)}
+.pnrow.big:first-child{margin-top:0}
+.pnrow.big.on{background:rgba(255,255,255,.48);border-color:var(--ink)}
+.pnrow.big .pnhead{padding:17px 19px;gap:14px;border-left:3px solid var(--ink)}
+.pnrow.big .pnarw{font-size:13px;width:12px}
+.pnrow.big .pnv{font-size:24px;letter-spacing:.03em;color:var(--ink);min-width:70px}
+.pnrow.big .pntag{font-size:12.5px;padding:3px 10px}
+.pnrow.big .pnd{font-size:13px}
+.pnrow.big .pnbody{padding:4px 22px 20px 46px}
+.pnrow.big .pngrp{margin-top:16px}
+.pnrow.big .pngn{font-size:13px}
+.pnrow.big .pngrp ul{padding-left:21px}
+.pnrow.big .pngrp li{font-size:15px;line-height:1.8}
+.pnrow.big .pnsub li{font-size:13.5px}
+.pnrow.big .pnempty{font-size:14px}

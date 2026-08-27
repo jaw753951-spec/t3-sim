@@ -1,0 +1,107 @@
+<!-- ══════════════════════════════════════════════════════════════════
+     무대 — 전투 화면. 작업대 위에 통째로 덮는다.
+     칸만 있고 글은 없다. 채우는 것은 70-ui/stage*.js 다.
+     ══════════════════════════════════════════════════════════════ -->
+<div id="sg">
+<div id="sg_wrap"><div id="sg_stage"><div id="sg_screen">
+  <div class="bg"></div>
+
+  <!-- 세션 · 막 머리띠 -->
+  <div class="shud plate" id="sg_hud">
+    <span class="dy" id="sg_day">—</span>
+    <span class="qs" id="sg_qs"></span>
+    <span class="q" id="sg_qtxt"></span>
+    <span class="actbadge" id="sg_act" style="display:none"></span>
+    <span class="b" id="sg_budget"></span>
+  </div>
+  <button id="sg_exit" onclick="stageClose()">작업대로 (Esc)</button>
+
+  <!-- 카르테 -->
+  <div class="karte plate">
+    <div class="kname" id="sg_kname">—</div>
+    <div class="kmeta" id="sg_kmeta"></div>
+    <div class="ktags" id="sg_ktags"></div>
+    <div class="kdiv"></div>
+    <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
+    <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
+    <div class="klog"><div class="ph">기록</div><div class="lg" id="sg_lg"></div></div>
+  </div>
+
+  <!-- 판 -->
+  <div id="sg_board">
+    <svg id="sg_links" viewBox="0 0 1000 700" preserveAspectRatio="none"></svg>
+    <div id="sg_pat">
+      <svg class="ring" id="sg_ring" viewBox="0 0 216 216"></svg>
+      <div class="bust" id="sg_bust"></div><div class="flash"></div>
+      <div class="hp" id="sg_hp">—</div>
+      <div id="sg_mind">—</div>
+    </div>
+    <div class="plate" id="sg_bubble"><div class="who" id="sg_bwho">환자</div><div class="txt" id="sg_btxt"></div><div class="tail"></div></div>
+    <div class="plate" id="sg_actbar"><span class="n" id="sg_an"></span><span class="v" id="sg_av"></span></div>
+  </div>
+
+  <!-- 우측 계기 -->
+  <div class="right plate">
+    <div class="rtop">
+      <div class="trow"><span>턴</span><span class="n" id="sg_turn">1</span><span class="r" id="sg_spent"></span></div>
+      <div class="pips" id="sg_energy"></div>
+      <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
+      <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
+      <div class="piles">
+        <div class="pile"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
+        <div class="pile"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
+        <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
+      </div>
+    </div>
+    <div class="rbot"><aside class="state" id="sg_state"></aside></div>
+  </div>
+
+  <div id="sg_hand"></div>
+  <div id="sg_end" onclick="stageEndBtn()">턴 종료</div>
+  <div id="sg_toast"></div>
+
+  <!-- 대기 명단 -->
+  <div class="ov" id="sg_ovQueue"><div class="obox plate">
+    <div class="ohead"><span class="h1" id="sg_qhead">진료</span><span class="h2">환자를 부른다</span>
+      <span class="cnt" id="sg_qbud"></span></div>
+    <div class="nurse" id="sg_nurse"></div>
+    <div class="qlist" id="sg_qlist"></div>
+    <div class="ofoot"><span class="n" id="sg_qnote"></span>
+      <span class="ogo" id="sg_qgo" onclick="stageQueueGo()">다음 환자를 부른다</span></div>
+  </div></div>
+
+  <!-- 문진 -->
+  <div class="ov" id="sg_ovAsk"><div class="obox plate">
+    <div class="ohead"><span class="h1">문진</span><span class="h2" id="sg_askwho"></span>
+      <span class="cnt" id="sg_askcnt"></span></div>
+    <div class="alist" id="sg_asklist"></div>
+    <div class="ofoot"><span class="n" id="sg_asknote"></span>
+      <span class="ogo off" id="sg_askgo" onclick="stageAskGo()">진료를 시작한다</span></div>
+  </div></div>
+
+  <!-- 이 환자의 결과 -->
+  <div class="ov" id="sg_ovVerd"><div class="obox plate" style="width:560px">
+    <div class="vg" id="sg_vg"></div><div class="vs" id="sg_vs"></div>
+    <div class="ofoot" style="justify-content:center">
+      <span class="ogo" id="sg_vgo" onclick="stageVerdGo()">다음</span></div>
+  </div></div>
+
+  <!-- 세션 결산 -->
+  <div class="ov" id="sg_ovEnd"><div class="obox plate">
+    <div class="ohead"><span class="h1" id="sg_ehead">끝났다</span><span class="h2" id="sg_esub"></span></div>
+    <div class="qlist" id="sg_elist"></div>
+    <div class="ofoot"><span class="n" id="sg_enote"></span>
+      <span class="ogo" onclick="stageClose()">작업대로 돌아간다</span></div>
+  </div></div>
+
+  <!-- 스토리 — 병명 선언 · 방침 -->
+  <div class="ov" id="sg_ovAct"><div class="obox plate">
+    <div class="ohead"><span class="h1" id="sg_acthead"></span><span class="h2" id="sg_actsub"></span>
+      <span class="cnt" id="sg_actcnt"></span></div>
+    <div id="sg_actbody"></div>
+    <div class="ofoot"><span class="n" id="sg_actnote"></span>
+      <span class="ogo" id="sg_actgo" onclick="stageActGo()"></span></div>
+  </div></div>
+
+</div></div></div>
+</div>

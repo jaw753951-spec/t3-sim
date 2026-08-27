@@ -1,7 +1,8 @@
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN <span>{{VERSION}}</span></h1>
+  <h1>INTERN SIM <span>{{VERSION}}</span><button class="pnbtn" onclick="openPatch()"
+      title="패치 노트를 연다">패치</button></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -14,6 +15,9 @@
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
+  <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
+    <input type="checkbox" id="sg_use" checked style="width:auto"> 전투를 무대에서 본다</label>
+  <div class="note" style="margin:4px 0 0">끄면 이 작업대에서 그대로 둔다. 배치를 돌릴 때는 꺼 두는 편이 빠르다.</div>
   <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
   <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
@@ -47,6 +51,8 @@
     <div class="tags" id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
+    <!-- 새 판이 아니라 보던 판이다 — 작업대로 나왔다가 그대로 되돌아간다 -->
+    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
   </div>
 
@@ -55,6 +61,7 @@
     <select id="ssel"><option value="d1">1일차 아침</option><option value="d2">2일차 아침</option><option value="d2m">2일차 오후 · 시장</option><option value="d3">3일차 왕진 (2라운드)</option></select>
     <label>턴 예산 직접 지정 (0 = 기준값)</label><input type="number" id="sbudget" value="0">
     <button class="go" onclick="sessInit()">가방을 연다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
     <div id="se_ctrl" style="margin-top:14px"></div>
   </div>
 
@@ -74,6 +81,7 @@
       <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
     </div>
     <button class="go" onclick="newStory()">전투를 시작한다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
     <div id="st_ctrl" style="margin-top:14px"></div>
   </div>
@@ -143,4 +151,15 @@
   <label>기록</label><div id="log"></div>
   <details id="aiwbox"></details>
  </div>
+</div>
+
+<!-- ══ 패치 노트 ══ 판본 옆 단추가 연다. 글은 60-text/patch-notes.js 에 있다 ══ -->
+<div id="pn">
+  <div class="pnbox">
+    <div class="pntop">
+      <div class="pnttl">패치 노트</div>
+      <button class="pnx" onclick="closePatch()" title="닫는다 (Esc)">✕</button>
+    </div>
+    <div class="pnlist" id="pn_list"></div>
+  </div>
 </div>

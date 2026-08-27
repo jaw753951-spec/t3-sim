@@ -34,6 +34,7 @@ function newStory(){
     log('<span class="d">1막 — 진단 카드를 검사 파라미터에 써서 증거를 모은다.</span>');
   }
   render();
+  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
 }
 
 function declareDx(){

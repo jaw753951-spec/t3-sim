@@ -9,6 +9,26 @@
    판이 정산할 때 쓰는 함수가 같은 것이다 — 갈리면 카드가 거짓말을 한다.
    ══════════════════════════════════════════════════════════════════ */
 
+/* ── 지금 이 카드를 낼 수 있는가 ────────────────────────────
+   작업대와 무대가 같은 답을 쓴다. 두 벌로 적혀 있던 동안 「자리를 고른다」와
+   「손패에서 n장 고른다」가 무대에만 빠져 있었다. */
+//@ 화면.카드가능 — 낼 수 있는가, 못 낸다면 왜
+function cardWhy(S, id, node){
+  const c = CARDS[id];
+  let ok = canPlay(S, id), why = '';
+  if(!ok) why = cardCost(S,id) > S.energy ? '코스트 모자람'
+             : (c.bleed && !canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
+             : (c.target==='hand' ? (c.kw==='재진'?'붙일 진단 카드가 없다':'고를 카드가 없다') : '지금은 못 냄'));
+  else if(c.target==='node'){
+    if(!node) why = '자리를 고른다';
+    else if(c.need && c.need.length<2 && !c.need(node)){ ok=false; why=`${node.sym}에는 못 쓴다` }
+    else if(immune(S,node) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
+    else if(c.verb==='진단' && !canDiag(S,node,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
+  }
+  else if(c.target==='hand') why = `손패에서 ${pickNeed(S,id)}장 고른다`;
+  return {ok, why};
+}
+
 /* 사혈 단수 아이콘 — 코스트 옆에 붙는다 */
 //@ 화면.카드그리기 — §9.4 카드 한 장의 겉모습
 function bleedIcon(c, S){

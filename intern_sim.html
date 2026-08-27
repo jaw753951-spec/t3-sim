@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>INTERN 전투 시뮬레이터 v25</title><style>
+<title>인턴 심 0.1.2.1 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -11,7 +11,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
 .wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
 .col{padding:16px;border-right:1px solid var(--line)}
 .col:last-child{border-right:0;border-left:1px solid var(--line)}
-h1{font:600 15px/1 var(--sans);letter-spacing:.22em;margin:0 0 4px}h1 span{color:var(--blood)}
+h1{font:600 15px/1 var(--sans);letter-spacing:.10em;margin:0 0 4px}h1 span{color:var(--blood)}
 .sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
@@ -197,11 +197,491 @@ td input[type=checkbox]{width:auto}
 .swaps .card{margin-bottom:8px}
 .swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
 .swhead b{color:var(--ink);font-size:13px}
+
+/* ══ 패치 노트 ══════════════════════════════════════════════
+   판본 옆 단추 → 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 눌러서 편다 (스팀 패치 내역과 같은 결).
+   글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
+/* 이름표 옆 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다.
+   그래서 글자 수는 두 자로 묶어 두고 크기만 키웠다 */
+.pnbtn{width:auto;margin:0 0 0 9px;padding:3px 9px;vertical-align:middle;
+  font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
+  border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
+.pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+#pn{position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(221,216,198,.86);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .22s ease}
+#pn.on{display:flex;opacity:1}
+body.pnon{overflow:hidden}
+
+/* 읽으라고 띄우는 창이다 — 넓게 잡고 글자도 본문 크기로 둔다 */
+.pnbox{width:1000px;max-width:100%;height:min(860px,100%);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18);
+  transform:translateY(8px);transition:transform .22s ease}
+#pn.on .pnbox{transform:none}
+
+.pntop{display:flex;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid var(--line)}
+.pnttl{font:600 17px var(--mono);letter-spacing:.2em}
+.pnx{width:auto;margin:0 0 0 auto;padding:4px 11px;font:14px var(--mono);
+  border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.pnx:hover{color:var(--ink);border-color:var(--ink)}
+
+.pnlist{overflow:auto;padding:14px 16px;flex:1;min-height:0}
+
+/* ── 작은 판올림 = 기본값 ── 줄도 글자도 눌러 둔다 */
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.18);margin-bottom:7px}
+.pnrow.on{background:rgba(255,255,255,.38);border-color:var(--dim)}
+.pnhead{display:flex;align-items:center;gap:11px;width:100%;margin:0;
+  padding:10px 15px;border:0;background:transparent;cursor:pointer;text-align:left}
+.pnhead:hover{background:rgba(28,35,33,.05)}
+.pnarw{font:11px var(--mono);color:var(--dim);width:11px}
+.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--dim);min-width:48px}
+.pnrow.on .pnv{color:var(--ink)}
+.pntag{font:11px var(--mono);letter-spacing:.06em;padding:1px 7px;border:1px solid var(--line);color:var(--dim)}
+.pntag.play{color:var(--blood);border-color:var(--blood)}    /* 게임플레이 변경 */
+.pntag.bug {color:var(--calm);border-color:#8DB49C}           /* 버그 수정 */
+.pntag.qol {color:var(--t3);border-color:#C3AE68}             /* 편의성 개선 */
+.pnd{font:12px var(--mono);color:var(--dim);margin-left:auto}
+
+.pnbody{display:none;padding:2px 18px 14px 37px;border-top:1px solid var(--line)}
+.pnrow.on .pnbody{display:block}
+.pngrp{margin-top:12px}
+.pngn{font:600 12px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:7px 0 0;padding-left:19px}
+.pngrp li{font:13.5px/1.75 var(--sans);color:var(--ink)}
+/* 「*」로 적은 딸린 줄 — 한 칸 들어가고 한 톤 죽인다 */
+.pnsub{margin:2px 0 4px;padding-left:14px;list-style:none}
+.pnsub li{font-size:12.5px;color:var(--dim);position:relative}
+.pnsub li::before{content:'–';position:absolute;left:-13px}
+.pnempty{font:13px var(--mono);color:var(--dim);padding:12px 0}
+
+/* ── 큰 판올림 ── 목록만 훑어도 어디가 마디인지 보이도록 통째로 키운다.
+   판본 앞에 세로 획을 하나 세워 작은 줄들과 갈라 놓는다 */
+.pnrow.big{margin:16px 0 12px;border-color:var(--dim);background:rgba(255,255,255,.30)}
+.pnrow.big:first-child{margin-top:0}
+.pnrow.big.on{background:rgba(255,255,255,.48);border-color:var(--ink)}
+.pnrow.big .pnhead{padding:17px 19px;gap:14px;border-left:3px solid var(--ink)}
+.pnrow.big .pnarw{font-size:13px;width:12px}
+.pnrow.big .pnv{font-size:24px;letter-spacing:.03em;color:var(--ink);min-width:70px}
+.pnrow.big .pntag{font-size:12.5px;padding:3px 10px}
+.pnrow.big .pnd{font-size:13px}
+.pnrow.big .pnbody{padding:4px 22px 20px 46px}
+.pnrow.big .pngrp{margin-top:16px}
+.pnrow.big .pngn{font-size:13px}
+.pnrow.big .pngrp ul{padding-left:21px}
+.pnrow.big .pngrp li{font-size:15px;line-height:1.8}
+.pnrow.big .pnsub li{font-size:13.5px}
+.pnrow.big .pnempty{font-size:14px}
+/* ══════════════════════════════════════════════════════════════════
+   무대 — 전투 화면
+   ──────────────────────────────────────────────────────────────────
+   3열 작업대 위에 통째로 덮는 한 장이다. 1920×1080 을 기준으로 짜고
+   화면 폭에 맞춰 통째로 줄인다 (transform:scale).
+
+   여기 있는 규칙은 전부 #sg 안에 갇혀 있다. 작업대 쪽 style.css 와
+   .card · .hand · .pat · .mind 처럼 이름이 겹치는 것이 많아서,
+   가두지 않으면 두 화면이 서로의 옷을 입는다.
+
+   그림 파일은 한 장도 쓰지 않는다 — 전부 gradient · SVG · 키프레임이다.
+   ══════════════════════════════════════════════════════════════════ */
+#sg{
+  --paper:#E8E2D2;--paper2:#DED7C5;--paper3:#D2CCB6;--hanji:#d9c7a3;--hanjiW:#f0e6d2;
+  --ink:#3A3530;--ink2:#8A847A;--ink3:#2A2622;--mut:#7D939C;
+  --line:#9A9388;--steel:#2B3036;--steelD:#14181C;--steelL:#4A5158;
+  --t3:#3A7570;--t3b:#4DD4C8;--red:#98302A;--anno:#A8503F;--brass:#C9A44A;
+  position:fixed;inset:0;z-index:400;background:#1b1e22;display:none;overflow:hidden;
+  font-family:var(--sans);color:var(--ink);
+}
+#sg.on{display:grid;place-items:center}
+body.sgon{overflow:hidden}
+
+#sg_wrap{overflow:hidden}
+#sg_stage{position:relative;width:1920px;height:1080px;transform-origin:top left}
+#sg_screen{position:absolute;inset:0;overflow:hidden}
+
+#sg .bg{position:absolute;inset:0;background:
+  radial-gradient(120% 80% at 50% 14%,rgba(255,240,205,.30),transparent 58%),
+  repeating-linear-gradient(96deg,#6A5442 0 34px,#614E3E 34px 68px)}
+#sg .bg::after{content:"";position:absolute;left:5%;right:5%;top:54%;bottom:0;
+  background:repeating-linear-gradient(90deg,#554131 0 60px,#4E3B2D 60px 120px)}
+
+#sg .plate{border:11px solid var(--steelD);box-shadow:inset 0 0 0 3px var(--steelL);background:var(--paper)}
+#sg .ph{font:700 10px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:8px}
+#sg .d{color:var(--ink2)}
+
+/* 작업대에서 물려받는 것을 끊는다 */
+#sg button{width:auto;margin:0;text-align:center;letter-spacing:0}
+
+/* ── 나가기 ── */
+#sg_exit{position:absolute;right:1.4%;top:1.6%;z-index:60;
+  background:var(--steelD);color:var(--hanjiW);border:2px solid var(--steelL);
+  padding:8px 14px;font:700 12px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
+#sg_exit:hover{background:var(--steel);border-color:var(--brass)}
+
+/* ── 세션 HUD ─────────────────────────────────────────────── */
+#sg .shud{position:absolute;left:1.4%;top:1.6%;width:34%;z-index:30;padding:10px 14px;
+  display:flex;align-items:center;gap:16px}
+#sg .shud .dy{font:800 15px/1 var(--mono);color:var(--ink3)}
+#sg .shud .q{font:700 11px/1 var(--sans);letter-spacing:.12em;color:var(--ink2)}
+#sg .shud .b{margin-left:auto;font:800 20px/1 var(--mono);color:var(--ink3)}
+#sg .shud .b i{font-style:normal;font:700 11px var(--sans);color:var(--ink2);margin-left:5px}
+#sg .qs{display:flex;gap:4px}
+#sg .qs i{width:13px;height:13px;border:2px solid var(--steel);display:block}
+#sg .qs i.done{background:var(--steel)}
+#sg .qs i.now{background:var(--t3);border-color:var(--t3)}
+#sg .actbadge{font:800 12px/1 var(--sans);letter-spacing:.1em;color:var(--hanjiW);
+  background:var(--steelD);border:2px solid var(--brass);padding:5px 10px}
+
+/* ── 카르테 ───────────────────────────────────────────────── */
+#sg .karte{position:absolute;left:1.4%;top:8.5%;width:15.5%;height:73%;z-index:20;padding:14px;
+  display:flex;flex-direction:column}
+#sg .kname{font:800 19px/1.25 var(--sans);color:var(--ink3)}
+#sg .kmeta{font:11.5px/1.5 var(--sans);color:var(--ink2);margin-top:3px}
+#sg .ktags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+#sg .ktag{font:700 10.5px/1 var(--sans);border:2px solid var(--line);padding:4px 7px;color:var(--ink2)}
+#sg .ktag.hid{border-style:dashed;color:var(--mut)}
+#sg .kdiv{height:3px;background:var(--steel);margin:10px 0}
+#sg .kfield{font:12px/1.5 var(--sans);padding:6px 0;border-top:1px solid rgba(0,0,0,.14)}
+#sg .kfield b{display:block;font:700 9.5px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:4px}
+#sg .ai{display:block;font:600 12px/1.4 var(--sans);color:var(--ink3);
+  border-left:3px solid var(--t3);padding:3px 0 3px 8px;margin-top:5px}
+#sg .ai em{display:block;font-style:normal;font:10.5px/1.3 var(--sans);color:var(--t3);margin-top:2px}
+#sg .klog{margin-top:10px;display:flex;flex-direction:column;min-height:0;flex:1;
+  padding-top:9px;border-top:3px solid var(--steel)}
+#sg .lg{overflow:auto;flex:1;min-height:0;display:flex;flex-direction:column-reverse}
+#sg .lg div{font:11px/1.5 var(--sans);color:var(--ink2);padding:4px 0;border-bottom:1px solid rgba(0,0,0,.09)}
+#sg .lg div b{color:var(--ink3)}
+#sg .lg .say{color:var(--ink3)}
+#sg .lg .d{color:var(--mut)}
+
+/* ── 판 ───────────────────────────────────────────────────── */
+#sg_board{position:absolute;left:18.2%;top:8%;width:62%;height:65%;z-index:15}
+#sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
+#sg_board.dark .gz:not(.evoing),#sg_board.dark #sg_pat{filter:brightness(.42) saturate(.6);transition:filter .4s}
+
+#sg_pat{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);width:196px;height:196px;z-index:16}
+#sg_pat .ring{position:absolute;inset:-10px;overflow:visible}
+#sg_pat .bust{position:absolute;inset:0;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 42% 30%,#6a625a,#33302b 72%);
+  border:4px solid var(--steelD);box-shadow:inset 0 0 0 3px var(--steelL),0 6px 18px rgba(0,0,0,.55)}
+#sg_pat .bust svg{position:absolute;inset:0;width:100%;height:100%}
+/* 작업대 style.css 의 .hp 는 체력 막대 채움이라 top:0/bottom:0 으로 늘어난다.
+   같은 이름이 여기서는 뱃지다 — 늘어나는 성질부터 되돌린다 */
+#sg_pat .hp{position:absolute;left:50%;top:auto;right:auto;bottom:-6px;width:auto;height:auto;
+  transform:translateX(-50%);z-index:3;
+  font:800 17px/1 var(--mono);color:var(--hanjiW);background:var(--steelD);
+  border:2px solid var(--steelL);padding:5px 11px;white-space:nowrap}
+#sg_pat .hp i{font-style:normal;font-size:12px;color:#E4867A;margin-left:6px}
+#sg_pat.hurt .bust{transform:translateY(7px);transition:transform .32s}
+#sg_pat .flash{position:absolute;inset:-10px;border-radius:50%;background:rgba(158,43,43,.5);
+  opacity:0;pointer-events:none;z-index:4}
+#sg_pat.hurt .flash{animation:flh .48s ease}
+@keyframes flh{0%{opacity:.55}100%{opacity:0}}
+
+#sg_mind{position:absolute;left:106%;top:50%;background:var(--steelD);border:2px solid var(--t3);
+  color:#cfe0da;padding:5px 10px;font:700 11.5px/1 var(--sans);letter-spacing:.1em;white-space:nowrap;z-index:6}
+#sg_mind.bad{border-color:var(--red);color:#E4B6AC}
+#sg_mind.ko{border-color:var(--anno);color:#E8D2AC}
+
+#sg_bubble{position:absolute;left:50%;top:2%;transform:translateX(-50%);z-index:40;
+  max-width:420px;padding:10px 14px;opacity:0;pointer-events:none;transition:opacity .3s}
+#sg_bubble.show{opacity:1}
+#sg_bubble .who{font:700 9px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:5px}
+#sg_bubble .txt{font:600 14px/1.5 var(--sans);color:var(--ink3)}
+#sg_bubble .tail{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);
+  width:0;height:0;border:11px solid transparent;border-top-color:var(--steelD)}
+
+/* 고른 자리에 대한 한 줄 — 지금 끊으면 무슨 일이 나는가 */
+#sg_actbar{position:absolute;left:50%;bottom:-2%;transform:translateX(-50%);z-index:35;
+  padding:8px 16px;display:none;align-items:baseline;gap:14px;max-width:86%}
+#sg_actbar.on{display:flex}
+#sg_actbar .n{font:800 15px/1 var(--sans);color:var(--ink3);white-space:nowrap}
+#sg_actbar .v{font:12.5px/1.4 var(--sans);color:var(--ink2)}
+#sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
+
+/* ── 계기판 ───────────────────────────────────────────────── */
+#sg .gz{position:absolute;z-index:14;transform:translate(-50%,-50%);cursor:pointer;transition:filter .3s}
+#sg .gz .bezel{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 215deg,#22262b,#5c6067 18%,#2b3036 45%,#4a5158 70%,#22262b);
+  box-shadow:0 6px 15px rgba(0,0,0,.65),inset 0 -3px 6px rgba(0,0,0,.45)}
+#sg .gz .body{position:absolute;inset:6%;border-radius:50%;
+  background:radial-gradient(circle at 34% 26%,#4a5158,#2b3036 70%,#14181C)}
+#sg .gz .face{position:absolute;inset:12%;border-radius:50%;overflow:hidden;transition:filter .9s;
+  background:radial-gradient(circle at 40% 32%,var(--hanjiW),var(--hanji) 70%,#bfae8b);
+  box-shadow:inset 0 3px 9px rgba(50,38,18,.45)}
+#sg .gz .stg{position:absolute;inset:0}
+#sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
+#sg .gz .dring{position:absolute;inset:0;overflow:visible;z-index:5;pointer-events:none}
+#sg .gz .glass{position:absolute;inset:8%;border-radius:50%;z-index:4;pointer-events:none;
+  background:linear-gradient(133deg,rgba(255,255,255,.32) 5%,transparent 32% 60%,rgba(255,255,255,.12) 88%);
+  border:1px solid rgba(255,255,255,.24)}
+/* 경감이 센 보호막은 유리가 두껍다 (30% ↔ 50%) */
+#sg .gz.sh50 .glass{border-width:3px;border-color:rgba(190,225,235,.55);
+  background:linear-gradient(133deg,rgba(255,255,255,.44) 5%,rgba(255,255,255,.06) 32% 60%,rgba(255,255,255,.2) 88%)}
+#sg .gz.noshield .glass{opacity:0}
+
+#sg .gz .info{position:absolute;top:103%;left:50%;transform:translateX(-50%);z-index:8;
+  background:var(--steelD);border:2px solid var(--steelL);padding:5px 12px 6px;
+  min-width:118px;text-align:center;white-space:nowrap}
+#sg .gz .info .nm2{display:block;font:800 18px/1.1 var(--sans);color:var(--hanjiW);letter-spacing:.04em}
+#sg .gz .info .hr2{display:block;height:1px;background:#5e5648;margin:5px 0 4px}
+#sg .gz .info .num{display:block;font:800 20px/1 var(--mono);color:var(--hanjiW)}
+#sg .gz .info .num s{text-decoration:none;color:#b0a894;margin:0 4px}
+#sg .gz .info .num u{text-decoration:none;color:#E4867A}
+
+#sg .gz .evc{position:absolute;top:-3%;right:-3%;width:27px;height:27px;border-radius:50%;z-index:6;
+  background:linear-gradient(180deg,#c9a44a,#8a6a30);color:#241a08;display:flex;
+  align-items:center;justify-content:center;font:900 12.5px/1 var(--mono);
+  box-shadow:0 2px 6px rgba(0,0,0,.55)}
+#sg .gz .evc.stg2{background:linear-gradient(180deg,#8fb2a8,#3A7570);color:#0d1a17}
+#sg .gz.warn .evc{animation:evw 1.1s ease infinite}
+@keyframes evw{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.55)}
+  50%{box-shadow:0 0 0 5px rgba(158,43,43,.5),0 2px 6px rgba(0,0,0,.55)}}
+
+#sg .gz.dorm{filter:saturate(.3) brightness(.6)}
+#sg .gz.ready .bezel{box-shadow:0 0 0 3px var(--t3b),0 0 22px rgba(77,212,200,.5),0 6px 15px rgba(0,0,0,.65)}
+#sg .gz.sel{filter:drop-shadow(0 0 16px rgba(201,164,74,.95))}
+#sg .gz.tgt{filter:drop-shadow(0 0 14px rgba(77,212,200,.9))}
+#sg .gz.held .face{filter:saturate(.5) brightness(1.12)}
+/* 병 노드 — 황동이 아니라 검은 무쇠다 */
+#sg .gz.dis .bezel{background:conic-gradient(from 215deg,#141414,#3a3a3c 18%,#1c1c1e 45%,#2e2e30 70%,#141414)}
+#sg .gz.dis .face{background:radial-gradient(circle at 40% 32%,#b9ac93,#8e8272 70%,#5f574a)}
+#sg .gz.dis .info{border-color:#6a6a68}
+#sg .gz.imm .bezel{box-shadow:0 0 0 3px #6a6a68,0 6px 15px rgba(0,0,0,.65)}
+#sg .gz.imm .face{filter:grayscale(.6) brightness(.86)}
+
+/* 문자판 그림 */
+#sg .blot{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);z-index:1;
+  background:radial-gradient(closest-side,rgba(158,43,43,.9),rgba(158,43,43,.7) 55%,transparent 72%);
+  border-radius:46% 54% 51% 49%/52% 47% 53% 48%;transition:width .5s,height .5s}
+#sg .fog{position:absolute;inset:0;z-index:3;border-radius:50%;
+  background:radial-gradient(circle at 50% 45%,rgba(235,235,230,.72),rgba(235,235,230,.3) 60%,transparent 75%)}
+#sg .slide{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:70%;height:70%;
+  border-radius:50%;z-index:1;
+  background:radial-gradient(circle at 45% 40%,rgba(225,232,230,.3),rgba(190,205,200,.16) 70%);
+  border:1.2px solid rgba(120,135,130,.4)}
+#sg .cracks{position:absolute;inset:0;z-index:1}
+#sg .dgrain{position:absolute;inset:0;z-index:1;
+  background:repeating-linear-gradient(58deg,rgba(40,32,24,.28) 0 2px,transparent 2px 13px),
+             radial-gradient(circle at 52% 48%,rgba(30,24,18,.5),transparent 70%)}
+#sg .frost{position:absolute;inset:0;z-index:3;
+  background:radial-gradient(circle at 50% 48%,rgba(210,228,234,.30),rgba(210,228,234,.10) 62%,transparent 78%)}
+#sg .frost svg{position:absolute;inset:14%;width:72%;height:72%}
+
+/* 바깥 계측기 */
+#sg .thermoX{position:absolute;right:-18%;top:8%;width:14%;height:80%;z-index:7}
+#sg .thermoX .tube{position:absolute;left:50%;transform:translateX(-50%);width:52%;top:0;bottom:18%;
+  background:rgba(255,255,255,.45);border:1.4px solid rgba(90,70,40,.55);border-radius:6px;overflow:hidden}
+#sg .thermoX .merc{position:absolute;left:0;right:0;bottom:0;
+  background:linear-gradient(180deg,#c4524a,#8f2f27);transition:height .5s}
+#sg .thermoX .bulb{position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:88%;aspect-ratio:1;
+  border-radius:50%;background:radial-gradient(circle at 38% 32%,#c4524a,#7e241d);
+  border:1.4px solid rgba(90,70,40,.55)}
+#sg .ivX{position:absolute;left:-16%;top:2%;width:18%;height:44%;z-index:7}
+#sg .ivX .ivhook{position:absolute;top:0;left:50%;transform:translateX(-50%);width:34%;height:14%;
+  border:2.5px solid #6e7076;border-bottom:none;border-radius:6px 6px 0 0}
+#sg .ivX .ivbody{position:absolute;inset:14% 0 0 0;border:1.4px solid rgba(90,70,40,.55);
+  border-radius:6px;background:rgba(235,240,238,.28);overflow:hidden}
+#sg .ivX .water{position:absolute;left:0;right:0;bottom:0;
+  background:linear-gradient(180deg,rgba(122,168,178,.85),rgba(90,125,135,.9));transition:height .5s}
+#sg .ivX .ivhose{position:absolute;left:78%;top:62%;width:70%;height:44%;
+  border-left:2.5px solid rgba(160,180,185,.7);border-bottom:2.5px solid rgba(160,180,185,.7);
+  border-radius:0 0 0 22px}
+/* 설치물 — 자리 옆에 세운 통 */
+#sg .rigX{position:absolute;right:-20%;bottom:4%;width:15%;height:42%;z-index:7}
+#sg .rigX .rigbody{position:absolute;inset:0 0 16% 0;border:2px solid #55707a;
+  background:rgba(20,28,32,.55);overflow:hidden}
+#sg .rigX .rigfill{position:absolute;left:0;right:0;bottom:0;
+  background:linear-gradient(180deg,rgba(122,168,178,.95),rgba(58,117,112,.95));transition:height .4s}
+#sg .rigX .riglent{position:absolute;left:0;right:0;bottom:0;
+  background:repeating-linear-gradient(45deg,rgba(201,164,74,.85) 0 4px,transparent 4px 8px);transition:height .4s}
+#sg .rigX .rignum{position:absolute;left:0;right:0;bottom:0;text-align:center;
+  font:800 11px/1 var(--mono);color:#bfe0e6}
+
+/* ── 우측 패널 ────────────────────────────────────────────── */
+#sg .right{position:absolute;right:1.4%;top:8.5%;width:16.5%;height:73%;z-index:20;
+  padding:12px 13px;display:flex;flex-direction:column}
+#sg .rtop{flex:0 0 auto}
+#sg .trow{display:flex;align-items:baseline;gap:9px;font:12px var(--mono);color:var(--ink2)}
+#sg .trow .n{font:800 22px/1 var(--mono);color:var(--ink3)}
+#sg .trow .r{margin-left:auto;font:11px var(--sans)}
+#sg .pips{display:flex;gap:4px;margin:9px 0}
+#sg .pips i{flex:1;height:11px;border:2px solid var(--steel);display:block}
+#sg .pips i.on{background:var(--steel)}
+#sg .btn{margin-top:7px;border:2px solid var(--steel);background:var(--paper2);padding:9px 11px;
+  font:700 13px/1 var(--sans);color:var(--ink3);cursor:pointer;display:flex;
+  align-items:baseline;justify-content:space-between}
+#sg .btn:hover{background:#fff}
+#sg .btn.on{background:var(--steel);color:var(--hanjiW)}
+#sg .btn.off{opacity:.45;cursor:default}
+#sg .btn .c{font:700 11px var(--mono);color:var(--ink2)}
+#sg .btn.on .c{color:var(--hanji)}
+#sg .piles{display:flex;gap:6px;margin-top:9px}
+#sg .pile{flex:1;border:2px solid var(--line);padding:5px 0;text-align:center}
+#sg .pile .n{font:800 15px/1 var(--mono);color:var(--ink3)}
+#sg .pile .l{font:700 9px/1 var(--sans);letter-spacing:.1em;color:var(--ink2);margin-top:3px}
+#sg .rbot{margin-top:11px;padding-top:10px;border-top:3px solid var(--steel);
+  flex:1;min-height:0;overflow:auto}
+
+/* 상태판 — stateHTML() 이 뱉은 것을 무대 옷으로 갈아입힌다 */
+#sg .state{border:0;background:transparent;padding:0;position:relative}
+#sg .state h4{margin:0 0 8px;font:700 10px var(--sans);letter-spacing:.16em;color:var(--ink2)}
+#sg .st{margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,.14)}
+#sg .st:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+#sg .stt{display:flex;justify-content:space-between;align-items:baseline;font:11.5px var(--sans);color:var(--ink2)}
+#sg .stt b{font:800 15px var(--mono);color:var(--ink3)}
+#sg .state .pips{display:flex;gap:3px;margin-top:5px}
+#sg .pip{flex:1;height:7px;border:1px solid var(--line);background:var(--paper3)}
+#sg .pip.on{background:var(--t3);border-color:var(--t3)}
+#sg .pip.rm.on{background:var(--mut);border-color:var(--mut)}
+#sg .pip.bl.on{background:var(--red);border-color:var(--red)}
+#sg .stnote{font:10.5px/1.45 var(--sans);color:var(--ink2);margin-top:4px}
+#sg .stempty{font:11px/1.5 var(--sans);color:var(--mut)}
+
+/* ── 손패 ─────────────────────────────────────────────────── */
+#sg_hand{position:absolute;left:18.2%;right:18.2%;bottom:2.2%;z-index:25;
+  display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap}
+#sg_hand .card{width:206px;min-height:150px;border:3px solid var(--steelD);background:var(--paper);
+  padding:9px 11px;cursor:pointer;display:flex;flex-direction:column;
+  box-shadow:0 5px 14px rgba(0,0,0,.5);transition:transform .18s}
+#sg_hand .card:hover{transform:translateY(-9px);border-color:var(--steelD)}
+#sg_hand .card.no{opacity:.45;cursor:default;transform:none}
+#sg_hand .card.pick{border-color:var(--brass);box-shadow:0 0 0 3px rgba(201,164,74,.6),0 5px 14px rgba(0,0,0,.5)}
+#sg_hand .card.내과{border-top:7px solid #3C6E52}
+#sg_hand .card.외과{border-top:7px solid var(--red)}
+#sg_hand .card.의공학{border-top:7px solid #3D6673}
+#sg_hand .card.공통{border-top:7px solid var(--ink2)}
+#sg .chead{display:flex;align-items:baseline;gap:7px;width:100%}
+#sg .chead b{font:800 14px/1.25 var(--sans);color:var(--ink3)}
+#sg .cost{font:800 17px/1 var(--mono);color:var(--anno);min-width:15px}
+#sg .bl{font:800 9.5px var(--mono);color:var(--hanjiW);background:var(--red);
+  border:1px solid var(--red);padding:1px 5px;cursor:help}
+#sg .cmeta{font:9.5px var(--sans);letter-spacing:.06em;color:var(--ink2);margin-top:5px;
+  border-bottom:2px solid var(--steel);padding-bottom:5px}
+#sg .ctext{font:11.5px/1.55 var(--sans);margin-top:7px;color:var(--ink);flex:1}
+#sg .kw{border-bottom:1px dotted var(--red);color:var(--red);cursor:help;font-weight:700}
+#sg .keep{display:inline-block;margin-top:5px;font:9.5px var(--sans);color:var(--mut)}
+#sg .keep.on{color:var(--t3)}
+#sg .keep.why{color:var(--anno)}
+#sg .key{margin-left:auto;font:9.5px var(--mono);color:var(--ink2);border:1px solid var(--line);padding:0 5px}
+#sg .vup{color:#2F6B4F;font-weight:800}
+#sg .vdn{color:var(--red);font-weight:800}
+#sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
+  border:2px solid var(--steelL)}
+
+#sg_end{position:absolute;right:1.4%;bottom:2.2%;z-index:26;
+  background:var(--steelD);color:var(--hanjiW);border:3px solid var(--steelL);
+  padding:15px 24px;font:800 15px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
+#sg_end:hover{border-color:var(--brass)}
+#sg_end.off{opacity:.45;cursor:default}
+
+#sg_toast{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);z-index:70;
+  background:var(--steelD);color:var(--hanjiW);border:2px solid var(--brass);padding:10px 18px;
+  font:700 13px/1 var(--sans);opacity:0;pointer-events:none;transition:opacity .25s}
+#sg_toast.on{opacity:1}
+
+/* ── 연출 ─────────────────────────────────────────────────── */
+#sg .sp{position:absolute;border-radius:50%;pointer-events:none;z-index:9}
+@keyframes spf{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+#sg .shard{position:absolute;pointer-events:none;z-index:9;background:rgba(255,255,255,.85)}
+@keyframes shf{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
+#sg .sweep{position:absolute;inset:0;border-radius:50%;overflow:hidden;z-index:7;pointer-events:none}
+#sg .sweep i{position:absolute;top:-20%;bottom:-20%;width:34%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);
+  transform:translateX(-140%) rotate(14deg)}
+@keyframes swf{to{transform:translateX(320%) rotate(14deg)}}
+#sg .ray{position:absolute;left:50%;top:50%;height:2px;transform-origin:0 50%;z-index:8;
+  pointer-events:none;background:linear-gradient(90deg,rgba(201,164,74,.9),transparent)}
+@keyframes ryf{from{width:0;opacity:1}to{width:var(--L);opacity:0}}
+#sg .bead{position:absolute;width:14px;height:14px;border-radius:50%;z-index:30;pointer-events:none;
+  box-shadow:0 0 14px 5px currentColor;background:currentColor}
+#sg .fnum{position:absolute;left:50%;top:34%;transform:translateX(-50%);z-index:32;pointer-events:none;
+  font:900 19px/1 var(--mono);color:var(--hanjiW);text-shadow:0 2px 5px rgba(0,0,0,.85);white-space:nowrap}
+#sg .fnum.dn{color:#E4867A}
+#sg .fnum.up{color:#8CE0D4}
+#sg .fnum.big{font-size:27px}
+@keyframes fnf{from{transform:translate(-50%,0);opacity:0}
+  22%{opacity:1}to{transform:translate(-50%,-46px);opacity:0}}
+#sg .shk{animation:shk .32s ease}
+@keyframes shk{0%,100%{transform:translate(-50%,-50%)}
+  25%{transform:translate(calc(-50% - 5px),-50%)}75%{transform:translate(calc(-50% + 5px),-50%)}}
+#sg .gz.pop{animation:pop2 .6s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop2{from{transform:translate(-50%,-50%) scale(.2)}
+  60%{transform:translate(-50%,-50%) scale(1.12)}to{transform:translate(-50%,-50%) scale(1)}}
+#sg .gz.gone{opacity:.1;transform:translate(-50%,-50%) scale(.78);transition:opacity .5s,transform .5s}
+#sg .gz.bounce{animation:bnc .4s ease}
+@keyframes bnc{0%,100%{transform:translate(-50%,-50%) scale(1)}
+  40%{transform:translate(-50%,-50%) scale(1.07)}}
+#sg .pls{box-shadow:0 0 0 3px var(--pulse),0 0 18px var(--pulse)!important;transition:box-shadow .3s}
+#sg .card.deny{animation:dny .34s ease}
+@keyframes dny{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+#sg .card.dealt{animation:dlt .42s ease-out}
+@keyframes dlt{from{transform:translateY(80px) scale(.7);opacity:0}to{transform:none;opacity:1}}
+body.fxbusy #sg{cursor:progress}
+body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_end{pointer-events:none}
+
+/* ── 오버레이 ─────────────────────────────────────────────── */
+#sg .ov{position:absolute;inset:0;z-index:80;background:rgba(14,16,19,.82);
+  display:none;align-items:center;justify-content:center}
+#sg .ov.on{display:flex}
+#sg .obox{width:820px;max-width:92%;max-height:88%;overflow:auto;padding:22px 26px}
+#sg .ohead{display:flex;align-items:baseline;gap:14px;padding-bottom:12px;border-bottom:3px solid var(--steel)}
+#sg .ohead .h1{font:800 24px/1 var(--sans);color:var(--ink3)}
+#sg .ohead .h2{font:700 13px/1 var(--sans);color:var(--ink2)}
+#sg .ohead .cnt{margin-left:auto;font:800 14px/1 var(--mono);color:var(--ink3)}
+#sg .nurse{font:600 13.5px/1.6 var(--sans);color:var(--ink3);margin:14px 0;
+  border-left:4px solid var(--t3);padding:6px 0 6px 11px}
+#sg .nurse b{color:var(--red)}
+#sg .qlist{margin:12px 0;max-height:46vh;overflow:auto}
+#sg .qrow{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid rgba(0,0,0,.14)}
+#sg .qrow.done{opacity:.55}
+#sg .qrow.now{background:rgba(58,117,112,.13)}
+#sg .qlv{font:800 11px/1 var(--mono);color:var(--ink2);border:2px solid var(--line);padding:3px 6px}
+#sg .qn{font:600 13.5px/1.4 var(--sans);color:var(--ink3)}
+#sg .qr{margin-left:auto;font:800 12px/1 var(--sans);padding:4px 9px;border:2px solid var(--line);color:var(--ink2)}
+#sg .qr.g1{color:var(--red);border-color:var(--red)}
+#sg .qr.g2{color:var(--anno);border-color:var(--anno)}
+#sg .qr.g3{color:var(--ink2)}
+#sg .qr.g4{color:var(--t3);border-color:var(--t3)}
+#sg .qr.g5{color:#2F6B4F;border-color:#2F6B4F}
+#sg .ofoot{display:flex;align-items:center;gap:16px;padding-top:13px;border-top:3px solid var(--steel)}
+#sg .ofoot .n{font:11.5px/1.55 var(--sans);color:var(--ink2)}
+#sg .ofoot .n b{color:var(--red)}
+#sg .ogo{margin-left:auto;background:var(--steelD);color:var(--hanjiW);border:3px solid var(--steelL);
+  padding:12px 22px;font:800 14px/1 var(--sans);letter-spacing:.06em;cursor:pointer;white-space:nowrap}
+#sg .ogo:hover{border-color:var(--brass)}
+#sg .ogo.off{opacity:.4;cursor:default}
+/* 문진 — 한꺼번에 고르고 한 번에 확정한다 */
+#sg .alist{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+#sg .aq{border:2px solid var(--line);padding:11px 13px;cursor:pointer;background:var(--paper2)}
+#sg .aq:hover{border-color:var(--steel);background:#fff}
+#sg .aq.on{border-color:var(--t3);background:rgba(58,117,112,.14);box-shadow:inset 0 0 0 2px rgba(58,117,112,.3)}
+#sg .aq.off{opacity:.4;cursor:default}
+#sg .aq .q{font:600 14px/1.35 var(--sans);color:var(--ink3)}
+#sg .aq .e{font:10.5px/1.3 var(--sans);color:var(--t3);margin-top:4px}
+#sg .vg{font:900 46px/1 var(--sans);letter-spacing:.1em;text-align:center;color:var(--ink3);margin:12px 0}
+#sg .vs{font:13px/1.7 var(--sans);color:var(--ink2);text-align:center;margin-bottom:6px}
+/* 스토리 — 막 · 방침 */
+#sg .polrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+#sg .polbtn2{border:2px solid var(--line);background:var(--paper2);padding:14px;cursor:pointer;text-align:left}
+#sg .polbtn2:hover{border-color:var(--t3);background:#fff}
+#sg .polbtn2:disabled{opacity:.4;cursor:default}
+#sg .polbtn2 b{display:block;font:800 17px/1.2 var(--sans);color:var(--ink3);margin-bottom:5px}
+#sg .polbtn2 span{font:11.5px/1.45 var(--sans);color:var(--ink2)}
+#sg .evrow{display:flex;gap:6px;margin:10px 0}
+#sg .evrow i{flex:1;height:12px;border:2px solid var(--steel);display:block}
+#sg .evrow i.on{background:var(--t3);border-color:var(--t3)}
+
+/* 무대는 통째로 줄어든다 — 툴팁은 화면 좌표로 뜨므로 크기를 되돌린다 */
+#sg [data-tip]{cursor:help}
 </style></head><body>
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN <span>v25</span></h1>
+  <h1>INTERN SIM <span>0.1.2.1</span><button class="pnbtn" onclick="openPatch()"
+      title="패치 노트를 연다">패치</button></h1>
   <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -214,6 +694,9 @@ td input[type=checkbox]{width:auto}
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
+  <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
+    <input type="checkbox" id="sg_use" checked style="width:auto"> 전투를 무대에서 본다</label>
+  <div class="note" style="margin:4px 0 0">끄면 이 작업대에서 그대로 둔다. 배치를 돌릴 때는 꺼 두는 편이 빠르다.</div>
   <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
   <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
@@ -247,6 +730,8 @@ td input[type=checkbox]{width:auto}
     <div class="tags" id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
+    <!-- 새 판이 아니라 보던 판이다 — 작업대로 나왔다가 그대로 되돌아간다 -->
+    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
   </div>
 
@@ -255,6 +740,7 @@ td input[type=checkbox]{width:auto}
     <select id="ssel"><option value="d1">1일차 아침</option><option value="d2">2일차 아침</option><option value="d2m">2일차 오후 · 시장</option><option value="d3">3일차 왕진 (2라운드)</option></select>
     <label>턴 예산 직접 지정 (0 = 기준값)</label><input type="number" id="sbudget" value="0">
     <button class="go" onclick="sessInit()">가방을 연다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
     <div id="se_ctrl" style="margin-top:14px"></div>
   </div>
 
@@ -274,6 +760,7 @@ td input[type=checkbox]{width:auto}
       <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
     </div>
     <button class="go" onclick="newStory()">전투를 시작한다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
     <div id="st_ctrl" style="margin-top:14px"></div>
   </div>
@@ -344,6 +831,124 @@ td input[type=checkbox]{width:auto}
   <details id="aiwbox"></details>
  </div>
 </div>
+
+<!-- ══ 패치 노트 ══ 판본 옆 단추가 연다. 글은 60-text/patch-notes.js 에 있다 ══ -->
+<div id="pn">
+  <div class="pnbox">
+    <div class="pntop">
+      <div class="pnttl">패치 노트</div>
+      <button class="pnx" onclick="closePatch()" title="닫는다 (Esc)">✕</button>
+    </div>
+    <div class="pnlist" id="pn_list"></div>
+  </div>
+</div>
+<!-- ══════════════════════════════════════════════════════════════════
+     무대 — 전투 화면. 작업대 위에 통째로 덮는다.
+     칸만 있고 글은 없다. 채우는 것은 70-ui/stage*.js 다.
+     ══════════════════════════════════════════════════════════════ -->
+<div id="sg">
+<div id="sg_wrap"><div id="sg_stage"><div id="sg_screen">
+  <div class="bg"></div>
+
+  <!-- 세션 · 막 머리띠 -->
+  <div class="shud plate" id="sg_hud">
+    <span class="dy" id="sg_day">—</span>
+    <span class="qs" id="sg_qs"></span>
+    <span class="q" id="sg_qtxt"></span>
+    <span class="actbadge" id="sg_act" style="display:none"></span>
+    <span class="b" id="sg_budget"></span>
+  </div>
+  <button id="sg_exit" onclick="stageClose()">작업대로 (Esc)</button>
+
+  <!-- 카르테 -->
+  <div class="karte plate">
+    <div class="kname" id="sg_kname">—</div>
+    <div class="kmeta" id="sg_kmeta"></div>
+    <div class="ktags" id="sg_ktags"></div>
+    <div class="kdiv"></div>
+    <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
+    <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
+    <div class="klog"><div class="ph">기록</div><div class="lg" id="sg_lg"></div></div>
+  </div>
+
+  <!-- 판 -->
+  <div id="sg_board">
+    <svg id="sg_links" viewBox="0 0 1000 700" preserveAspectRatio="none"></svg>
+    <div id="sg_pat">
+      <svg class="ring" id="sg_ring" viewBox="0 0 216 216"></svg>
+      <div class="bust" id="sg_bust"></div><div class="flash"></div>
+      <div class="hp" id="sg_hp">—</div>
+      <div id="sg_mind">—</div>
+    </div>
+    <div class="plate" id="sg_bubble"><div class="who" id="sg_bwho">환자</div><div class="txt" id="sg_btxt"></div><div class="tail"></div></div>
+    <div class="plate" id="sg_actbar"><span class="n" id="sg_an"></span><span class="v" id="sg_av"></span></div>
+  </div>
+
+  <!-- 우측 계기 -->
+  <div class="right plate">
+    <div class="rtop">
+      <div class="trow"><span>턴</span><span class="n" id="sg_turn">1</span><span class="r" id="sg_spent"></span></div>
+      <div class="pips" id="sg_energy"></div>
+      <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
+      <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
+      <div class="piles">
+        <div class="pile"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
+        <div class="pile"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
+        <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
+      </div>
+    </div>
+    <div class="rbot"><aside class="state" id="sg_state"></aside></div>
+  </div>
+
+  <div id="sg_hand"></div>
+  <div id="sg_end" onclick="stageEndBtn()">턴 종료</div>
+  <div id="sg_toast"></div>
+
+  <!-- 대기 명단 -->
+  <div class="ov" id="sg_ovQueue"><div class="obox plate">
+    <div class="ohead"><span class="h1" id="sg_qhead">진료</span><span class="h2">환자를 부른다</span>
+      <span class="cnt" id="sg_qbud"></span></div>
+    <div class="nurse" id="sg_nurse"></div>
+    <div class="qlist" id="sg_qlist"></div>
+    <div class="ofoot"><span class="n" id="sg_qnote"></span>
+      <span class="ogo" id="sg_qgo" onclick="stageQueueGo()">다음 환자를 부른다</span></div>
+  </div></div>
+
+  <!-- 문진 -->
+  <div class="ov" id="sg_ovAsk"><div class="obox plate">
+    <div class="ohead"><span class="h1">문진</span><span class="h2" id="sg_askwho"></span>
+      <span class="cnt" id="sg_askcnt"></span></div>
+    <div class="alist" id="sg_asklist"></div>
+    <div class="ofoot"><span class="n" id="sg_asknote"></span>
+      <span class="ogo off" id="sg_askgo" onclick="stageAskGo()">진료를 시작한다</span></div>
+  </div></div>
+
+  <!-- 이 환자의 결과 -->
+  <div class="ov" id="sg_ovVerd"><div class="obox plate" style="width:560px">
+    <div class="vg" id="sg_vg"></div><div class="vs" id="sg_vs"></div>
+    <div class="ofoot" style="justify-content:center">
+      <span class="ogo" id="sg_vgo" onclick="stageVerdGo()">다음</span></div>
+  </div></div>
+
+  <!-- 세션 결산 -->
+  <div class="ov" id="sg_ovEnd"><div class="obox plate">
+    <div class="ohead"><span class="h1" id="sg_ehead">끝났다</span><span class="h2" id="sg_esub"></span></div>
+    <div class="qlist" id="sg_elist"></div>
+    <div class="ofoot"><span class="n" id="sg_enote"></span>
+      <span class="ogo" onclick="stageClose()">작업대로 돌아간다</span></div>
+  </div></div>
+
+  <!-- 스토리 — 병명 선언 · 방침 -->
+  <div class="ov" id="sg_ovAct"><div class="obox plate">
+    <div class="ohead"><span class="h1" id="sg_acthead"></span><span class="h2" id="sg_actsub"></span>
+      <span class="cnt" id="sg_actcnt"></span></div>
+    <div id="sg_actbody"></div>
+    <div class="ofoot"><span class="n" id="sg_actnote"></span>
+      <span class="ogo" id="sg_actgo" onclick="stageActGo()"></span></div>
+  </div></div>
+
+</div></div></div>
+</div>
 <script>
 /* ════════════════════════════════════════════════════════════════════════
    INTERN 전투 시뮬레이터 — build.js 가 src/ 에서 이어 붙인 결과물이다.
@@ -372,7 +977,7 @@ td input[type=checkbox]{width:auto}
    껍데기(HTML)는 {{VERSION}} 이라 적어 두면 build.js 가 갈아 넣는다.
    ══════════════════════════════════════════════════════════════════ */
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = 'v25';
+const VERSION = '0.1.2.1';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -1057,7 +1662,26 @@ const PRESETS = {
    ═══════════════════════════════════════════════════════════════ */
 
 /* tags = 체력 태그 · syms = 증상 구성(순서가 곧 주/부 밴드 배정 순서)
-   core = 핵심 증상 · chronic = 만성(억제 0.7배) */
+   core = 핵심 증상 · chronic = 만성(억제 0.7배)
+
+   ── 아직 아무도 읽지 않는 열쇠 셋 ──────────────────────────
+   아래 셋은 적혀만 있고 읽는 코드가 한 줄도 없다. v25 원본에서 그대로
+   넘어온 것이고, 이 리포에서 살아 있었던 적이 없다 (git 이력상 baseline
+   과 층 분해 두 커밋에만 나온다). 규칙도 화면도 이 값을 보지 않는다.
+
+     refuse:2      d1_4  흉부 타박 · 검문소 하급병
+     trait:'…'     d3_1  바닥층 두목 · 숙취
+     needDrug:'…'  d3_r5 급성 요도염 · d3_5b 방치된 당뇨
+
+   버리지 않고 두는 이유는 기획 메모로 읽히기 때문이다 — 「환자가 진료를
+   거부한다」·「환자 특성」·「이 약이 있어야 낫는다」는 각각 규칙이 따로
+   필요한 기능이고, 둘이 왕진(d3)에 몰려 있는 것도 우연 같지 않다.
+   구현하기로 하면 여기 적힌 사람부터 붙이면 된다. 접기로 하면 지운다.
+
+   ── 거꾸로, 읽기는 하는데 아직 아무도 안 적은 것 ────────────
+   chief = 호소 증상 한 줄. 카르테 맨 윗줄이 이 값을 먼저 본다.
+   적힌 사람이 아직 없어서 지금은 핵심 증상에서 만든 기본 문장이 나온다.
+   (70-ui/say.js 의 CHIEF · CHIEF_BY_SYM) */
 //@ 환자.대본 — 23명. 수치는 §2 가 뱉는다
 const SCRIPT = {
 /* ── 1일차 아침 (대본 12턴 / 메모 26턴 — 충돌) ───────────── */
@@ -1118,6 +1742,10 @@ d4_song:{day:4,slot:'서브보스',lv:4,name:'송이 · 아편 중독',
 d4_child:{day:4,slot:'보스',lv:5,name:'아이 · 수막알균',
       syms:['발열','통증','호흡곤란','감염'], core:'발열', tags:['소아'], story:true},
 };
+
+/* 편의 — 대본 한 줄이 제 이름을 안다. 판(BOARD.script)만 쥐고 있어도
+   이 환자가 누구인지 되짚을 수 있어야 대사 곳간이 열쇠를 찾는다 */
+for(const [id, p] of Object.entries(SCRIPT)) p.id = id;
 
 /* ── 문진 여섯 ─────────────────────────────────────────────
    말수(talk)만큼만 물을 수 있다. 물을 것을 고르는 것이 문진이다.
@@ -2110,6 +2738,14 @@ function hasRevisit(S, id){
 
 function canPlay(S, id){
   const c = CARDS[id]; if(!c) return false;
+  /* 카드는 손에서 나간다. 그동안 이 전제는 부르는 쪽에만 있었고 여기엔 없었다 —
+     부르는 자리 열네 곳이 모두 S.hand 에서 골라 넘겼기 때문에 드러나지 않았을 뿐이다.
+     그 전제가 한 번 깨지면 play() 가 손에서 빼지도 않고 버림에만 넣어서 카드가
+     불어난다 (i>=0 일 때만 빼고, 넣는 것은 언제나 넣는다).
+     실제로 두 번 깨졌다 — 빔 탐색이 clone 에서 짠 계획을 그대로 얹을 때,
+     그리고 무대에서 카드를 겨눈 채 되돌리기를 했을 때. 둘 다 그 자리에서 고쳤지만
+     세 번째 자리가 생기면 또 조용히 불어난다. 전제를 여기 적어 둔다. */
+  if(!S.hand.includes(id)) return false;
   if(cardCost(S,id) > S.energy) return false;
   if(c.once && (S.oncePlayed||{})[id]) return false;
   if(c.bleed && !K.canBleed(S, c.bleed)) return false;      // 사혈을 못 치르면 못 낸다
@@ -2853,12 +3489,31 @@ function planTurn(S){
   return best.seq;
 }
 
+/* 계획은 clone 위에서 짜이고, clone 의 난수는 ()=>0.5 로 고정되어 있다 —
+   탐색이 흔들리지 않게 하려는 선택이다. 그런데 계획 안에 뽑기가 끼면 그 고정이
+   대가를 부른다: 클론이 뽑은 카드와 실제 판이 뽑은 카드가 다르다. 덱이 비어
+   재셔플까지 걸리면 아예 딴 손이 된다. 그 뒤의 수는 손에 없는 카드를 가리킨다.
+
+   그래서 덱이 움직인 순간 나머지 계획을 버리고 다시 짠다. 사람도 뽑고 나면
+   손을 다시 보고 정한다 — 옛 휴리스틱(aiTurnH)은 처음부터 그렇게 하고 있었고,
+   그쪽에서는 이 일이 나지 않았다.
+
+   「뽑기 카드」가 아니라 「덱이 움직였는가」로 보는 이유는, 덱을 건드리는 손이
+   앞으로 늘어도 규칙이 그대로 맞기 때문이다. */
+//@ AI.한턴 — 계획을 얹되, 덱이 움직이면 다시 짠다
 function aiTurn(S, opt={}){
   S.played = 0;
-  const seq = planTurn(S);
-  for(const m of seq){
-    if(S.played >= R.PLAY_CAP) break;
-    apply(S, m);
+  for(let round=0; round<=R.PLAY_CAP; round++){
+    const seq = planTurn(S);
+    if(!seq.length) return;
+    let deckMoved = false;
+    for(const m of seq){
+      if(S.played >= R.PLAY_CAP) return;
+      const deck0 = S.deck.length, sh0 = S.shuffles||0;
+      if(!apply(S, m)) break;                 // 낼 수 없는 수가 나오면 거기서 계획을 접는다
+      if(S.deck.length !== deck0 || (S.shuffles||0) !== sh0){ deckMoved = true; break }
+    }
+    if(!deckMoved) return;
   }
 }
 
@@ -3329,6 +3984,144 @@ const RULE_GROUP = {
       ['방침', ['POLICY']]],
 };
 
+//@ 파일.60-text/patch-notes
+
+/* ══════════════════════════════════════════════════════════════════
+     v      판본. 이것만 있으면 나머지는 다 없어도 된다
+     date   날짜. 없으면 안 찍는다
+     tag    '게임플레이 변경' · '버그 수정' · '편의성 개선'. 없으면 안 찍는다
+            (딴 말을 적어도 그대로 찍힌다. 색만 안 붙는다)
+     size   'M' 이면 큰 판올림 — 줄과 글자가 커진다.
+            'm' 이거나 없으면 작은 판올림이다. 대소문자로만 가른다
+     body   펼쳤을 때 나오는 본문. 아래 규칙대로 읽는다
+
+   ■ body 읽는 규칙 — 네 줄이 전부다
+
+     · 「-」 「·」 로 시작하는 줄        →  글머리 한 줄
+     · 「*」 로 시작하는 줄             →  바로 위 글머리에 딸린 한 줄 (한 칸 들어간다)
+     · 그 밖의 글이 있는 줄            →  묶음 이름 (그 아래 글머리들을 거느린다)
+     · 빈 줄                            →  아무 뜻 없다. 보기 좋으라고 띄우는 것
+   ══════════════════════════════════════════════════════════════════ */
+//@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
+const PATCH_NOTES = [
+{v:'0.1.2.1', size:'m', date:'2026-08-27', tag:'편의성 개선', body:`
+시뮬레이터
+
+-패치노트 내용을 메이저와 마이너로 구분
+`},
+
+   
+{v:'0.1.2', size:'m', date:'2026-08-26', tag:'편의성 개선', body:`
+시뮬레이터
+
+-패치노트 추가
+
+-전투 와이어프레임 이탈 후 재진입 버튼 추가
+`},
+
+   
+{v:'0.1.1', size:'m', date:'2026-08-26', tag:'버그 수정', body:` 
+버그 수정
+
+-자동 진행 AI가 드로우 카드 사용 시 핸드에 존재하지 않는 카드를 사용하는 문제 수정
+
+-자동 플레이 알고리즘 변경
+`},
+
+   
+{v:'0.1', size:'M', date:'2026-08-25', tag:'게임플레이 변경', body:` 
+시뮬레이터
+
+-전투 와이어프레임이 시뮬레이터 전투 화면으로 동작하도록 수정
+
+-와이어프레임에 미구현된 UI와 연출 구현
+
+-환자 진료 중 원하는 시점에 원하는 대사를 입력할 수 있도록 구조 신설
+
+-코드 정리
+
+-버그 수정
+`},
+
+   
+{v:'26.2', size:'m', date:'2026-08-24', tag:'편의성 개선', body:` 
+게임플레이
+
+-스토리 전투에서 덱을 카드팩 단위로 편성하도록 변경
+
+-수막알균의 의도하지 않은 동작을 수정
+
+시뮬레이터
+
+-코드 최적화
+
+-오류 검사기 추가
+`},
+
+   
+{v:'25.1', size:'m', date:'2026-08-23', tag:'편의성 개선', body:`  
+게임플레이
+
+-카드 텍스트를 동적 수치로 변경. 이제 카드 텍스트 내 모든 수치는 전장 상황에 영향 받아 변화함
+
+-코드 정리 및 구조 개편
+
+-버그 수정
+ `},
+
+   
+{v:'25', size:'M', date:'2026-08-22', tag:'게임플레이 변경', body:`
+전투
+
+-정신 악화/완화 조건 변경
+*억제 3회 사용 시 정신 상태 악화, 불안까지
+*진단 1회차 완료 시 정신 상태 완화
+
+-연명 승리 조건을 활성 증상 0으로 변경
+
+-수막알균 패턴에서 가속을 삭제
+
+-보스 패턴 추가
+*굳는다 — 보호막이 벗겨진 자리 전부에 보호막을 다시 두른다
+*몰린다 — 활성 자리 중 수치가 가장 낮은 하나를 초기값의 40%만큼 키운다
+*엮는다 — 살아 있는 증상 둘 사이에 촉발 배선을 새로 놓는다
+
+-어부와 송이 병 노드 고유 패턴 추가
+
+-어부
+*번진다 — 활성 통증 자리 전부가 초기값의 25%만큼 오른다
+*아문다 — 수치가 가장 낮은 자리 하나가 스스로 휴면에 든다
+
+-송이
+*치민다 — 자리 전부 +초기값 30% · 정신 한 단계 붕괴
+*가라앉는다 — 자리 전부 −초기값 25%. 하한 1이라 휴면에는 안 든다
+ `},
+
+   
+  {v:'24', size:'M', date:'2026-08-21', tag:'게임플레이 변경', body:`
+  전투
+  
+  -스토리 전투가 레벨표를 따르도록 변경
+  
+  -적용된 변경점: 
+  *환자 체력
+  *노드 수치
+  *보호막 여부
+  *진화 카운터
+  
+  -아이 전투에서 병기 체력 증가를 절대치에서 비례 이월로 변경
+
+  -수막알균 신규 패턴 추가
+  *창: 전장의 모든 증상을 제거하고 병 노드가 제거된 증상의 수치에 비례해 회복한다.
+
+  -수막알균 병기 별 악보 개편
+
+  -'편하게 해준다' 방침의 승리 조건을 병기 5 도달로 변경
+  `},
+
+   
+];
+
 //@ 파일.70-ui/globals
 
 /* ══════════════════════════════════════════════════════════════════
@@ -3395,7 +4188,11 @@ const FIXT = {};
 
 function tipReset(){ TIPS = {}; TIPN = 0 }
 
-function tip(html){ if(!html) return ''; const k='t'+(++TIPN); TIPS[k]=html; return ` data-tip="${k}"` }
+/* 등록만 하고 열쇠를 돌려준다. 속성 문자열이 아니라 열쇠가 필요한 자리
+   (setAttribute 로 직접 다는 무대 쪽)가 쓴다 */
+function tipKey(html){ if(!html) return ''; const k='t'+(++TIPN); TIPS[k]=html; return k }
+
+function tip(html){ const k = tipKey(html); return k ? ` data-tip="${k}"` : '' }
 
 function tipFixReset(panel){
   for(const k of Object.keys(FIXT)) if(k.startsWith(panel+':')) delete FIXT[k];
@@ -3479,6 +4276,198 @@ function markKw(text){
   return out.replace(/\u0000(\d+)\u0000/g, (m,i)=>slot[+i]);
 }
 
+//@ 파일.70-ui/say
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.20 환자의 말
+   ──────────────────────────────────────────────────────────────────
+   대사는 아직 한 줄도 없다. 여기 있는 것은 「어디서 말이 나올 수 있는가」
+   뿐이다. 자리를 미리 다 뚫어 두고 내용을 비워 둔 것은, 나중에 대사를
+   넣을 때 이 파일 말고는 아무 데도 손대지 않기 위해서다.
+
+   두 단이다.
+     SAY.byPatient[환자ID][훅]   이 환자만의 말
+     SAY.common[훅]              아무나 할 수 있는 말 (환자별이 비었을 때)
+
+   한 훅에 넣을 수 있는 것 네 가지 — 필요한 만큼만 쓴다.
+     '문자열'                     그냥 이 말을 한다
+     ['첫 마디','둘째 마디']      부를 때마다 차례로 돈다
+     {완치:'…', 사망:'…'}        ctx.key 로 갈라 고른다 (결과 · 증상 · 문진 …)
+     (S, ctx) => '…'             판을 보고 그 자리에서 짓는다. 빈 값이면 안 한다
+
+   훅은 아래 SAY_HOOKS 에 적힌 것이 전부다. 새 훅이 필요하면 여기 한 줄
+   더하고, 부르는 쪽에서 sayEmit('이름', ctx) 를 부르면 된다.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 훅 하나하나가 언제 울리는가. 글은 사람이 읽으려고 적어 둔 것이고,
+   pri 는 한 턴에 여러 개가 동시에 울렸을 때 누가 입을 잡는가다 (높은 쪽). */
+//@ 대사.훅표 — 환자가 말할 수 있는 자리
+const SAY_HOOKS = {
+  open:    {pri:90, ctx:'—',            when:'진료를 시작한 직후'},
+  intake:  {pri:80, ctx:'문진 id',      when:'문진 답이 나올 때마다'},
+  turn:    {pri:10, ctx:'턴 수',        when:'SAY_TURN_EVERY 턴마다 한 번'},
+  kill:    {pri:60, ctx:'증상 이름',    when:'한 자리를 끊었을 때'},
+  dormant: {pri:40, ctx:'증상 이름',    when:'한 자리가 휴면에 들었을 때'},
+  revive:  {pri:50, ctx:'증상 이름',    when:'휴면이 깨고 되살아났을 때'},
+  shield:  {pri:35, ctx:'증상 이름',    when:'보호막이 벗겨졌을 때'},
+  spawn:   {pri:65, ctx:'증상 이름',    when:'전이로 새 자리가 났을 때'},
+  evolve:  {pri:75, ctx:'증상 이름',    when:'한 자리가 진화했을 때'},
+  mind:    {pri:70, ctx:'정신 단계',    when:'정신이 한 단계 무너졌을 때'},
+  mindUp:  {pri:45, ctx:'정신 단계',    when:'정신이 한 단계 돌아왔을 때'},
+  hp:      {pri:85, ctx:'남은 비율',    when:'체력이 눈금을 지나 내려갔을 때'},
+  diag:    {pri:55, ctx:'증상 이름',    when:'진단 한 회차를 열었을 때'},
+  act:     {pri:95, ctx:'막 번호',      when:'스토리에서 막이 넘어갈 때'},
+  policy:  {pri:95, ctx:'방침 이름',    when:'스토리에서 방침을 정했을 때'},
+  stage:   {pri:80, ctx:'병기 번호',    when:'병기가 한 칸 올랐을 때'},
+  verdict: {pri:99, ctx:'결과 등급',    when:'이 환자의 진료가 끝났을 때'},
+};
+
+/* 몇 턴마다 turn 훅이 울리는가. 0 이면 턴으로는 말하지 않는다 */
+//@ 대사.턴간격 — turn 훅이 울리는 주기
+const SAY_TURN_EVERY = 3;
+
+/* 체력이 이 눈금들을 아래로 지날 때 hp 훅이 한 번씩 울린다 (한 눈금당 한 번) */
+const SAY_HP_MARKS = [0.60, 0.35, 0.15];
+
+/* 한 턴에 말풍선을 몇 개까지 띄우는가. 사건이 겹쳐도 도배되지 않게 한다 */
+const SAY_PER_TURN = 1;
+
+/* ── 대사 곳간 ──────────────────────────────────────────────
+   전부 비어 있다. 넣고 싶은 자리에 글만 적으면 그 자리부터 말하기 시작한다.
+   지우면 다시 조용해진다 — 지운 자리를 부르는 쪽은 아무 일도 하지 않는다. */
+//@ 대사.곳간 — 지금은 전부 빈칸이다
+const SAY = {
+  /* 환자를 가리지 않는 말. byPatient 에 없을 때만 쓴다 */
+  common: {
+    open:    [],
+    intake:  {},          // {when:'…', how:'…', hurt:'…', life:'…', past:'…', tried:'…'}
+    turn:    [],
+    kill:    {},          // {발열:'…', 출혈:'…', …}
+    dormant: {},
+    revive:  {},
+    shield:  {},
+    spawn:   {},
+    evolve:  {},
+    mind:    {},          // {불안:'…', 공황:'…', 의식불명:'…'}
+    mindUp:  {},
+    hp:      {},          // {'0.6':'…', '0.35':'…', '0.15':'…'}
+    diag:    {},
+    act:     {},          // {'2':'…', '3':'…'}
+    policy:  {},          // {완치:'…', 연명:'…', 편하게:'…'}
+    stage:   {},
+    verdict: {},          // {완치:'…', 호전:'…', 연명:'…', 악화:'…', 사망:'…'}
+  },
+
+  /* 환자 하나에만 붙는 말. 키는 SCRIPT 의 id (d1_1 …) 또는 보스 이름 */
+  byPatient: {
+    // d1_1: { open:'…', kill:{발열:'…'}, verdict:{완치:'…'} },
+  },
+};
+
+/* ── 호소 증상 ──────────────────────────────────────────────
+   카르테 맨 윗줄. 대사와 달리 빈칸으로 두면 화면이 허해서, 핵심 증상에서
+   만든 기본 문장을 깔아 둔다. CHIEF 에 환자 id 로 한 줄 적으면 그 줄이
+   기본을 밀어낸다 — 손볼 곳은 여기 한 곳이다. */
+//@ 대사.호소 — 이 사람이 무엇 때문에 왔는가
+const CHIEF = {
+  // d1_1: '사흘째 열이 안 내린다',
+};
+
+/* 적어 둔 것이 없을 때 핵심 증상이 대신 말한다 */
+const CHIEF_BY_SYM = {
+  발열:'열이 안 내린다',
+  출혈:'피가 자꾸 난다',
+  감염:'붓고 붉어졌다',
+  탈수:'물을 못 넘긴다',
+  통증:'쑤셔서 견디기 어렵다',
+  호흡곤란:'숨쉬기가 힘들다',
+  병:'무엇 때문인지 모르겠다고 한다',
+};
+
+/* ── 고르기 ─────────────────────────────────────────────────
+   환자별을 먼저 보고, 없으면 공용에서 찾는다. 둘 다 비면 조용하다. */
+
+/* 이 판의 대사 주인이 누구인가 — 대본 환자면 그 id, 보스면 보스 이름 */
+//@ 대사.주인 — 지금 말하는 사람의 열쇠
+function sayWho(){
+  if(!BOARD) return null;
+  if(BOARD.script && BOARD.script.id) return BOARD.script.id;
+  if(SESS && SESS.def) return sessList()[SESS.idx] || null;
+  if(BOARD.boss) return BOARD.boss;
+  return null;
+}
+
+/* 곳간에 든 것 한 덩이를 실제 문장 하나로 푼다.
+   배열이면 차례로 돌고(그 순서는 판마다 따로 센다), 함수면 판을 넣어 부른다. */
+function sayPick(entry, S, ctx, cursorKey){
+  if(entry===null || entry===undefined) return null;
+  if(typeof entry==='function'){ try{ return entry(S, ctx) || null }catch(e){ return null } }
+  if(typeof entry==='string') return entry.trim() ? entry : null;
+  if(Array.isArray(entry)){
+    const live = entry.filter(x=>x!==null && x!==undefined && String(x).trim());
+    if(!live.length) return null;
+    S.sayN = S.sayN || {};
+    const i = (S.sayN[cursorKey] = (S.sayN[cursorKey]||0) + 1) - 1;
+    return sayPick(live[i % live.length], S, ctx, cursorKey+':'+(i%live.length));
+  }
+  if(typeof entry==='object'){
+    const k = ctx && ctx.key!==undefined && ctx.key!==null ? String(ctx.key) : null;
+    if(k===null) return null;
+    if(!(k in entry)) return null;
+    return sayPick(entry[k], S, ctx, cursorKey+':'+k);
+  }
+  return null;
+}
+
+/* 훅 하나를 울린다. 할 말이 있으면 말풍선을 띄우고 기록에 남긴다.
+   할 말이 없으면 아무 일도 일어나지 않는다 — 지금이 그 상태다. */
+//@ 대사.울리기 — 훅 하나를 울린다
+function sayEmit(hook, ctx){
+  if(!S || !SAY_HOOKS[hook]) return null;
+  ctx = ctx || {};
+  const who = sayWho();
+  const mine = who && SAY.byPatient[who] ? SAY.byPatient[who][hook] : undefined;
+  let txt = sayPick(mine, S, ctx, `${who}:${hook}`);
+  if(txt===null) txt = sayPick(SAY.common[hook], S, ctx, `*:${hook}`);
+  if(txt===null) return null;
+
+  /* 한 턴에 여러 사건이 겹쳤다 — 급한 쪽이 입을 잡는다 */
+  S.sayTurn = S.sayTurn || {t:-1, n:0, pri:-1};
+  if(S.sayTurn.t !== S.turn) S.sayTurn = {t:S.turn, n:0, pri:-1};
+  const pri = SAY_HOOKS[hook].pri;
+  if(S.sayTurn.n >= SAY_PER_TURN && pri <= S.sayTurn.pri) return null;
+  S.sayTurn.n++; S.sayTurn.pri = Math.max(S.sayTurn.pri, pri);
+
+  sayShow(txt, ctx);
+  return txt;
+}
+
+/* 체력 눈금을 지났는가 — 지난 눈금은 판에 적어 두고 두 번 울리지 않는다 */
+//@ 대사.체력눈금 — 눈금을 아래로 지날 때 한 번
+function sayHpCheck(){
+  if(!S || !S.hpMax) return;
+  const r = Math.max(0, S.hp) / S.hpMax;
+  S.sayHp = S.sayHp || [];
+  for(const m of SAY_HP_MARKS){
+    if(r <= m && !S.sayHp.includes(m)){ S.sayHp.push(m); sayEmit('hp', {key:String(m), ratio:r}) }
+  }
+}
+
+/* 턴 훅 — 주기가 맞을 때만 */
+function sayTurnTick(){
+  if(!S || !SAY_TURN_EVERY) return;
+  if(S.turn % SAY_TURN_EVERY === 0) sayEmit('turn', {key:String(S.turn), turn:S.turn});
+}
+
+/* ── 내보내기 ───────────────────────────────────────────────
+   말풍선은 무대에만 있다. 무대가 안 떠 있으면 기록에만 남는다. */
+//@ 대사.표시 — 말풍선과 기록
+function sayShow(txt, ctx){
+  const name = (BOARD && BOARD.script) ? String(BOARD.script.name).split(' · ').pop() : '환자';
+  log(`<span class="say"><b>${esc(name)}</b> — ${esc(txt)}</span>`);
+  if(typeof stageBubble==='function') stageBubble(txt, ctx);
+}
+
 //@ 파일.70-ui/card-view
 
 /* ══════════════════════════════════════════════════════════════════
@@ -3491,6 +4480,26 @@ function markKw(text){
    실제 값은 커널의 supAmt · stabAmt · diagAmt 가 낸다. 카드가 쓰는 함수와
    판이 정산할 때 쓰는 함수가 같은 것이다 — 갈리면 카드가 거짓말을 한다.
    ══════════════════════════════════════════════════════════════════ */
+
+/* ── 지금 이 카드를 낼 수 있는가 ────────────────────────────
+   작업대와 무대가 같은 답을 쓴다. 두 벌로 적혀 있던 동안 「자리를 고른다」와
+   「손패에서 n장 고른다」가 무대에만 빠져 있었다. */
+//@ 화면.카드가능 — 낼 수 있는가, 못 낸다면 왜
+function cardWhy(S, id, node){
+  const c = CARDS[id];
+  let ok = canPlay(S, id), why = '';
+  if(!ok) why = cardCost(S,id) > S.energy ? '코스트 모자람'
+             : (c.bleed && !canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
+             : (c.target==='hand' ? (c.kw==='재진'?'붙일 진단 카드가 없다':'고를 카드가 없다') : '지금은 못 냄'));
+  else if(c.target==='node'){
+    if(!node) why = '자리를 고른다';
+    else if(c.need && c.need.length<2 && !c.need(node)){ ok=false; why=`${node.sym}에는 못 쓴다` }
+    else if(immune(S,node) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
+    else if(c.verb==='진단' && !canDiag(S,node,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
+  }
+  else if(c.target==='hand') why = `손패에서 ${pickNeed(S,id)}장 고른다`;
+  return {ok, why};
+}
 
 /* 사혈 단수 아이콘 — 코스트 옆에 붙는다 */
 //@ 화면.카드그리기 — §9.4 카드 한 장의 겉모습
@@ -3622,10 +4631,18 @@ function forecast(){
 
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다
 function render(){
+  /* 무대가 떠 있으면 그쪽도 같이 맞춘다 — 되돌리기 · 자동 진행 · 세션이
+     무대를 몰라도 되는 이유가 이 한 줄이다 */
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON){
+    /* 무대가 덮고 있는 동안 작업대는 보이지 않는다. 그리지 않는다 —
+       나갈 때 stageClose() 가 render() 를 한 번 더 불러 맞춘다 */
+    stageRender(); return;
+  }
   deckLine('one_deck', ONE_DECK, ONE_CAP);
   packLine();
   renderOvr();
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;
+  syncBackBtn();
   if(DB){ renderDeck(); return }
   if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }
@@ -3633,6 +4650,35 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+}
+
+/* ── 환자 머리에 붙는 설명 둘 ────────────────────────────────
+   작업대와 무대가 같은 것을 쓴다. 두 벌로 적혀 있던 동안 작업대 쪽이
+   「한 턴에 두 번 억제」·「15%」를 글자로 박아 두고 커널과 갈라져 있었다.
+   실제 규칙은 이렇다 (kernel.suppress · hurtPatient):
+     · 한 자리를 한 턴에 HIT_ANX 번째로 억제할 때, 평정이면 불안으로.
+       억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제는 안 센다.
+     · 한 턴 누적 손실이 최대 체력의 MIND_BIGHIT 을 넘으면 한 단계. 턴당 한 번. */
+//@ 화면.정신설명 — 무엇이 정신을 흔드는가
+function mindTipBody(S){
+  return `평정 = 안정화 ×${R.MIND_CALM_STAB}<br>불안 · 공황 = 억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}`
+    + `<br>의식불명 = 진단이 −${R.MIND_KO_DIAG} 더<br><br>`
+    + `한 자리를 한 턴에 <b>${R.HIT_ANX}번째</b>로 억제하면 불안으로 간다 — 평정일 때만이고,`
+    + ' 억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제(광역 · 설치물)는 세지 않는다.<br>'
+    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 한 단계 무너진다 — 턴당 한 번이다.<br>`
+    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
+    + (S.mind==='공황' ? '<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.' : '');
+}
+
+//@ 화면.체력설명 — 이번 턴에 얼마를 잃는가
+function hpTipBody(S, f){
+  const cuts = comfortCuts(S);
+  return `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
+    + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
+    + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
+    + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
+    + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
+    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'');
 }
 
 /* ── 자리의 처치선 ── 규칙이 정한 바탕값과, 이 판에서 실제로 걸린 값 ──
@@ -3665,6 +4711,46 @@ function lineWhy(S, n){
   return w;
 }
 
+/* ── 자리 하나에 붙는 표딱지들 ────────────────────────────────
+   보호막 · 약화 · 설치물 · 성장 · 진화 시계 · 진단 회차 …
+   3열 화면과 무대가 같은 것을 쓴다 — 두 벌로 적으면 한쪽이 곧 거짓말을 한다.
+   글과 설명(툴팁)이 여기 다 들어 있으므로 부르는 쪽은 자리만 내주면 된다. */
+//@ 화면.자리표딱지 — 한 자리에 붙는 값과 그 설명
+function nodeMarks(S, n){
+  const gAdd = growAmt(S,n);
+  return [
+    /* 처치선은 늘 보인다. 뱃지는 이미 끊을 수 있을 때만 뜨는데,
+      정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
+    `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
+    n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
+    n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
+    n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
+    n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
+    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+    n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
+    gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
+    n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
+    n.role==='disease'?'':(n.evolved
+      ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
+      :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
+    n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
+    (SYMDOC[n.sym] && n.role!=='disease')
+      ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
+      + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
+      + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
+      }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
+    `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
+      + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
+    n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
+    n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
+    n.muted?`<span class="m dm">이번 턴 잠잠</span>`:'',
+    (S.pendKill||[]).includes(S.nodes.indexOf(n))
+      ?`<span class="m"${tip(TT('처치 예약 · 공황','공황이라 손이 늦다. 다음 턴 시작에 터진다.<br>터질 때 다시 판정하므로 그 사이 이 자리가 처치선 위로 올라가면 헛손질로 끝난다. 코스트는 돌아오지 않는다.'))} style="color:var(--blood);border-color:var(--blood)">처치 예약</span>`:'',
+    (n.evolved && (n.sym==='통증'||n.sym==='호흡곤란'))
+      ?`<span class="m ev"${tip(TT('완화 면역',`진화한 ${n.sym}은 <b>자신에게 걸린 완화를 턴당 한 번</b> 튕겨 낸다.<br>판 전체가 아니라 이 자리만이고, 한 번 튕기면 그 턴은 다시 안 튕긴다.<br>「붕대 감기」의 정신 악화 방어는 완화가 아니라서 그대로 붙는다.`))}>완화 면역 ${n.calmUsed?'소진':'1회'}</span>`:'',
+  ].filter(Boolean).join('');
+}
+
 function renderInto(h){
   if(!S) return;
   tipReset();
@@ -3676,17 +4762,8 @@ function renderInto(h){
   const tagTip = (BOARD.tags||[]).length
     ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>×${HP_TAG[t]}</b>`).join('<br>')
         + `<br><br>기본 체력 ${LVTAB[BOARD.level]?LVTAB[BOARD.level].hp:'—'} 에 곱연산으로 걸린다.`)) : '';
-  const mindTip = tip(TT('정신 · '+S.mind,
-      '평정 = 안정화 ×1.3<br>불안 · 공황 = 억제 −1 · 진단 −1<br><br>'
-      +'한 노드를 한 턴에 두 번 억제하거나, 한 턴에 최대 체력의 15% 이상 잃으면 한 단계 악화한다.<br>'
-      +'처치 · 진단 성공 · 휴면 도달은 한 단계 호전시킨다.'));
-  const hpTip = tip(TT('환자 체력',
-      `지금 <b>${S.hp}</b> / 최대 ${S.hpMax}<br>이번 턴 잃은 값 ${S.lostThisTurn||0}`
-      + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
-      + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
-      + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
-      + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
-      + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'')));
+  const mindTip = tip(TT('정신 · '+S.mind, mindTipBody(S)));
+  const hpTip   = tip(TT('환자 체력', hpTipBody(S, f)));
 
   $(h+'_patient').innerHTML=`
     <div class="prow"><span class="ptitle">환자</span>
@@ -3722,38 +4799,7 @@ function renderInto(h){
           +(r==='strong'?'<br><br>강반응은 전이 · 촉발을 강하게 터뜨리고 정신을 한 단계 무너뜨린다.':'')
           +(r==='none'?'<br><br>휴면에서 끊으면 광역 억제가 0이다.':'')))}>${r==='strong'?'강반응':r==='weak'?'약반응':'휴면'} · 처치 ${R.KILL_COST}코 · 전체 −${sweepAmt(n)}</span>`);
 
-    const gAdd = growAmt(S,n);
-    const marks=[
-      /* 처치선은 늘 보인다. 뱃지는 이미 끊을 수 있을 때만 뜨는데,
-         정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
-      `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
-      n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
-      n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
-      n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
-      n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
-      n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
-      n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
-      gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
-      n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
-      n.role==='disease'?'':(n.evolved
-        ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
-        :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
-      n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
-      (SYMDOC[n.sym] && n.role!=='disease')
-        ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
-            + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
-            + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
-          }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
-      `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
-        + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
-      n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
-      n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
-      n.muted?`<span class="m dm">이번 턴 잠잠</span>`:'',
-      (S.pendKill||[]).includes(S.nodes.indexOf(n))
-        ?`<span class="m"${tip(TT('처치 예약 · 공황','공황이라 손이 늦다. 다음 턴 시작에 터진다.<br>터질 때 다시 판정하므로 그 사이 이 자리가 처치선 위로 올라가면 헛손질로 끝난다. 코스트는 돌아오지 않는다.'))} style="color:var(--blood);border-color:var(--blood)">처치 예약</span>`:'',
-      (n.evolved && (n.sym==='통증'||n.sym==='호흡곤란'))
-        ?`<span class="m ev"${tip(TT('완화 면역',`진화한 ${n.sym}은 <b>자신에게 걸린 완화를 턴당 한 번</b> 튕겨 낸다.<br>판 전체가 아니라 이 자리만이고, 한 번 튕기면 그 턴은 다시 안 튕긴다.<br>「붕대 감기」의 정신 악화 방어는 완화가 아니라서 그대로 붙는다.`))}>완화 면역 ${n.calmUsed?'소진':'1회'}</span>`:'',
-    ].filter(Boolean).join('');
+    const marks = nodeMarks(S, n);
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     const symTip = n.role==='disease'
       ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
@@ -3792,24 +4838,13 @@ function renderInto(h){
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
     + S.hand.map((id,ix)=>{
-    const c=CARDS[id];
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
       return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick, onclick: okPick?`pickCard('${id}')`:'',
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
-    let ok=canPlay(S,id), why='';
-    if(!ok) why = cardCost(S,id)>S.energy ? '코스트 모자람'
-               : (c.bleed&&!canBleed(S,c.bleed) ? '사혈을 치를 수 없다'
-               : (c.target==='hand' ? (c.kw==='재진'?'붙일 진단 카드가 없다':'고를 카드가 없다') : '지금은 못 냄'));
-    else if(c.target==='node'){
-      if(!selNode) why='자리를 고른다';
-      else if(c.need && c.need.length<2 && !c.need(selNode)){ ok=false; why=`${selNode.sym}에는 못 쓴다` }
-      else if(immune(S,selNode) && c.verb!=='진단'){ ok=false; why='1막 병 노드에는 못 쓴다' }
-      else if(c.verb==='진단' && !canDiag(S,selNode,hasRevisit(S,id))){ ok=false; why='재진이 있어야 다시 연다' }
-    }
-    else if(c.target==='hand') why=`손패에서 ${pickNeed(S,id)}장 고른다`;
+    const {ok, why} = cardWhy(S, id, selNode);
     return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
       foot: why?`<span class="keep why">${why}</span>`:''});
   }).join('') || '<div class="empty">손이 비었다.</div>';
@@ -4236,6 +5271,7 @@ function syncDeckBtn(){
     if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
+  syncBackBtn();          // 가방을 펼친 동안에는 무대로 돌아가는 문을 잠근다
 }
 
 function dbToggle(c){
@@ -4576,6 +5612,7 @@ function newGame(){
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.one.started=true;
   log(`<b>${BOARD.script?BOARD.script.name:'레벨 '+BOARD.level}</b> · 노드 ${BOARD.nodes.length} · S ${(BOARD.S||0).toFixed(1)} · 체력 ${BOARD.hp}${ovrNote()}`);
   render();
+  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
 }
 
 //@ 파일.70-ui/story-ui
@@ -4616,6 +5653,7 @@ function newStory(){
     log('<span class="d">1막 — 진단 카드를 검사 파라미터에 써서 증거를 모은다.</span>');
   }
   render();
+  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
 }
 
 function declareDx(){
@@ -4653,6 +5691,9 @@ function sessInit(){
 
 function openSessDeck(){
   const def=SESS.def, pool=POOL[def.pool];
+  /* 가방을 고르는 곳은 작업대다. 무대가 덮고 있으면 잠깐 비켜 준다 —
+     고르고 나면 loadPatient 끝에서 무대가 도로 올라온다 */
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON) stageClose();
   if(def.roundSay && def.roundSay[SESS.round]) log(`<span class="say">간호사 — ${def.roundSay[SESS.round]}</span>`);
   openDeck({pool, cap:def.cap, min:4, init:(SESS.deck||pool.slice(0,def.cap)),
     title:`${def.name}${def.rounds.length>1?` · ${SESS.round+1}라운드`:''} 가방`,
@@ -4668,9 +5709,15 @@ function loadPatient(){
   const list=sessList();
   if(SESS.idx>=list.length){
     if(SESS.round < SESS.def.rounds.length-1){
-      SESS.round++; SESS.idx=0; SESS.phase='deck';
+      SESS.round++; SESS.idx=0;
       log(`<span class="d">──── ${SESS.round+1}라운드 ────</span>`);
-      openSessDeck(); return;
+      /* 왕진은 라운드마다 가방을 다시 짠다 — 나가 있는 동안 무엇을 들고
+         있는가가 왕진의 판단거리다. 외래는 하루 한 벌로 간다 */
+      if(SESS.def.visit){ SESS.phase='deck'; openSessDeck(); return }
+      SESS.phase='intake';
+      if(SESS.def.roundSay && SESS.def.roundSay[SESS.round])
+        log(`<span class="say">간호사 — ${SESS.def.roundSay[SESS.round]}</span>`);
+      loadPatient(); return;
     }
     sessEnd(); return;
   }
@@ -4691,6 +5738,7 @@ function loadPatient(){
   log(`<span class="d">──────── ${SESS.idx+1}번째 · 남은 예산 ${SESS.budget}턴 ────────</span>`);
   log(`<b>${BOARD.script.name}</b>`);
   renderSess();
+  stageBattleStart();                 // 다음 사람이 들어왔다 — 무대로 넘어간다
 }
 
 function ask(qid){
@@ -4875,6 +5923,8 @@ function undoStep(){
 const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · Z 되돌리기 · A 자동 한 턴 · Esc 취소';
 
 document.addEventListener('keydown', e=>{
+  if(typeof STAGE_ON!=='undefined' && STAGE_ON) return;   // 무대에 제 자판이 있다
+  if(typeof PN_OPEN!=='undefined' && PN_OPEN) return;     // 패치 노트가 덮고 있다 — 판에 손대지 않는다
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
@@ -4928,6 +5978,1593 @@ function setMode(m){
     if(m==='make')  { renderMake(); return }
   }
   render();
+}
+
+//@ 파일.70-ui/patch-ui
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.25 패치 노트 창
+   ──────────────────────────────────────────────────────────────────
+   판본 옆의 단추를 누르면 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 줄을 누르면 그 아래가 열린다 (한 번에 여럿 열린다).
+   맨 위 — 지금 판본 — 은 처음부터 열려 있다.
+   size:'M' 을 단 판본은 줄과 글자가 커진다 (.pnrow.big).
+
+   글은 60-text/patch-notes.js 에만 있다. 여기는 그리기만 한다.
+   본문을 읽는 규칙도 거기 주석에 적혀 있다 — 두 벌로 적지 않는다.
+   ══════════════════════════════════════════════════════════════════ */
+
+//@ 화면.패치노트 — 판본별 변경 내역 창
+let PN_OPEN = false;
+let PN_ROWS = null;            // 어느 줄이 펼쳐져 있는가 (판본 → true)
+
+/* 딱지 — 적는 쪽은 우리말 그대로 적는다. 여기서는 색만 붙인다.
+   여기 없는 말을 적어도 찍히기는 한다. 색이 안 붙을 뿐이다 */
+const PN_TAG_CLS = {'게임플레이 변경':'play', '버그 수정':'bug', '편의성 개선':'qol'};
+
+function openPatch(){
+  if(!PN_ROWS){
+    /* 처음 열 때는 맨 윗줄만 펼쳐 둔다 — 대개 보고 싶은 것이 지금 판본이다 */
+    PN_ROWS = {};
+    if(PATCH_NOTES.length) PN_ROWS[PATCH_NOTES[0].v] = true;
+  }
+  PN_OPEN = true;
+  $('pn').classList.add('on');
+  document.body.classList.add('pnon');
+  renderPatch();
+}
+
+function closePatch(){
+  PN_OPEN = false;
+  $('pn').classList.remove('on');
+  document.body.classList.remove('pnon');
+}
+
+function togglePatch(v){
+  PN_ROWS[v] = !PN_ROWS[v];
+  renderPatch();
+}
+
+/* 본문 한 덩이를 묶음들로 가른다.
+   「-」「·」는 글머리, 「*」는 바로 위 글머리에 딸린 줄, 그 밖에 글이 있는 줄이면
+   묶음 이름, 빈 줄은 버린다. 이름 없이 글머리부터 나오면 제목 없는 묶음에 담는다 */
+function pnParse(text){
+  const out = [];
+  let cur = null, last = null;
+  for(const raw of String(text).split('\n')){
+    const line = raw.trim();
+    if(!line) continue;
+    const m = /^([-·*])\s*/.exec(line);
+    if(!m){ cur = {name:line, items:[]}; out.push(cur); last = null; continue }
+    if(!cur){ cur = {name:'', items:[]}; out.push(cur) }
+    const body = line.slice(m[0].length);
+    /* 「*」는 딸릴 데가 있을 때만 딸린다. 없으면 저 혼자 한 줄이 된다 —
+       하위 항목부터 적기 시작한 덩이를 통째로 삼키지 않게 하려는 것이다 */
+    if(m[1]==='*' && last){ (last.sub = last.sub || []).push(body) }
+    else { last = {t:body}; cur.items.push(last) }
+  }
+  return out.filter(g=>g.name || g.items.length);
+}
+
+/* 글머리 한 줄. 옛 표기(groups)는 글자만 넘어오므로 그것도 받는다 */
+function pnLi(it){
+  if(typeof it === 'string') return `<li>${it}</li>`;
+  const sub = (it.sub||[]).map(s=>`<li>${s}</li>`).join('');
+  return `<li>${it.t}${sub?`<ul class="pnsub">${sub}</ul>`:''}</li>`;
+}
+
+/* 묶음 한 벌을 화면으로. name 이 비면 제목 없이 목록만 낸다 */
+function pnGroups(groups, raw){
+  return groups.map(g=>{
+    const nm = g.name ? `<div class="pngn">${raw ? g.name : esc(g.name)}</div>` : '';
+    const li = (g.items||[]).map(pnLi).join('');
+    return `<div class="pngrp">${nm}${li?`<ul>${li}</ul>`:''}</div>`;
+  }).join('');
+}
+
+/* 새 방식(body 한 덩이)이 먼저, 옛 방식(groups)이 그 다음, 둘 다 없으면 빈 칸 */
+function pnBody(n){
+  if(typeof n.body === 'string' && n.body.trim()){
+    const g = pnParse(n.body);
+    if(g.length) return pnGroups(g, true);
+  }
+  if(n.groups && n.groups.length) return pnGroups(n.groups, false);
+  return '<div class="pnempty">아직 적지 않았다.</div>';
+}
+
+function renderPatch(){
+  const box = $('pn_list'); if(!box) return;
+  box.innerHTML = PATCH_NOTES.map(n=>{
+    const open = !!PN_ROWS[n.v];
+    const cls  = PN_TAG_CLS[n.tag] || '';
+    /* 큰 판올림은 줄째로 커진다 — 목록만 훑어도 어디가 마디인지 보인다.
+       가르는 것은 대문자 M 하나다. 'm' 도 없는 것도 작은 판올림이다 */
+    return `<div class="pnrow ${n.size==='M'?'big':''} ${open?'on':''}">
+      <button class="pnhead" onclick="togglePatch('${n.v}')">
+        <span class="pnarw">${open?'▾':'▸'}</span>
+        <span class="pnv">${esc(n.v)}</span>
+        ${n.tag?`<span class="pntag ${cls}">${esc(n.tag)}</span>`:''}
+        <span class="pnd">${n.date?esc(n.date):''}</span>
+      </button>
+      <div class="pnbody">${pnBody(n)}</div>
+    </div>`;
+  }).join('') || '<div class="pnempty">적어 둔 판본이 없다.</div>';
+}
+
+/* 바깥을 눌러도 닫힌다. 창 안을 누른 것은 통과시킨다 */
+document.addEventListener('click', e=>{
+  if(!PN_OPEN) return;
+  const box = $('pn'); if(!box) return;
+  if(e.target === box) closePatch();
+});
+
+document.addEventListener('keydown', e=>{
+  if(PN_OPEN && e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); closePatch() }
+}, true);
+
+//@ 파일.70-ui/fx
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.21 연출
+   ──────────────────────────────────────────────────────────────────
+   무대에서만 도는 층이다. 규칙을 하나도 모른다 — 「무슨 일이 났는가」를
+   받아서 눈에 보이게만 한다. 판을 바꾸지 않는다.
+
+   그림 파일은 한 장도 쓰지 않는다. 증기 · 파편 · 광선은 div 에 CSS
+   키프레임을 물린 것이고, 계기판 눈금과 바늘은 인라인 SVG 다.
+
+   연출은 줄을 서서 하나씩 나간다 (FXQ). 줄이 도는 동안 판은 잠긴다 —
+   손이 끼어들면 이미 지나간 상태 위에 연출이 얹히기 때문이다.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* 연출을 켤 것인가. 배치 · 자동 진행은 초당 수백 판을 돌리므로 꺼야 한다.
+   끄면 fxq 로 들어온 것을 아예 실행하지 않고 버린다 */
+//@ 연출.스위치 — 켬 · 끔 · 줄
+let FX_ON = true;
+let FX_BUSY = false;
+/* 조용한 구간 — 자동 진행처럼 수십 수를 한 번에 돌릴 때 무대를 매 수마다
+   다시 그리지 않는다. 끝나고 한 번만 그린다 */
+let STAGE_QUIET = false;
+
+/* 한 화면에 동시에 떠 있을 수 있는 파티클 수. 넘으면 새 것을 만들지 않는다.
+   자리 여섯이 한꺼번에 터지는 판에서 60fps 를 지키는 선이다 */
+const FX_PARTICLE_CAP = 140;
+let FX_PARTICLES = 0;
+
+const fxWait = ms => new Promise(r=>setTimeout(r, FX_ON ? ms : 0));
+
+/* 파티클 하나를 붙였다 스스로 걷는다 — 세는 일도 여기서만 한다 */
+function fxSpawn(el, cls, css, life){
+  if(!el || FX_PARTICLES >= FX_PARTICLE_CAP) return null;
+  const d = document.createElement('div');
+  d.className = cls; d.style.cssText = css;
+  el.appendChild(d); FX_PARTICLES++;
+  setTimeout(()=>{ d.remove(); FX_PARTICLES-- }, life);
+  return d;
+}
+
+/* ── 프리미티브 넷 ──────────────────────────────────────────
+   새 연출은 되도록 이 넷을 섞어 만든다. 색과 개수만 바꾸면 대개 된다. */
+//@ 연출.프리미티브 — 증기 · 파편 · 광선 · 스윕
+const FX = {
+  steam(el, n, color){
+    for(let i=0;i<n;i++){
+      const sz = 6 + Math.random()*10;
+      fxSpawn(el, 'sp',
+        `width:${sz}px;height:${sz}px;background:${color};`
+        + `left:${30+Math.random()*40}%;top:${38+Math.random()*24}%;`
+        + `--dx:${((Math.random()-.5)*90)|0}px;--dy:${(-40-Math.random()*70)|0}px;`
+        + `animation:spf ${900+Math.random()*600|0}ms ease-out forwards`, 1600);
+    }
+  },
+  shards(el, n, color){
+    for(let i=0;i<n;i++){
+      const w = 3 + Math.random()*7;
+      fxSpawn(el, 'shard',
+        `width:${w}px;height:${w*.6}px;left:48%;top:50%;`
+        + (color?`background:${color};`:'')
+        + `--dx:${((Math.random()-.5)*140)|0}px;--dy:${((Math.random()-.5)*140)|0}px;`
+        + `--r:${((Math.random()-.5)*540)|0}deg;`
+        + `animation:shf ${420+Math.random()*260|0}ms ease-out forwards`, 760);
+    }
+  },
+  rays(el, n, color){
+    for(let i=0;i<n;i++){
+      const L = 40 + Math.random()*70;
+      fxSpawn(el, 'ray',
+        `--L:${L|0}px;transform:rotate(${Math.random()*360|0}deg);`
+        + (color?`background:linear-gradient(90deg,${color},transparent);`:'')
+        + `animation:ryf ${500+Math.random()*300|0}ms ease-out forwards`, 900);
+    }
+  },
+  /* 문자판을 훑는 빛 한 줄 */
+  sweep(el){
+    const f = el && el.querySelector('.face'); if(!f) return;
+    const s = document.createElement('div'); s.className='sweep';
+    s.innerHTML = '<i style="animation:swf 600ms ease-in-out forwards"></i>';
+    f.appendChild(s); setTimeout(()=>s.remove(), 700);
+  },
+  /* 값 하나가 자리 위로 떠오른다 — 억제량 · 성장량 · 지불액 따위 */
+  float(el, text, cls){
+    const d = fxSpawn(el, 'fnum '+(cls||''),
+      `animation:fnf 1100ms ease-out forwards`, 1200);
+    if(d) d.textContent = text;
+  },
+  /* 테두리가 한 번 뛴다 — 게이지가 늘거나 줄 때 */
+  pulse(el, color){
+    if(!el) return;
+    el.style.setProperty('--pulse', color||'var(--t3b)');
+    el.classList.add('pls'); setTimeout(()=>el.classList.remove('pls'), 620);
+  },
+  shake(el){
+    if(!el) return;
+    el.classList.add('shk'); setTimeout(()=>el.classList.remove('shk'), 340);
+  },
+};
+
+/* ── 사건 하나짜리 연출 ─────────────────────────────────────
+   전부 async 다. 줄이 이것을 하나씩 await 한다. */
+//@ 연출.사건 — 판에서 난 일 하나를 눈에 보이게
+const FXE = {
+  async suppress(n, amt){
+    const el = stageEl(n); if(!el) return;
+    FX.shards(el, 7); FX.shake(el);
+    if(amt) FX.float(el, '−'+amt, 'dn');
+    await fxWait(460);
+  },
+  async stabilize(n, amt){
+    const el = stageEl(n); if(!el) return;
+    FX.steam(el, 6, 'rgba(122,168,178,.75)');
+    if(amt) FX.float(el, '막 +'+amt, 'up');
+    await fxWait(420);
+  },
+  /* 처치선 · 강약 경계를 넘었다 */
+  async zone(n, kind){
+    const el = stageEl(n); if(!el) return;
+    FX.steam(el, 8, kind==='strong' ? 'rgba(158,43,43,.8)' : 'rgba(77,212,200,.7)');
+    await fxWait(440);
+  },
+  async treat(n, kind){
+    const el = stageEl(n); if(!el) return;
+    FX.steam(el, 9, kind==='strong' ? 'rgba(158,43,43,.8)' : 'rgba(77,212,200,.7)');
+    await fxWait(220);
+    el.classList.add('gone');
+    await fxWait(560);
+    /* 다 보여 줬으니 이제 걷는다 — 표를 떼면 다음 맞춤 때 사라진다 */
+    delete el.dataset.dying;
+    for(const [ix, e] of [...STAGE_ELS]) if(e===el){ e.remove(); STAGE_ELS.delete(ix) }
+  },
+  async dormant(n){
+    const el = stageEl(n); if(!el) return;
+    el.classList.add('dorm'); await fxWait(400);
+  },
+  async revive(n){
+    const el = stageEl(n); if(!el) return;
+    FX.steam(el, 7, 'rgba(201,164,74,.75)');
+    await fxWait(320);
+    el.classList.remove('dorm');
+    await fxWait(560);
+    FX.rays(el, 8);
+    await fxWait(280);
+  },
+  async shieldBreak(n){
+    const el = stageEl(n); if(!el) return;
+    const g = el.querySelector('.glass'); if(g) g.style.opacity='0';
+    FX.shards(el, 14); FX.shake(el);
+    await fxWait(640);
+  },
+  async diagnose(n, round){
+    const el = stageEl(n); if(!el) return;
+    FX.sweep(el);
+    const f = el.querySelector('.face');
+    if(f){ f.style.filter='brightness(2.4)'; setTimeout(()=>f.style.filter='brightness(1)', 80) }
+    await fxWait(820);
+    FX.rays(el, 10);
+    if(round) FX.float(el, '진단 '+round+'회', 'up');
+    await fxWait(420);
+  },
+  async demote(n){
+    const el = stageEl(n); if(!el) return;
+    FX.shards(el, 6, 'rgba(168,80,63,.9)'); FX.shake(el);
+    FX.float(el, '반응 강등', 'dn');
+    await fxWait(560);
+  },
+  async evolve(n){
+    const el = stageEl(n); if(!el) return;
+    const bd = stageBoard(); if(bd) bd.classList.add('dark');
+    el.classList.add('evoing');
+    el.style.transition = 'transform .9s cubic-bezier(.2,1.4,.4,1)';
+    el.style.transform = 'translate(-50%,-50%) scale(1.2)';
+    FX.steam(el, 10, 'rgba(150,160,150,.65)');
+    await fxWait(400);
+    el.style.transform = 'translate(-50%,-50%) scale(1.06)';
+    await fxWait(900);
+    el.style.transform = 'translate(-50%,-50%) scale(1)';
+    if(bd) bd.classList.remove('dark');
+    el.classList.remove('evoing');
+    await fxWait(280);
+  },
+  /* 약화 한 스택 — 처치선 눈금이 실제로 위로 밀린다 */
+  async weaken(n, add){
+    const el = stageEl(n); if(!el) return;
+    FX.pulse(el, 'var(--anno)');
+    FX.float(el, '약화 +'+add, 'up');
+    await fxWait(420);
+  },
+  /* 설치물 — 놓을 때와 태울 때 */
+  async rig(n, amt){
+    const el = stageEl(n); if(!el) return;
+    FX.pulse(el, '#7AA8B2');
+    FX.float(el, '설치 '+amt, 'up');
+    await fxWait(400);
+  },
+  async rigOpen(n, amt){
+    const el = stageEl(n); if(!el) return;
+    FX.rays(el, 12, 'rgba(122,168,178,.95)'); FX.shake(el);
+    FX.float(el, '−'+amt, 'dn');
+    await fxWait(620);
+  },
+  /* 1막 병 노드 — 아무것도 안 통한다 */
+  async immune(n){
+    const el = stageEl(n); if(!el) return;
+    el.classList.add('bounce'); FX.rays(el, 5, 'rgba(180,180,180,.7)');
+    setTimeout(()=>el.classList.remove('bounce'), 420);
+    await fxWait(440);
+  },
+  /* 촉발 — 자리에서 자리로 구슬이 건너간다 */
+  async trigger(a, b, kind){
+    const A = stageEl(a), B = stageEl(b), bd = stageBoard();
+    if(!A || !B || !bd) return;
+    const ms = kind==='strong' ? 750 : 1000;
+    const d = document.createElement('div'); d.className='bead';
+    d.style.color = kind==='strong' ? '#c9524a' : '#6fc4b4';
+    d.style.left = a.px+'px'; d.style.top = a.py+'px';
+    d.style.transition = `left ${ms}ms ease-in-out,top ${ms}ms ease-in-out`;
+    bd.appendChild(d);
+    await fxWait(30);
+    d.style.left = b.px+'px'; d.style.top = b.py+'px';
+    await fxWait(ms+10);
+    d.remove();
+    FX.steam(B, 6, 'rgba(201,164,74,.7)'); FX.shake(B);
+    await fxWait(380);
+  },
+  /* 전이 — 새 자리가 난다 */
+  async spawn(from, to){
+    const A = stageEl(from), bd = stageBoard();
+    if(!A || !bd) return;
+    const d = document.createElement('div'); d.className='bead';
+    d.style.color = '#C8B79A';
+    d.style.left = from.px+'px'; d.style.top = from.py+'px';
+    d.style.transition = 'left 800ms cubic-bezier(.3,.1,.3,1),top 800ms cubic-bezier(.3,.1,.3,1)';
+    bd.appendChild(d);
+    await fxWait(30);
+    d.style.left = (to.px||from.px)+'px'; d.style.top = (to.py||from.py)+'px';
+    await fxWait(820);
+    d.remove();
+    await fxWait(120);
+  },
+  /* 환자 쪽 */
+  async patHit(amt){
+    const p = $('sg_pat'); if(!p) return;
+    p.classList.add('hurt'); setTimeout(()=>p.classList.remove('hurt'), 480);
+    if(amt) FX.float(p, '−'+amt, 'dn big');
+    await fxWait(320);
+  },
+  async patPay(amt){
+    const p = $('sg_pat'); if(!p) return;
+    FX.steam(p, 7, 'rgba(152,48,42,.8)');
+    if(amt) FX.float(p, '사혈 −'+amt, 'dn');
+    await fxWait(420);
+  },
+  async mind(step, worse){
+    const m = $('sg_mind'); if(!m) return;
+    FX.pulse(m, worse ? 'var(--red)' : 'var(--t3b)');
+    FX.shake(m);
+    await fxWait(360);
+  },
+  /* 전역 게이지 — 기세 · 관해 · 병기 */
+  async gauge(id, text, up){
+    const g = $(id); if(!g) return;
+    FX.pulse(g, up ? 'var(--t3b)' : 'var(--anno)');
+    if(text) FX.float(g, text, up?'up':'dn');
+    await fxWait(360);
+  },
+  async deny(sel){
+    const c = document.querySelector(sel); if(!c) return;
+    c.classList.add('deny'); setTimeout(()=>c.classList.remove('deny'), 360);
+    await fxWait(120);
+  },
+  async dealHand(){
+    const cs = document.querySelectorAll('#sg_hand .card');
+    cs.forEach((e,i)=>{ e.classList.add('dealt'); e.style.animationDelay = (i*90)+'ms' });
+    await fxWait(440);
+  },
+  async pause(ms){ await fxWait(ms) },
+};
+
+/* ── 줄 ─────────────────────────────────────────────────────
+   판은 이미 다 바뀌어 있고, 줄은 그 사이에 무슨 일이 났는지를 순서대로
+   보여 준다. 한 조각이 끝날 때마다 계기판을 다시 맞춘다 — 연출 도중에도
+   수치가 실제 판을 따라가야 한다. */
+//@ 연출.줄 — 하나씩 차례로
+const FXQ = [];
+
+function fxq(fn){ if(FX_ON) FXQ.push(fn) }
+
+async function fxFlush(after){
+  if(!FX_ON){ FXQ.length = 0; if(after) after(); stageRender(); return }
+  FX_BUSY = true; document.body.classList.add('fxbusy');
+  while(FXQ.length){
+    if(!STAGE_ON){ FXQ.length = 0; break }   // 한창일 때 나갔다 — 남은 줄은 버린다
+    const f = FXQ.shift();
+    try{ await f() }catch(e){ /* 연출이 깨져도 판은 이미 옳다 */ }
+    stageSync();
+  }
+  FX_BUSY = false; document.body.classList.remove('fxbusy');
+  if(after) after();
+  stageRender();
+}
+
+/* 연출 없이 한 번에 — 되돌리기 · 자동 진행이 쓴다.
+   도는 동안은 무대를 안 그리고, 끝나고 딱 한 번 그린다. 그리는 일을 여기서
+   맡는 이유는 부르는 쪽이 잊으면 무대가 옛 판을 그대로 이고 있기 때문이다 */
+function fxSilent(fn){
+  const was = FX_ON, wasQ = STAGE_QUIET;
+  FX_ON = false; STAGE_QUIET = true;
+  try{ fn() } finally { FX_ON = was; STAGE_QUIET = wasQ; FXQ.length = 0 }
+  stageRender();
+}
+
+//@ 파일.70-ui/stage-node
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.22 계기판 — 자리 하나의 겉모습
+   ──────────────────────────────────────────────────────────────────
+   자리 하나는 낡은 계기판 한 대다. 그림 파일은 쓰지 않는다 —
+   테는 conic-gradient, 문자판은 radial-gradient, 눈금과 바늘은
+   인라인 SVG 로 그린다. 판이 바뀌면 SVG 를 다시 뱉는다.
+
+   계기판이 말하는 것 (전부 커널이 낸 값이다. 여기서 계산하지 않는다)
+     바늘      지금 수치 / 초기값
+     붉은 호   강반응 구간 (처치선의 절반 아래)
+     푸른 호   약반응 구간 (처치선 아래)
+     붉은 눈금 처치선 — 약화가 올리고 통증이 내린다. 실제로 움직인다
+     빗금      반응 강등 (진단 2회차)
+     쐐기      약화 스택
+     바깥 호   설치물 — 쌓인 값 / 상한
+     점선 링   진단 — 쌓은 값 / 이번 회차 요구치
+     유리      보호막. 두께 두 가지 (경감 30% · 50%)
+     서리      성장 정지 · 지연
+     문자판 그림  증상마다 다른 얼룩 · 안개 · 균열
+
+   자리를 무엇으로 세는가 — S.nodes 의 자리 번호다. 증상 이름이 아니다.
+   판에 같은 이름이 둘 날 수 있고, 이름은 병 노드에서 병명으로 바뀐다.
+   ══════════════════════════════════════════════════════════════════ */
+
+//@ 무대.계기판 — 자리 하나를 계기판 한 대로 그린다
+const STAGE_ELS = new Map();          // 자리 번호 → 계기판 DOM
+
+const stageBoard = () => $('sg_board');
+
+/* 판의 크기. 무대는 통째로 transform 으로 줄이므로 창을 줄여도 이 값은 그대로다
+   (1920×1080 안의 % 다). 그런데 clientWidth 를 읽는 순간 브라우저가 밀어 둔
+   쓰기를 전부 정산한다 — 매 수마다 그 값을 다시 읽던 것이 그리기 비용의 대부분이었다.
+   한 번 재서 들고 있다가 무대를 열거나 창이 바뀔 때만 다시 잰다 */
+let SG_BW = 0, SG_BH = 0;
+function stageMeasure(){
+  const B = stageBoard(); if(!B) return;
+  SG_BW = B.clientWidth; SG_BH = B.clientHeight;
+}
+
+/* 같은 내용이면 innerHTML 을 건드리지 않는다 — 건드리면 SVG 를 다시 파싱하고
+   그 안에 붙어 있던 연출 조각도 함께 날아간다 */
+function setHTML(el, html){
+  if(!el || el.__h === html) return;
+  el.__h = html; el.innerHTML = html;
+}
+function stageEl(n){
+  if(!n || !S) return null;
+  return STAGE_ELS.get(S.nodes.indexOf(n)) || null;
+}
+
+/* ── 문자판 그림 ── 증상마다 다르게, 수치에 비례해서 ──────── */
+function stgArt(n){
+  const p = Math.min(1, n.val / Math.max(1, n.init));
+  let art = '';
+  if(n.role==='disease'){
+    art = `<div class="dgrain" style="opacity:${(.30+.45*p).toFixed(2)}"></div>`;
+  }
+  else if(n.sym==='출혈' || n.sym==='통증'){
+    const w = (28 + 34*p)|0;
+    art = `<div class="blot" style="width:${w}%;height:${w}%"></div>`;
+  }
+  else if(n.sym==='발열') art = `<div class="fog" style="opacity:${(.15+.5*p).toFixed(2)}"></div>`;
+  else if(n.sym==='탈수') art =
+    `<svg class="cracks" viewBox="0 0 200 200" style="opacity:${(.3+.7*p).toFixed(2)}">
+       <path d="M60 40 L74 78 L66 112 L82 150" fill="none" stroke="rgba(120,95,60,.5)" stroke-width="2.4"/>
+       <path d="M140 36 L128 70 L142 104 L130 146" fill="none" stroke="rgba(120,95,60,.45)" stroke-width="2"/></svg>`;
+  else if(n.sym==='감염') art = `<div class="slide"></div>`;
+  else if(n.sym==='호흡곤란') art =
+    `<svg class="cracks" viewBox="0 0 200 200" style="opacity:${(.25+.55*p).toFixed(2)}">
+       <path d="M42 128 Q100 ${150-40*p} 158 128" fill="none" stroke="rgba(110,120,125,.55)" stroke-width="3"/>
+       <path d="M52 148 Q100 ${166-34*p} 148 148" fill="none" stroke="rgba(110,120,125,.4)" stroke-width="2.4"/></svg>`;
+
+  /* 성장이 멈춘 자리 · 진화가 미뤄진 자리 — 문자판에 서리가 낀다 */
+  if(n.growHold>0 || n.delayed>0)
+    art += `<div class="frost"><svg viewBox="0 0 200 200">
+      <path d="M100 46 L100 154 M56 71 L144 129 M144 71 L56 129" stroke="rgba(220,232,236,.55)" stroke-width="3" fill="none"/>
+      <path d="M100 60 L92 72 M100 60 L108 72 M100 140 L92 128 M100 140 L108 128"
+            stroke="rgba(220,232,236,.4)" stroke-width="2.4" fill="none"/></svg></div>`;
+  return art;
+}
+
+/* ── 바깥에 매다는 계측기 ── 노드 밖으로 나가므로 자리 수가 많으면 접는다 ── */
+function attArt(n, small){
+  if(small) return '';
+  const p = Math.min(1, n.val / Math.max(1, n.init));
+  let out = '';
+  if(n.sym==='발열')
+    out += `<div class="thermoX"><div class="tube"><div class="merc" style="height:${p*100|0}%"></div></div><div class="bulb"></div></div>`;
+  if(n.sym==='탈수')
+    out += `<div class="ivX"><div class="ivhook"></div><div class="ivbody"><div class="water" style="height:${(1-p)*100|0}%"></div></div><div class="ivhose"></div></div>`;
+  /* 설치물 — 자리 옆에 세운 작은 통. 빌려온 물건은 색이 다르다 */
+  const rig = (n.rig||0), lent = (n.rigLent||0);
+  if(rig || lent){
+    const cap = n.rigCap || Math.max(R.RIG_CAP_MIN, rig);
+    out += `<div class="rigX"><div class="rigbody"><div class="rigfill" style="height:${Math.min(100, rig/Math.max(1,cap)*100)|0}%"></div>`
+         + (lent?`<div class="riglent" style="height:${Math.min(100, lent/Math.max(1,cap)*100)|0}%"></div>`:'')
+         + `</div><div class="rignum">${rig+lent}</div></div>`;
+  }
+  return out;
+}
+
+/* ── 다이얼 ── 눈금 · 구간 · 바늘 · 처치선 · 약화 · 설치 ──── */
+function dialSVG(S, n){
+  const V=200, c=V/2, piv=c+V*0.13, fr=V*0.37;
+  const den = Math.max(1, n.init);
+  const p  = Math.max(0, Math.min(1, n.val/den));
+  const kl = Math.max(0, Math.min(1, killLine(S,n)/den));
+  const ed = kl/2;
+  const imm = immune(S, n);
+
+  const P = (t, rr) => { const a = Math.PI*(1-t); return [c+rr*Math.cos(a), piv-rr*Math.sin(a)] };
+  const seg = (t0, t1, col, w) => {
+    if(t1 <= t0) return '';
+    const [x0,y0]=P(t0,fr), [x1,y1]=P(t1,fr);
+    return `<path d="M ${x0} ${y0} A ${fr} ${fr} 0 0 1 ${x1} ${y1}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`;
+  };
+
+  let s = '';
+  /* 구간 셋. 1막 병 노드는 아무 데도 못 끊으므로 전부 잿빛이다 */
+  if(imm){
+    s += seg(0, 1, '#6a6a68', 9);
+  } else {
+    s += seg(0, ed, '#9e2b2b', 11);
+    s += seg(ed, kl, '#5a7d75', 11);
+    s += seg(kl, 1, '#8a7a55', 7);
+  }
+  /* 눈금 다섯 */
+  for(const t of [0,.25,.5,.75,1]){
+    const [x0,y0]=P(t,fr-9), [x1,y1]=P(t,fr+3);
+    s += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#7a6b48" stroke-width="3"/>`;
+  }
+  /* 처치선 — 이 판에서 실제로 걸린 자리에 선다 */
+  if(!imm && kl>0){
+    const [kx0,ky0]=P(kl,fr-15), [kx1,ky1]=P(kl,fr+6);
+    s += `<line x1="${kx0}" y1="${ky0}" x2="${kx1}" y2="${ky1}" stroke="#9e2b2b" stroke-width="7"/>`;
+    /* 반응 강등 — 처치선에 빗금을 친다. 강반응이 여기서 죽었다는 표시 */
+    if(n.demoted){
+      const [hx,hy]=P(kl, fr+13);
+      s += `<line x1="${hx-7}" y1="${hy-7}" x2="${hx+7}" y2="${hy+7}" stroke="#A8503F" stroke-width="3"/>`
+         + `<line x1="${hx-7}" y1="${hy+7}" x2="${hx+7}" y2="${hy-7}" stroke="#A8503F" stroke-width="3"/>`;
+    }
+  }
+  /* 약화 — 처치선을 밀어 올린 스택 수만큼 쐐기를 박는다 */
+  if(n.weak>0){
+    const per = (n.role==='disease' ? R.WEAK_STACK_DIS : R.WEAK_STACK);
+    const show = Math.min(6, n.weak);
+    for(let i=0;i<show;i++){
+      const t = Math.max(0, kl - per*(i+0.5));
+      const [wx,wy] = P(t, fr+9);
+      s += `<polygon points="${wx},${wy-5} ${wx+4},${wy+4} ${wx-4},${wy+4}" fill="#A8503F"/>`;
+    }
+  }
+  /* 설치물 — 바깥 테를 따라 도는 호. 쌓인 값 / 상한 */
+  const rigAll = (n.rig||0) + (n.rigLent||0);
+  if(rigAll>0){
+    const cap = Math.max(1, n.rigCap || Math.max(R.RIG_CAP_MIN, n.rig||rigAll));
+    const t = Math.min(1, rigAll/cap);
+    const rr = fr+17;
+    const [x0,y0]=P(0,rr), [x1,y1]=P(t,rr);
+    s += `<path d="M ${x0} ${y0} A ${rr} ${rr} 0 0 1 ${x1} ${y1}" fill="none" stroke="rgba(122,168,178,.85)" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  /* 바늘 */
+  const a = Math.PI*(1-p);
+  const tx = c+fr*0.94*Math.cos(a), ty = piv-fr*0.94*Math.sin(a);
+  const lx = c-fr*0.22*Math.cos(a), ly = piv+fr*0.22*Math.sin(a);
+  const px = -Math.sin(a), py = -Math.cos(a), w0 = 5;
+  s += `<polygon points="${tx},${ty} ${c+px*w0},${piv+py*w0} ${lx+px*w0*0.8},${ly+py*w0*0.8} `
+     + `${lx-px*w0*0.8},${ly-py*w0*0.8} ${c-px*w0},${piv-py*w0}" fill="#1f1815"/>`;
+  s += `<circle cx="${c}" cy="${piv}" r="7" fill="#1f1815"/>`;
+  return s;
+}
+
+/* ── 진단 링 ── 테를 두르는 점선. 이번 회차에 얼마나 쌓았는가 ── */
+function diagRing(n){
+  const need = Math.max(1, n.diagNeed||R.DIAG_NEED), acc = Math.min(need, n.diagAcc||0);
+  const V=200, c=V/2, rr=V*0.455;
+  let s='';
+  for(let i=0;i<need;i++){
+    /* 위쪽 반원에 고르게 — 계기판 아래는 이름표가 차지한다 */
+    const a = Math.PI*(1 - (need===1 ? .5 : i/(need-1))) * 0.86 + Math.PI*0.07;
+    const x = c+rr*Math.cos(a), y = c-rr*Math.sin(a);
+    s += `<circle cx="${x}" cy="${y}" r="${i<acc?5:3.4}" fill="${i<acc?'#4DD4C8':'rgba(232,226,210,.30)'}"/>`;
+  }
+  if(n.diagRound>0){
+    s += `<text x="${c}" y="${c-rr-4}" text-anchor="middle" font-size="17" font-weight="800"
+            fill="#4DD4C8" font-family="ui-monospace,monospace">${'I'.repeat(Math.min(4,n.diagRound))}${n.diagRound>4?'+':''}</text>`;
+  }
+  return s;
+}
+
+/* ── 자리 놓기 ── 위쪽에 부채꼴로 편다 ─────────────────────── */
+function stageLayout(){
+  if(!S) return 0;
+  if(!SG_BW) stageMeasure();
+  const W = SG_BW, H = SG_BH;
+  const live = alive(S), CN = live.length || 1;
+  const CX=W*.5, CY=H*.19, RX=W*.35, RY=H*.40, A0=203, A1=337;
+  const SZ = Math.min(252, W*.205) * (CN>5 ? 0.78 : CN>3 ? 0.9 : 1);
+  live.forEach((n,i)=>{
+    const a = CN===1 ? 270 : A0 + (A1-A0)*i/(CN-1);
+    n.px = CX + RX*Math.cos(a*Math.PI/180);
+    n.py = CY - RY*Math.sin(a*Math.PI/180);
+    n.sz = SZ;
+  });
+  return SZ;
+}
+
+/* ── 계기판 맞추기 ── 있는 것은 고치고, 없어진 것은 걷고, 난 것은 세운다 ── */
+//@ 무대.계기판맞춤 — DOM 을 판에 맞춘다
+function stageSync(){
+  if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
+  const B = stageBoard(); if(!B || !S) return;
+  const SZ = stageLayout();
+  const small = SZ < 180;
+
+  /* 죽었거나 사라진 자리를 걷는다.
+     단 「지금 사라지는 중」이라 표가 붙은 것은 연출이 끝낼 때까지 둔다 —
+     안 그러면 끊는 연출이 시작도 하기 전에 계기판이 없어진다 */
+  for(const [ix, el] of [...STAGE_ELS]){
+    const n = S.nodes[ix];
+    if((!n || n.dead) && !el.dataset.dying){ el.remove(); STAGE_ELS.delete(ix) }
+  }
+
+  alive(S).forEach(n=>{
+    const ix = S.nodes.indexOf(n);
+    let el = STAGE_ELS.get(ix), fresh = false;
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'gz';
+      el.innerHTML =
+        '<div class="bezel"></div><svg class="dring" viewBox="0 0 200 200"></svg>'
+      + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
+      + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
+      + '<div class="evc"></div><div class="atts"></div>'
+      + '<div class="info"><span class="nm2"></span><span class="hr2"></span><span class="num"></span></div>';
+      el.onclick = () => stageNodeClick(ix);
+      B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
+    }
+    el.style.left = n.px+'px'; el.style.top = n.py+'px';
+    el.style.width = SZ+'px'; el.style.height = SZ+'px';
+
+    const r = reaction(S, n), imm = immune(S, n);
+    el.classList.toggle('dorm',  n.dormT>0 || n.val===0);
+    el.classList.toggle('ready', !imm && r!==null && r!=='none');
+    el.classList.toggle('noshield', !n.shielded);
+    el.classList.toggle('sh50',  !!n.shielded && n.shReduc > R.SHIELD_CUT);
+    el.classList.toggle('warn',  !n.evolved && n.revealed && n.evoLeft<=1 && n.role!=='disease');
+    el.classList.toggle('sel',   SEL===alive(S).indexOf(n));
+    el.classList.toggle('tgt',   STAGE_MODE!==null);
+    el.classList.toggle('dis',   n.role==='disease');
+    el.classList.toggle('imm',   imm);
+    el.classList.toggle('evo',   !!n.evolved);
+    el.classList.toggle('held',  n.growHold>0 || n.delayed>0);
+
+    /* 그림은 안 바뀌었으면 다시 꽂지 않는다. SVG 를 매 수마다 새로 파싱하는
+       것이 그리기 비용의 절반이었다 — 문자열이 같으면 손대지 않는다 */
+    setHTML(el.querySelector('.stg'),   stgArt(n));
+    setHTML(el.querySelector('.dial'),  dialSVG(S, n));
+    setHTML(el.querySelector('.dring'), diagRing(n));
+    setHTML(el.querySelector('.atts'),  attArt(n, small));
+
+    const nm = n.role==='disease' ? '병 노드' : n.sym;
+    el.querySelector('.nm2').textContent = nm + (n.evolved ? ' ✦' : '');
+    el.querySelector('.num').innerHTML =
+      `${n.val}<s>│</s><u>${imm ? '—' : killLine(S,n)}</u>`;
+
+    /* 오른쪽 위 뱃지 — 증상은 진화 시계, 병 노드는 병기 */
+    const ev = el.querySelector('.evc');
+    if(n.role==='disease'){ ev.textContent = n.stage; ev.className = 'evc stg2' }
+    else { ev.textContent = n.evolved ? '✦' : (n.revealed ? n.evoLeft : '?'); ev.className = 'evc' }
+
+    if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
+  });
+
+  stageLinks();
+}
+
+/* ── 연결선 ── 촉발 · 전이 · 경화를 자리 사이에 긋는다 ─────── */
+function stageLinks(){
+  if(!S) return;
+  if(!SG_BW) stageMeasure();
+  const W = SG_BW, H = SG_BH;
+  const ns = alive(S).filter(n=>n.role!=='disease');
+  const shown = alive(S).some(n=>n.revealed);
+  const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
+                 ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
+
+  let out = '<defs>' + ['#C8B79A','#B8776F','#4DD4C8'].map((c,i)=>
+    `<marker id="sgah${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">`
+    + `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('') + '</defs>';
+
+  for(const l of lines){
+    if(l.enh && !shown) continue;                       // 아직 안 드러난 강화형 배선
+    const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
+    if(!A || !Bn || A.px===undefined || Bn.px===undefined) continue;
+    const x1=A.px/W*1000, y1=A.py/H*700, x2=Bn.px/W*1000, y2=Bn.py/H*700;
+    const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy); if(!L) continue;
+    const ux=dx/L, uy=dy/L, Rr=A.sz/W*1000*.52;
+    const sx=x1+ux*Rr, sy=y1+uy*Rr, ex=x2-ux*(Rr+14), ey=y2-uy*(Rr+14);
+    const ci = (l.k==='발현'||l.k==='무장발현') ? 0 : (l.k==='경화' ? 2 : 1);
+    const c = ['#C8B79A','#B8776F','#4DD4C8'][ci], w = l.k==='경화' ? 9 : 5;
+    const dash = ci===1 ? ' stroke-dasharray="9 7"' : (l.enh ? ' stroke-dasharray="3 6"' : '');
+    /* 곧게 긋고 계기판 뒤로 보낸다 (CSS 가 자리를 위에 올린다) — 배선은
+       기계 뒤로 지나가는 것이 맞고, 부풀리면 오히려 가운데 자리를 덮는다 */
+    out += `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="#14181C" stroke-width="${w+6}" stroke-linecap="round"${dash}/>`
+         + `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${dash} marker-end="url(#sgah${ci})"/>`;
+  }
+  setHTML($('sg_links'), out);
+}
+
+//@ 파일.70-ui/stage
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.23 무대 — 전투 화면
+   ──────────────────────────────────────────────────────────────────
+   작업대(3열)는 그대로 두고 그 위에 덮는 한 장이다. 규칙은 한 줄도
+   여기 없다 — 커널이 낸 값을 그리고, 손이 닿으면 기존 손(playCard ·
+   killSel · endTurn · sessEndTurn)을 그대로 부른다.
+
+   그래서 무대와 작업대는 언제나 같은 판을 본다. 되돌리기 · 자동 진행 ·
+   배치가 무대를 몰라도 되는 이유다 — render() 가 무대까지 맞춘다.
+
+   연출은 「부르기 전 판」과 「부른 뒤 판」을 견줘서 짠다 (fxPlanDiff).
+   커널에 훅을 심지 않은 것은 규칙 파일을 건드리지 않기 위해서다.
+   ══════════════════════════════════════════════════════════════════ */
+
+//@ 무대.전역 — 무대가 떠 있는가, 무엇을 겨누는 중인가
+let STAGE_ON = false;
+let STAGE_MODE = null;        // null | 'card' | 'treat'  — 자리를 겨누는 중인가
+let STAGE_CARD = null;        // 겨누고 있는 카드 id
+
+/* ── 열고 닫기 ──────────────────────────────────────────────── */
+//@ 무대.열기 — 작업대에서 전투로 넘어간다
+function stageOpen(){
+  if(!S) return;
+  STAGE_ON = true; STAGE_MODE = null; STAGE_CARD = null;
+  STAGE_ELS.clear();
+  const b = stageBoard(); if(b) for(const e of [...b.querySelectorAll('.gz')]) e.remove();
+  $('sg').classList.add('on');
+  document.body.classList.add('sgon');
+  /* 무대를 여는 것은 사람이 보자고 한 일이다 — 조용한 구간 안에서 열렸더라도
+     첫 판만은 반드시 그린다. 안 그러면 계기판이 하나도 안 선 빈 무대가 뜨고
+     다음 그리기까지 그대로 남는다 */
+  const wasQuiet = STAGE_QUIET; STAGE_QUIET = false;
+  try{ stageFit(); stageFlow() } finally { STAGE_QUIET = wasQuiet }
+}
+
+function stageClose(){
+  STAGE_ON = false; STAGE_MODE = null; STAGE_CARD = null;
+  FXQ.length = 0;
+  $('sg').classList.remove('on');
+  document.body.classList.remove('sgon');
+  stageOvHideAll();
+  render();
+}
+
+/* 1920×1080 을 화면 폭에 맞춰 통째로 줄인다 */
+function stageFit(){
+  const w = $('sg_wrap'), g = $('sg_stage'), box = $('sg');
+  if(!w || !g || !box) return;
+  /* 자를 대는 곳은 바깥 상자다. 안쪽(sg_wrap)을 재면 지난번에 내가 넣어 준
+     폭을 다시 읽어 무대가 조금씩 커진다 — 우측 계기가 잘리던 이유다 */
+  const k = Math.min(1, box.clientWidth/1920, (box.clientHeight-4)/1080);
+  g.style.transform = `scale(${k})`;
+  w.style.width  = (1920*k)+'px';
+  w.style.height = (1080*k)+'px';
+  stageMeasure();
+  if(STAGE_ON) stageRender();
+}
+window.addEventListener('resize', ()=>{ if(STAGE_ON) stageFit() });
+
+/* ── 흐름 ────────────────────────────────────────────────────
+   무대에 들어오면 지금 판이 어느 단계인지 보고 알맞은 것을 띄운다.
+   외래·왕진은 명단 → 문진 → 전투, 스토리는 1막 → 선언 → 방침 → 3막이다. */
+//@ 무대.흐름 — 지금 무엇을 보여 줄 차례인가
+function stageFlow(){
+  stageOvHideAll();
+  if(MODE==='sess' && SESS){
+    if(SESS.phase==='done'){ stageEndShow(); return }
+    if(SESS.phase==='after'){ stageQueueShow(); return }
+    if(S && S.phase==='intake'){ stageAskShow(); return }
+  }
+  if(MODE==='story' && S && (S.act===1 || S.act===2)){ stageActShow(); return }
+  stageRender();
+}
+
+/* ── 그리기 ─────────────────────────────────────────────────── */
+//@ 무대.그리기 — 계기판 · 카르테 · 손패 · 상태판
+function stageRender(){
+  if(!STAGE_ON || !S || STAGE_QUIET) return;
+  /* 겨누던 카드가 손에서 사라졌으면 겨눔을 푼다.
+     되돌리기가 판을 통째로 갈아 끼우면 그 카드는 덱으로 돌아가는데 겨눔만 남아,
+     다음에 자리를 누르는 순간 손에 없는 카드가 나간다. 판을 바꾸는 길이 여럿이라
+     (되돌리기 · 다음 환자 · 새 판) 길목마다 지우는 대신 그릴 때 스스로 맞춘다. */
+  if(STAGE_CARD && !S.hand.includes(STAGE_CARD)){ STAGE_MODE = null; STAGE_CARD = null }
+  tipReset();
+  stageSync();
+  stageHud();
+  stageKarte();
+  stagePatient();
+  stageActbar();
+  stagePanel();
+  stageHand();
+  const lg = $('sg_lg'); if(lg) lg.innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+}
+
+/* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
+function stageHud(){
+  const day = $('sg_day'), qs = $('sg_qs'), qt = $('sg_qtxt'),
+        bud = $('sg_budget'), act = $('sg_act');
+  if(MODE==='sess' && SESS){
+    const list = sessList(), doneN = SESS.results.filter(r=>(r.round??0)===SESS.round).length;
+    day.textContent = SESS.def.name;
+    qs.innerHTML = list.map((id,i)=>
+      `<i class="${i<doneN?'done':(i===SESS.idx?'now':'')}"></i>`).join('');
+    qt.textContent = `대기 ${Math.max(0, list.length-SESS.idx)}`;
+    bud.innerHTML = `${Math.max(0,SESS.budget)}<i>턴 남음</i>`;
+    act.style.display = SESS.def.visit ? '' : 'none';
+    if(SESS.def.visit) act.textContent = `평판 ${SESS.rep>0?'+':''}${SESS.rep}`;
+  } else if(MODE==='story'){
+    day.textContent = (BOSS[BOARD.boss]||{}).name || '스토리';
+    qs.innerHTML = '';
+    qt.textContent = S.act===1 ? `증거 ${S.evid}/${SR.EVID_TOTAL}`
+                   : S.policy ? `${S.correct?'정진단':'오진'}` : '';
+    bud.innerHTML = '';
+    act.style.display = '';
+    act.textContent = `${S.act}막${S.policy?' · '+S.policy:''}`;
+  } else {
+    day.textContent = BOARD.script ? BOARD.script.name.split(' · ')[0] : `레벨 ${BOARD.level}`;
+    qs.innerHTML = ''; qt.textContent = '단판';
+    bud.innerHTML = ''; act.style.display = 'none';
+  }
+}
+
+/* 카르테 — 이 사람에 대해 지금까지 알아낸 것만 적는다 */
+function stageKarte(){
+  const p = BOARD.script;
+  const nameFull = p ? p.name : (BOARD.boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
+  const bits = String(nameFull).split(' · ');
+  const boss = !!BOARD.boss;
+  const who = bits.length>1 ? (boss ? bits[0] : bits.slice(1).join(' · ')) : bits[0];
+  const what = bits.length>1 ? (boss ? bits.slice(1).join(' · ') : bits[0]) : '';
+  $('sg_kname').textContent = who;
+  $('sg_kmeta').textContent = (what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`);
+
+  const hide = (MODE==='sess' && !S.tagsShown);
+  $('sg_ktags').innerHTML = hide
+    ? '<span class="ktag hid">체력 태그 미상</span>'
+    : ((BOARD.tags||[]).length
+        ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, `체력 <b>×${HP_TAG[t]}</b>`))}>${esc(t)} ×${HP_TAG[t]}</span>`).join('')
+        : '<span class="ktag">특이 없음</span>');
+
+  $('sg_kchief').textContent = chiefOf();
+
+  const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
+  $('sg_kask').innerHTML = asked.length
+    ? asked.map(id=>{ const q=QUIZ.find(x=>x.id===id); return q
+        ? `<span class="ai">${esc(q.q)}<em>${esc(q.opens)}</em></span>` : '' }).join('')
+    : `<span style="color:var(--mut)">${MODE==='sess'?'묻지 않았다':'—'}</span>`;
+}
+
+/* 환자 — 체력 고리 · 흉상 · 정신 */
+function stagePatient(){
+  const f = forecast();
+  const hp = Math.max(0, S.hp), pct = hp/Math.max(1,S.hpMax);
+  const fore = Math.max(0, hp - f.dmg)/Math.max(1,S.hpMax);
+  const C = 2*Math.PI*100;
+  $('sg_ring').innerHTML =
+    `<circle cx="108" cy="108" r="100" fill="none" stroke="#14181C" stroke-width="13"/>`
+  + `<circle cx="108" cy="108" r="100" fill="none" stroke="#98302A" stroke-width="13"
+       stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 108 108)"/>`
+  + `<circle cx="108" cy="108" r="100" fill="none" stroke="#E8E2D2" stroke-width="13"
+       stroke-dasharray="${C}" stroke-dashoffset="${C*(1-fore)}" transform="rotate(-90 108 108)"/>`;
+
+  const bust = $('sg_bust');
+  if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
+
+  /* 설명은 작업대와 같은 것을 쓴다. 여기는 속성에 직접 다는 자리라 열쇠만 받는다 */
+  const hpEl = $('sg_hp');
+  hpEl.innerHTML = `${(MODE==='sess'&&!S.tagsShown)?'?':hp}<i>${f.dmg?'−'+f.dmg:''}</i>`;
+  hpEl.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
+
+  const m = $('sg_mind');
+  m.textContent = S.mind;
+  m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
+  m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
+}
+
+/* 고른 자리 한 줄 — 지금 끊으면 무슨 일이 나는가 */
+function stageActbar(){
+  const bar = $('sg_actbar');
+  const n = alive(S)[SEL];
+  if(!n){ bar.classList.remove('on'); return }
+  bar.classList.add('on');
+  $('sg_an').textContent = n.role==='disease' ? '병 노드' : n.sym;
+  const r = reaction(S,n), imm = immune(S,n);
+  let v;
+  if(imm) v = '1막의 병은 무적이다 — <u>진단</u>만 통한다';
+  else if(r===null) v = `처치선까지 <u>${n.val - killLine(S,n)}</u> 남았다`;
+  else if(r==='none') v = '휴면 — 보상 없음 · 연결선도 터지지 않는다';
+  else {
+    const fires = basicLines(alive(S).filter(x=>x.role!=='disease').map(x=>x.sym))
+      .concat((BOARD.enh||[]).filter(()=>alive(S).some(x=>x.revealed)))
+      .filter(l=>l.a===n.sym).map(l=>`${l.b} ${l.k}`);
+    v = `${r==='strong'?'강반응':'약반응'} · 전체 −${sweepAmt(n)}`
+      + (fires.length?` · <u>${fires.join(' / ')}</u>`:'')
+      + (r==='strong'?' · <u>정신이 무너진다</u>':'');
+  }
+  $('sg_av').innerHTML = v + '<br>' + nodeMarks(S, n);
+}
+
+/* 우측 계기 — 턴 · 코스트 · 파일 · 상태판 */
+function stagePanel(){
+  $('sg_turn').textContent = S.turn;
+  $('sg_spent').textContent = MODE==='sess' && SESS ? `${SESS.idx+1}/${sessList().length}명` : '';
+  const en = Math.max(R.ENERGY, S.energy);
+  $('sg_energy').innerHTML = Array.from({length:en},(_,i)=>`<i class="${i<S.energy?'on':''}"></i>`).join('');
+
+  /* 1막에는 끊을 것이 없다 — 그 자리를 「병명을 선언한다」가 쓴다 */
+  const tb = $('sg_treat');
+  if(MODE==='story' && S.act===1){
+    tb.className = 'btn' + (S.evid>=SR.EVID_AIM ? '' : ' off');
+    tb.firstChild.nodeValue = '병명을 선언한다';
+    $('sg_treatc').textContent = `증거 ${S.evid}/${SR.EVID_TOTAL}`;
+  } else {
+    const n = alive(S)[SEL];
+    const canT = n && !immune(S,n) && reaction(S,n)!==null && !verdictNow();
+    tb.className = 'btn' + (STAGE_MODE==='treat' ? ' on' : (canT||n ? '' : ' off'));
+    tb.firstChild.nodeValue = '처치';
+    $('sg_treatc').textContent = `${R.KILL_COST}코${S.mind==='공황'?' · 다음 턴':''}`;
+  }
+
+  const sb = $('sg_settle');
+  const canS = MODE==='sess' && SESS && SESS.phase==='fight';
+  sb.className = 'btn' + (canS ? '' : ' off');
+  $('sg_settlec').textContent = canS ? outcome(S, BOARD.core) : '—';
+
+  $('sg_pDeck').textContent = S.deck.length;
+  $('sg_pDisc').textContent = S.discard.length;
+  $('sg_pHand').textContent = S.hand.length;
+
+  const st = $('sg_state'); if(st) st.innerHTML = stateHTML();
+
+  const eb = $('sg_end');
+  eb.className = verdictNow() ? 'off' : '';
+  eb.textContent = verdictNow() ? `${verdictNow()} — 정산한다` : '턴 종료';
+}
+
+/* 손패 — 카드 한 장의 겉모습은 작업대와 같은 것을 쓴다 (cardHTML).
+   적힌 값과 실제 값, 그 이유까지 전부 딸려 온다 */
+function stageHand(){
+  const selNode = alive(S)[SEL];
+  const pend = PICK ? CARDS[PICK.id] : null;
+  let left = [];
+  if(pend){
+    left = handPicks(S, PICK.id);
+    for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
+  }
+  $('sg_hand').innerHTML = (pend
+    ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
+    : '')
+  + S.hand.map((id, ix)=>{
+      if(pend){
+        const okPick = left.includes(id);
+        return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick,
+          onclick: okPick?`stagePickCard('${id}')`:''});
+      }
+      const {ok, why} = cardWhy(S, id, selNode);
+      const aiming = STAGE_MODE==='card' && STAGE_CARD===id;
+      return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
+        onclick:`stageCardClick('${id}')`, keyhint: ix<9?ix+1:'',
+        foot: why?`<span class="keep why">${why}</span>`:''});
+    }).join('') || '<div class="empty">손이 비었다.</div>';
+}
+
+/* ── 환자 흉상 ── 그림 파일 없이 실루엣 하나 ─────────────────
+   증상마다 바꾸지 않는다. 나중에 그림이 들어올 자리이기도 하다. */
+function bustSVG(){
+  return `<svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">
+    <defs><linearGradient id="sgbust" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8d8377"/><stop offset="1" stop-color="#3a352f"/></linearGradient></defs>
+    <path d="M100 44c-15 0-26 12-26 28 0 11 4 20 10 26-18 7-32 20-38 38-2 6 2 12 8 12h92c6 0 10-6 8-12
+             -6-18-20-31-38-38 6-6 10-15 10-26 0-16-11-28-26-28z" fill="url(#sgbust)"/>
+    <path d="M74 148h52" stroke="rgba(20,18,16,.5)" stroke-width="3" fill="none"/>
+    <path d="M86 72q14 8 28 0" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+/* ── 손이 닿는 자리 ─────────────────────────────────────────── */
+function stageNodeClick(ix){
+  if(FX_BUSY || !S) return;
+  const n = S.nodes[ix]; if(!n || n.dead) return;
+  const a = alive(S).indexOf(n);
+  if(STAGE_MODE==='card'){ const id=STAGE_CARD; SEL=a; STAGE_MODE=null; STAGE_CARD=null; stagePlay(id); return }
+  if(STAGE_MODE==='treat'){ SEL=a; STAGE_MODE=null; stageKill(); return }
+  SEL = (SEL===a ? null : a);
+  stageRender();
+}
+
+function stageCardClick(id){
+  if(FX_BUSY || !S) return;
+  const c = CARDS[id];
+  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`)); fxFlush(); stageToast('지금은 낼 수 없다'); return }
+  if(c.target==='node'){
+    if(alive(S)[SEL]){ stagePlay(id); return }
+    STAGE_MODE = (STAGE_MODE==='card' && STAGE_CARD===id) ? null : 'card';
+    STAGE_CARD = STAGE_MODE ? id : null;
+    if(STAGE_MODE) stageToast('놓을 자리를 고른다');
+    stageRender(); return;
+  }
+  stagePlay(id);
+}
+
+function stagePickCard(id){
+  if(FX_BUSY) return;
+  const b = fxSnap(S);
+  pickCard(id);
+  if(!PICK) fxPlanDiff(b, {verb:'card'});
+  fxFlush();
+}
+
+function stageTreatBtn(){
+  if(FX_BUSY || !S) return;
+  if(MODE==='story' && S.act===1){
+    if(S.evid < SR.EVID_AIM){ stageToast('증거가 아직 얕다 — 오진이 나기 쉽다'); }
+    stageActShow(); return;
+  }
+  const n = alive(S)[SEL];
+  if(n && !immune(S,n) && reaction(S,n)!==null){ stageKill(); return }
+  STAGE_MODE = STAGE_MODE==='treat' ? null : 'treat'; STAGE_CARD = null;
+  if(STAGE_MODE) stageToast('끊을 자리를 고른다');
+  stageRender();
+}
+
+function stageSettleBtn(){
+  if(FX_BUSY || MODE!=='sess' || !SESS || SESS.phase!=='fight') return;
+  sessSettle(false);
+  stageVerdShow();
+}
+
+function stageEndBtn(){
+  if(FX_BUSY || !S) return;
+  if(verdictNow()){
+    if(MODE==='sess' && SESS && SESS.phase==='fight'){ sessSettle(true); stageVerdShow() }
+    else stageVerdShow();
+    return;
+  }
+  stageEndTurn();
+}
+
+/* ── 손 → 커널 → 연출 ────────────────────────────────────────
+   기존 손을 그대로 부른다. 앞뒤로 판을 떠서 무슨 일이 났는지만 읽는다. */
+//@ 무대.행동 — 기존 손을 부르고 그 전후를 견준다
+function stageAct(fn, plan){
+  if(FX_BUSY || !S) return;
+  const b = fxSnap(S);
+  fn();
+  if(S) fxPlanDiff(b, plan);
+  fxFlush(()=>{ if(STAGE_ON) stageAfter() });
+}
+
+function stagePlay(id){
+  STAGE_MODE = null; STAGE_CARD = null;
+  const c = CARDS[id];
+  stageAct(()=>playCard(id), {verb:'card', card:id, dept:c.dept});
+}
+
+function stageKill(){
+  const n = alive(S)[SEL];
+  if(!n) return;
+  STAGE_MODE = null;
+  const r = reaction(S,n), ix = S.nodes.indexOf(n);
+  const el = STAGE_ELS.get(ix);
+  if(el) el.dataset.dying = '1';          // 연출이 끝날 때까지 계기판을 남겨 둔다
+  stageAct(()=>killSel(), {verb:'kill', killIx:ix, grade:r});
+}
+
+function stageEndTurn(){
+  STAGE_MODE = null; STAGE_CARD = null;
+  stageAct(()=> (MODE==='sess' ? sessEndTurn() : endTurn()), {verb:'turn'});
+}
+
+/* 연출이 끝난 뒤 — 판이 끝났으면 결과를 띄운다 */
+function stageAfter(){
+  if(!S) return;
+  if(MODE==='sess' && SESS && SESS.phase!=='fight'){ stageVerdShow(); return }
+  const v = verdictNow();
+  if(v && MODE!=='sess') stageToast(`${v} — 판이 끝났다`);
+  sayTurnTick();
+}
+
+/* ── 판을 뜬다 · 견준다 ──────────────────────────────────────── */
+//@ 무대.스냅 — 연출이 볼 수 있는 만큼만 뜬다
+function fxSnap(S){
+  const dis = S.nodes.find(n=>n.role==='disease');
+  return {
+    hp:S.hp, mind:S.mind, turn:S.turn,
+    rush:S.rush||0, remGauge:S.remGauge||0,
+    evid:S.evid, stage: dis?dis.stage:0,
+    len:S.nodes.length,
+    nodes:S.nodes.map(n=>({
+      dead:!!n.dead, val:n.val, shielded:!!n.shielded, dormT:n.dormT||0,
+      evolved:!!n.evolved, weak:n.weak||0, rig:rigTotal(n), stabAcc:n.stabAcc||0,
+      diagRound:n.diagRound||0, diagAcc:n.diagAcc||0, demoted:!!n.demoted,
+      react: n.dead ? null : reaction(S,n),
+    })),
+  };
+}
+
+/* 무슨 일이 났는가 — 순서가 곧 연출 순서다.
+   자리 하나에 여러 일이 겹치면 「값이 움직인 것 → 막이 깨진 것 → 잠든 것」 순이다. */
+//@ 무대.연출짜기 — 전후를 견줘 줄을 세운다
+function fxPlanDiff(b, plan){
+  plan = plan || {};
+  const cur = fxSnap(S);
+  const zoneAfter = [];
+
+  /* 처치는 그 자리의 사라짐이 먼저다 */
+  if(plan.verb==='kill' && plan.killIx!=null){
+    const n = S.nodes[plan.killIx];
+    const was = b.nodes[plan.killIx];
+    const el = STAGE_ELS.get(plan.killIx);
+    if(!(n && was && !was.dead && cur.nodes[plan.killIx].dead)){
+      if(el) delete el.dataset.dying;     // 못 끊었다 — 표를 도로 뗀다
+    } else {
+      fxq(()=>FXE.treat(n, plan.grade));
+      sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
+      /* 촉발 · 전이 — 이 자리에서 뻗은 선이 터진다 */
+      if(plan.grade && plan.grade!=='none'){
+        const lines = [...basicLines(b.nodes.map((_,i)=>S.nodes[i]).filter(x=>x&&!x.dead).map(x=>x.sym)),
+                       ...((BOARD.enh)||[])];
+        for(const l of lines){
+          if(l.a!==n.sym) continue;
+          const t = alive(S).find(x=>x.sym===l.b && x!==n);
+          if(t) fxq(()=>FXE.trigger(n, t, plan.grade));
+        }
+      }
+    }
+  }
+
+  /* 자리마다 — 값 · 막 · 약화 · 설치 · 진단 · 진화 · 휴면 */
+  for(let i=0;i<cur.len;i++){
+    const a = b.nodes[i], c = cur.nodes[i], n = S.nodes[i];
+    if(!n) continue;
+    if(!a){                                   // 새로 난 자리 (전이)
+      const src = plan.killIx!=null ? S.nodes[plan.killIx] : null;
+      if(src) fxq(()=>FXE.spawn(src, n));
+      sayEmit('spawn', {key:n.sym, node:n});
+      continue;
+    }
+    if(a.dead || c.dead) continue;            // 이미 위에서 다뤘거나 볼 것이 없다
+
+    if(c.val < a.val)      fxq(()=>FXE.suppress(n, a.val-c.val));
+    else if(c.val > a.val && plan.verb!=='turn') fxq(()=>FXE.stabilize(n, 0));
+    if(c.stabAcc > a.stabAcc && c.shielded) fxq(()=>FXE.stabilize(n, c.stabAcc-a.stabAcc));
+    if(c.weak > a.weak)    fxq(()=>FXE.weaken(n, c.weak-a.weak));
+    if(c.rig  > a.rig)     fxq(()=>FXE.rig(n, c.rig));
+    if(c.rig  < a.rig)     fxq(()=>FXE.rigOpen(n, a.rig-c.rig));
+    if(a.shielded && !c.shielded){ fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}) }
+    if(c.diagRound > a.diagRound){
+      fxq(()=>FXE.diagnose(n, c.diagRound));
+      sayEmit('diag', {key:n.sym, node:n, round:c.diagRound});
+    }
+    if(!a.demoted && c.demoted) fxq(()=>FXE.demote(n));
+    if(!a.evolved && c.evolved){ fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}) }
+    if(a.dormT===0 && c.dormT>0){ fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}) }
+    if(a.dormT>0 && c.dormT===0 && c.val>0){ fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}) }
+    if(c.react !== a.react && c.react && c.react!=='none') zoneAfter.push([n, c.react]);
+  }
+
+  /* 1막 병 노드를 건드렸는데 아무것도 안 움직였다 — 튕겨 낸다 */
+  if(plan.verb==='card'){
+    const n = alive(S)[SEL];
+    if(n && immune(S,n) && CARDS[plan.card] && CARDS[plan.card].verb!=='진단'){
+      const i = S.nodes.indexOf(n);
+      if(b.nodes[i] && b.nodes[i].val === cur.nodes[i].val) fxq(()=>FXE.immune(n));
+    }
+  }
+
+  /* 환자 쪽 */
+  if(cur.hp < b.hp){
+    const d = b.hp - cur.hp;
+    if(plan.verb==='turn') fxq(()=>FXE.patHit(d));
+    else if(CARDS[plan.card] && CARDS[plan.card].bleed) fxq(()=>FXE.patPay(d));
+    else fxq(()=>FXE.patHit(d));
+  }
+  if(cur.mind !== b.mind){
+    const worse = ['평정','불안','공황','의식불명'].indexOf(cur.mind)
+                > ['평정','불안','공황','의식불명'].indexOf(b.mind);
+    fxq(()=>FXE.mind(cur.mind, worse));
+    sayEmit(worse?'mind':'mindUp', {key:cur.mind});
+  }
+
+  /* 전역 게이지 */
+  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_state', `기세 ${cur.rush}`, cur.rush>b.rush));
+  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_state', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
+  if(cur.stage !== b.stage){
+    fxq(()=>FXE.gauge('sg_state', `병기 ${cur.stage}`, false));
+    sayEmit('stage', {key:String(cur.stage)});
+  }
+  if(cur.evid !== b.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
+
+  /* 구간을 새로 넘어선 자리는 마지막에 한 번씩 김을 뿜는다 */
+  for(const [n, r] of zoneAfter) fxq(()=>FXE.zone(n, r));
+
+  /* 턴이 넘어갔으면 손패를 새로 돌린다 */
+  if(cur.turn > b.turn) fxq(()=>FXE.dealHand());
+
+  sayHpCheck();
+}
+
+/* ── 잔손 ───────────────────────────────────────────────────── */
+let SG_TOAST = null;
+function stageToast(t){
+  const e = $('sg_toast'); if(!e) return;
+  e.textContent = t; e.classList.add('on');
+  clearTimeout(SG_TOAST); SG_TOAST = setTimeout(()=>e.classList.remove('on'), 1500);
+}
+
+let SG_BUBBLE = null;
+function stageBubble(txt){
+  if(!STAGE_ON) return;
+  const b = $('sg_bubble'); if(!b) return;
+  const p = BOARD && BOARD.script;
+  $('sg_bwho').textContent = p ? String(p.name).split(' · ').pop() : '환자';
+  $('sg_btxt').textContent = txt;
+  b.classList.add('show');
+  clearTimeout(SG_BUBBLE); SG_BUBBLE = setTimeout(()=>b.classList.remove('show'), 3200);
+}
+
+/* ── 자판 ────────────────────────────────────────────────────
+   무대가 떠 있으면 작업대 자판은 물러난다 (mode.js 가 STAGE_ON 을 본다) */
+document.addEventListener('keydown', e=>{
+  if(!STAGE_ON) return;
+  const t = e.target.tagName;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
+  const k = e.key;
+  if(k==='Escape'){
+    e.preventDefault();
+    if(PICK){ cancelPick(); stageRender(); return }
+    if(STAGE_MODE){ STAGE_MODE=null; STAGE_CARD=null; stageRender(); return }
+    if(document.querySelector('#sg .ov.on')) return;
+    stageClose(); return;
+  }
+  if(FX_BUSY || document.querySelector('#sg .ov.on')) return;
+  if(k==='z'||k==='Z'){ e.preventDefault(); fxSilent(()=>undoStep()); return }
+  if(!S) return;
+  if(k>='1'&&k<='9'){ const id=S.hand[+k-1];
+    if(id){ e.preventDefault(); PICK ? stagePickCard(id) : stageCardClick(id) } return }
+  if(k==='ArrowRight'||k==='ArrowLeft'){
+    e.preventDefault();
+    const n = alive(S).length; if(!n) return;
+    SEL = SEL===null ? 0 : (SEL + (k==='ArrowRight'?1:n-1)) % n;
+    stageRender(); return;
+  }
+  if(k==='x'||k==='X'){ e.preventDefault(); stageTreatBtn(); return }
+  if(k===' '||k==='Enter'){ e.preventDefault(); stageEndBtn(); return }
+  if(k==='a'||k==='A'){ e.preventDefault(); fxSilent(()=>autoTurn()); return }
+});
+
+//@ 파일.70-ui/stage-overlay
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.24 무대의 막 — 명단 · 문진 · 결과 · 결산 · 스토리 갈림
+   ──────────────────────────────────────────────────────────────────
+   전투와 전투 사이에 끼는 판이다. 판단이 일어나는 자리는 전투 안이
+   아니라 여기다 — 누구를 부를 것인가, 무엇을 물을 것인가, 어느 방침으로
+   갈 것인가.
+
+   문진은 한꺼번에 고르고 한 번에 확정한다. 확정하기 전에는 판을 건드리지
+   않으므로 마음껏 물렀다 놓을 수 있다 — 「오기 전에 뭘 해보셨어요」처럼
+   판 상태를 실제로 바꾸는 문진이 섞여 있어서 이 순서가 중요하다.
+   ══════════════════════════════════════════════════════════════════ */
+
+//@ 무대.막 — 오버레이 다섯
+function stageOvHideAll(){
+  for(const e of document.querySelectorAll('#sg .ov')) e.classList.remove('on');
+}
+/* 막을 올릴 때 머리띠도 같이 맞춘다 — 판은 이미 넘어갔는데 남은 예산과
+   대기 인원이 한 박자 늦게 따라오던 자리다 */
+function stageOvShow(id){
+  stageOvHideAll();
+  if(STAGE_ON && S) stageHud();
+  const e=$(id); if(e) e.classList.add('on');
+}
+
+/* ── 호소 증상 ───────────────────────────────────────────────
+   대본에 적힌 것이 있으면 그것을 쓰고, 없으면 핵심 증상에서 만든다.
+   CHIEF 에 한 줄 적으면 그때부터 그 줄이 나온다. */
+//@ 무대.호소 — 이 사람이 무엇 때문에 왔는가
+function chiefOf(){
+  if(!BOARD) return '—';
+  const id = BOARD.script && BOARD.script.id;
+  if(id && CHIEF[id]) return CHIEF[id];
+  if(BOARD.script && BOARD.script.chief) return BOARD.script.chief;
+  const core = BOARD.core || (alive(S)[0]||{}).sym;
+  return CHIEF_BY_SYM[core] || '어디가 아픈지 잘 말하지 못한다';
+}
+
+/* ── 대기 명단 ─────────────────────────────────────────────── */
+//@ 무대.명단 — 다음은 누구인가
+function stageQueueShow(){
+  if(MODE!=='sess' || !SESS){ stageRender(); return }
+  const list = sessList(), def = SESS.def;
+  const rounds = def.rounds.length;
+  $('sg_qhead').textContent = def.name + (rounds>1 ? ` · ${SESS.round+1}라운드` : '');
+  $('sg_qbud').textContent = `남은 예산 ${Math.max(0,SESS.budget)}턴`;
+
+  const say = (SESS.idx===0 && def.roundSay && def.roundSay[SESS.round])
+    ? def.roundSay[SESS.round]
+    : (SESS.idx===0 ? String(def.nurse).replace('__B__', SESS.budget) : '다음 분 들어오세요.');
+  $('sg_nurse').innerHTML = say;
+
+  const doneHere = SESS.results.filter(r=>(r.round??0)===SESS.round);
+  $('sg_qlist').innerHTML = list.map((id,i)=>{
+    const p = SCRIPT[id], r = doneHere.find((_,k)=>k===i && i<SESS.idx);
+    const done = i < SESS.idx, gi = r ? TIER.indexOf(r.out)+1 : 3;
+    return `<div class="qrow ${done?'done':(i===SESS.idx?'now':'')}">
+      <span class="qlv">Lv${p?p.lv:'—'}</span>
+      <span class="qn">${esc(p?p.name:id)}</span>
+      <span class="qr g${gi}">${r ? `${r.out} · ${r.turns}턴` : (i===SESS.idx?'지금':'대기')}</span></div>`;
+  }).join('');
+
+  const over = SESS.budget<=0;
+  /* 이 라운드를 다 봤는가 — 왕진이면 다음 라운드 앞에 가방을 다시 짠다 */
+  const roundDone = SESS.idx >= list.length;
+  const more = SESS.round < def.rounds.length-1;
+  const redeck = roundDone && more && def.visit;
+  $('sg_qnote').innerHTML = over
+    ? '예산이 다 됐다. 남은 사람은 <b>악화</b>로 남는다.'
+    : redeck
+    ? `${SESS.round+1}라운드를 다 봤다. 다음 라운드는 <b>가방을 다시 짜고</b> 나간다.`
+      + '<br><span class="d">고르는 자리는 작업대다 — 무대가 잠깐 비켜선다.</span>'
+    : '턴 예산을 다 쓰면 남은 사람은 못 본다. 못 본 사람은 <b>악화</b>로 남는다.'
+      + '<br><span class="d">진료를 시작하면 예산에서 1턴이 나간다.</span>';
+  $('sg_qgo').textContent = over ? (def.visit?'왕진을 마친다':'오전을 마친다')
+    : redeck ? '가방을 다시 연다'
+    : roundDone && more ? `${SESS.round+2}라운드로 간다`
+    : '다음 환자를 부른다';
+  stageOvShow('sg_ovQueue');
+}
+
+/* 명단에서 「다음」 — 여기서 비로소 다음 사람을 들인다.
+   왕진이고 라운드가 끝났으면 loadPatient 이 가방 화면을 연다 (무대는 비켜선다) */
+function stageQueueGo(){
+  if(SESS && SESS.phase==='after') sessNext();
+  stageFlow();
+}
+
+/* ── 문진 ── 한꺼번에 고르고 한 번에 확정한다 ────────────────── */
+let SG_ASK = [];
+
+//@ 무대.문진 — 말수만큼 골라서 한 번에 묻는다
+function stageAskShow(){
+  SG_ASK = [];
+  const p = BOARD.script;
+  $('sg_askwho').textContent = p ? p.name : '';
+  stageAskDraw();
+  stageOvShow('sg_ovAsk');
+}
+
+function stageAskDraw(){
+  const want = S.talk || 0;
+  $('sg_asklist').innerHTML = QUIZ.map(q=>{
+    const on = SG_ASK.includes(q.id);
+    const full = !on && SG_ASK.length>=want;
+    return `<div class="aq ${on?'on':''} ${full?'off':''}" onclick="stageAskPick('${q.id}')">
+      <div class="q">${esc(q.q)}</div><div class="e">${esc(q.opens)}</div></div>`;
+  }).join('');
+  $('sg_askcnt').textContent = `${SG_ASK.length} / ${want}`;
+  $('sg_asknote').innerHTML =
+    `코스트를 쓰지 않는다. 이 진료 내내 남는다.<br>이 사람은 <b>${want}가지</b>만 말한다.`
+    + '<br><span class="d">확정하기 전까지는 판이 바뀌지 않는다 — 얼마든지 물렀다 놓아도 된다.</span>';
+  $('sg_askgo').className = 'ogo' + (SG_ASK.length===want ? '' : ' off');
+}
+
+function stageAskPick(id){
+  const want = S.talk || 0;
+  const i = SG_ASK.indexOf(id);
+  if(i>=0) SG_ASK.splice(i,1);
+  else if(SG_ASK.length < want) SG_ASK.push(id);
+  stageAskDraw();
+}
+
+function stageAskGo(){
+  const want = S.talk || 0;
+  if(SG_ASK.length !== want) return;
+  fxSilent(()=>{ for(const id of SG_ASK) ask(id) });
+  for(const id of SG_ASK) sayEmit('intake', {key:id});
+  startCombat();
+  sayEmit('open', {});
+  stageOvHideAll();
+  stageRender();
+}
+
+/* ── 이 환자의 결과 ─────────────────────────────────────────── */
+//@ 무대.결과 — 한 사람의 진료가 끝났다
+function stageVerdShow(){
+  const out = (MODE==='sess' && SESS && SESS.results.length)
+    ? SESS.results[SESS.results.length-1].out
+    : verdictNow();
+  if(!out){ stageRender(); return }
+  sayEmit('verdict', {key:out});
+  $('sg_vg').textContent = out;
+  const turns = (MODE==='sess' && SESS && SESS.results.length)
+    ? SESS.results[SESS.results.length-1].turns : S.turn-1;
+  $('sg_vs').innerHTML = ({
+    사망:'환자가 죽었다.', 악화:'아직 살아 있는 증상이 남았다.',
+    연명:'핵심이 잠들어 있을 뿐이다.', 호전:'핵심을 뽑아냈다.',
+    완치:'전부 뽑아냈고 진화한 기록도 없다.'}[out] || '')
+    + `<br>이 사람에게 <b>${turns}턴</b>을 썼다`
+    + (MODE==='sess' && SESS ? ` · 남은 예산 ${Math.max(0,SESS.budget)}턴` : '');
+  $('sg_vgo').textContent = (MODE==='sess' && SESS) ? '다음' : '작업대로';
+  stageOvShow('sg_ovVerd');
+}
+
+/* 결과에서 「다음」 — 곧바로 다음 사람으로 넘어가지 않는다.
+   누구를 부를지 보는 자리가 명단이므로 한 번 거쳐 간다 */
+function stageVerdGo(){
+  if(MODE==='sess' && SESS){ stageQueueShow(); return }
+  stageClose();
+}
+
+/* ── 세션 결산 ─────────────────────────────────────────────── */
+//@ 무대.결산 — 하루가 끝났다
+function stageEndShow(){
+  if(!SESS){ stageRender(); return }
+  $('sg_ehead').textContent = SESS.def.visit ? '왕진이 끝났다' : '오전이 끝났다';
+  $('sg_esub').textContent = `남은 예산 ${Math.max(0,SESS.budget)}턴`
+    + (SESS.def.visit ? ` · 평판 ${SESS.rep>0?'+':''}${SESS.rep}` : '');
+  $('sg_elist').innerHTML = SESS.results.map(r=>{
+    const p = SCRIPT[r.id], gi = TIER.indexOf(r.out)+1;
+    return `<div class="qrow"><span class="qlv">Lv${p?p.lv:'—'}</span>
+      <span class="qn">${esc(p?p.name:r.id)}</span>
+      <span class="qr g${gi}">${r.out}${r.auto?' · 못 봄':` · ${r.turns}턴`}</span></div>`;
+  }).join('');
+  const bad = SESS.results.filter(r=>r.out==='사망'||r.out==='악화').length;
+  $('sg_enote').innerHTML = bad
+    ? `<b>${bad}명</b>을 제대로 못 봤다.`
+    : '온 사람을 다 봤다.';
+  stageOvShow('sg_ovEnd');
+}
+
+/* ── 스토리 — 병명 선언 · 방침 ───────────────────────────────
+   1막은 증거를 캐는 판이라 오버레이가 아니라 머리띠에만 뜬다.
+   증거가 목표에 닿으면 여기서 선언을 물어본다. */
+//@ 무대.스토리 — 1막 선언 · 2막 방침
+function stageActShow(){
+  if(MODE!=='story' || !S){ stageRender(); return }
+  const cand = candLeft(S);
+  const body = $('sg_actbody');
+
+  if(S.act===1){
+    $('sg_acthead').textContent = '1막 — 무슨 병인가';
+    $('sg_actsub').textContent = '병 노드는 무적이다. 진단 카드가 검사 파라미터로 들어간다';
+    $('sg_actcnt').textContent = `증거 ${S.evid}/${SR.EVID_TOTAL}`;
+    body.innerHTML =
+      `<div class="evrow">${Array.from({length:SR.EVID_TOTAL},(_,i)=>
+        `<i class="${i<S.evid?'on':''}"></i>`).join('')}</div>`
+    + `<div class="nurse">검사 파라미터 <b>${S.paramAcc}/${SR.PARAM_NEED}</b> ·
+        차트에 남은 병명 <b>${cand}</b><br>
+        지금 선언하면 맞을 확률은 <b>${(100/cand).toFixed(0)}%</b> 다.</div>`;
+    $('sg_actnote').innerHTML = S.evid>=SR.EVID_AIM
+      ? '더 캘수록 후보가 준다. 그만큼 병은 자란다.'
+      : '아직 증거가 얕다. 선언하면 오진이 나기 쉽다.';
+    body.innerHTML += `<div class="polrow" style="grid-template-columns:1fr">
+      <button class="polbtn2" onclick="stageDeclare()"><b>병명을 선언한다</b>
+        <span>지금 가진 증거로 차트를 좁힌다. 맞을 확률 ${(100/cand).toFixed(0)}%</span></button></div>`;
+    $('sg_actgo').textContent = '더 캔다';
+    stageOvShow('sg_ovAct');
+    return;
+  }
+
+  /* 2막 — 방침 셋. 각각 다른 승리 조건이다 */
+  const pol = (BOSS[BOARD.boss] || {policy:{완치:'병 노드를 끊는다',
+      연명:'활성 부수 증상을 하나도 남기지 않는다', 편하게:'시계가 다 돌 때까지 버틴다'}}).policy;
+  $('sg_acthead').textContent = '2막 — 어떻게 할 것인가';
+  $('sg_actsub').textContent = S.correct ? '정진단이었다' : '오진이었다';
+  $('sg_actcnt').textContent = '';
+  body.innerHTML = `<div class="polrow">`
+    + Object.entries(pol).map(([k,v])=> v
+        ? `<button class="polbtn2"${tip(policyTip(k))} onclick="stagePolicy('${k}')"><b>${k}</b><span>${esc(v)}</span></button>`
+        : `<button class="polbtn2" disabled><b>${k}</b><span>고를 수 없다</span></button>`).join('')
+    + `</div>`;
+  $('sg_actnote').textContent = '한 번 정하면 이 전투 동안 바뀌지 않는다.';
+  $('sg_actgo').textContent = '';
+  $('sg_actgo').style.display = 'none';
+  stageOvShow('sg_ovAct');
+}
+
+function stageActGo(){
+  $('sg_actgo').style.display = '';
+  stageOvHideAll();
+  stageRender();
+}
+
+function stagePolicy(p){
+  $('sg_actgo').style.display = '';
+  fxSilent(()=>pickPolicy(p));
+  sayEmit('policy', {key:p});
+  sayEmit('act', {key:'3'});
+  stageOvHideAll();
+  stageRender();
+}
+
+/* 1막에서 병명을 선언한다 — 판 위 「처치」 자리를 이것이 대신한다 */
+function stageDeclare(){
+  if(MODE!=='story' || !S || S.act!==1) return;
+  fxSilent(()=>declareDx());
+  sayEmit('act', {key:'2'});
+  stageFlow();
+}
+
+/* ── 작업대에서 무대로 ────────────────────────────────────────
+   「환자를 들인다」 · 「전투를 시작한다」 · 「진료를 시작한다」가 여기로 온다.
+   무대를 안 쓰겠다고 꺼 두면 작업대에 그대로 머문다. */
+//@ 무대.진입 — 판이 깔린 뒤 무대를 연다
+function stageWanted(){
+  const c = $('sg_use');
+  return !c || c.checked;
+}
+
+function stageBattleStart(){
+  if(!stageWanted() || !S) return false;
+  stageOpen();
+  return true;
+}
+
+/* 「환자를 들인다」는 새 판을 깐다. 이것은 깔려 있는 판으로 되돌아간다.
+   무대에서 작업대로 나오면 판이 없어진 것처럼 보이던 구멍을 메운다 —
+   판은 그대로 있었고 돌아갈 문만 없었다.
+   가방을 여는 중(DB · PK)에는 막는다. 그 화면 위에 무대를 덮으면
+   닫고 나왔을 때 어디에 있었는지가 흐려진다 */
+//@ 무대.복귀 — 보던 판을 그대로 다시 띄운다
+function stageResumable(){
+  return !!S && !STAGE_ON && !DB && !PK;
+}
+
+/* 돌아갈 판이 없으면 문도 잠가 둔다.
+   그리기(render)와 가방 여닫기(syncDeckBtn) 두 곳이 부른다 —
+   가방을 펼치는 동안에는 render 가 가방 화면에서 멈춰 서기 때문이다 */
+function syncBackBtn(){
+  for(const b of document.querySelectorAll('.sgback')) b.disabled = !stageResumable();
+}
+
+function stageResume(){
+  if(!stageResumable()) return;
+  stageOpen();
 }
 
 //@ 파일.80-tools/override

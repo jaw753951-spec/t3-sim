@@ -45,9 +45,11 @@ const ORDER = [
   /* ── 문안 ── 사람이 읽는 글. 여기부터 화면이다 ── */
   'src/60-text/keywords.js',
   'src/60-text/rule-doc.js',
+  'src/60-text/patch-notes.js',
   /* ── 화면 ── */
   'src/70-ui/globals.js',
   'src/70-ui/tooltip.js',
+  'src/70-ui/say.js',
   'src/70-ui/card-view.js',
   'src/70-ui/board-view.js',
   'src/70-ui/hand.js',
@@ -58,6 +60,12 @@ const ORDER = [
   'src/70-ui/session-ui.js',
   'src/70-ui/undo.js',
   'src/70-ui/mode.js',
+  'src/70-ui/patch-ui.js',
+  /* ── 무대 ── 전투 화면. 규칙을 모르고 커널이 낸 값을 그리기만 한다 ── */
+  'src/70-ui/fx.js',
+  'src/70-ui/stage-node.js',
+  'src/70-ui/stage.js',
+  'src/70-ui/stage-overlay.js',
   /* ── 도구 ── 밸런싱용. 게임 규칙이 아니다 ── */
   'src/80-tools/override.js',
   'src/80-tools/batch.js',
@@ -124,11 +132,15 @@ for (const f of ORDER) {
 }
 const js = chunks.join('\n\n') + '\n';
 
+/* 껍데기 조각. 작업대와 무대를 따로 적고 여기서 이어 붙인다 */
+const CSS  = ['src/00-shell/style.css', 'src/00-shell/stage.css'];
+const BODY = ['src/00-shell/body.html', 'src/00-shell/stage.html'];
+
 const html = [
   stamp(read('src/00-shell/head.html')),
-  read('src/00-shell/style.css'),
+  CSS.map(read).join('\n'),
   '</style></head><body>',
-  stamp(read('src/00-shell/body.html')),
+  BODY.map(f=>stamp(read(f))).join('\n'),
   '<script>',
   js + '</script></body></html>',
 ].join('\n');

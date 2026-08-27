@@ -48,4 +48,5 @@ function newGame(){
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.one.started=true;
   log(`<b>${BOARD.script?BOARD.script.name:'레벨 '+BOARD.level}</b> · 노드 ${BOARD.nodes.length} · S ${(BOARD.S||0).toFixed(1)} · 체력 ${BOARD.hp}${ovrNote()}`);
   render();
+  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
 }

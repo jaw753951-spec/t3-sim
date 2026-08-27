@@ -39,6 +39,7 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* ── 환자 머리에 붙는 설명 둘 ────────────────────────────────
@@ -223,10 +224,12 @@ function renderInto(h){
     left = handPicks(S, PICK.id);
     for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
   }
+  /* 덱과 버림은 손패 줄 맨 앞에 더미로 선다 — 눌러서 안을 본다 (pile-ui) */
   $(h+'_hand').innerHTML=(pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
-    + S.hand.map((id,ix)=>{
+    + pileTiles()
+    + (S.hand.map(id=>{
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
@@ -234,11 +237,11 @@ function renderInto(h){
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
     const {ok, why} = cardWhy(S, id, selNode);
-    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
+    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`,
       foot: why?`<span class="keep why">${why}</span>`:''});
-  }).join('') || '<div class="empty">손이 비었다.</div>';
+  }).join('') || '<div class="empty">손이 비었다.</div>');
 
-  $(h+'_piles').innerHTML=`덱 ${S.deck.length} · 버림 ${S.discard.length} · 판 밖 ${S.exiled.length}`
+  $(h+'_piles').innerHTML=`판 밖 ${S.exiled.length}`
     +` · 합 ${S.hand.length+S.deck.length+S.discard.length+S.exiled.length}`
     +(S.shuffles?` · 셔플 ${S.shuffles}`:'')
     +`<span class="right d" style="font-size:10px">${KEYHELP}</span>`;

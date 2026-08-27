@@ -73,7 +73,7 @@ function stageFlow(){
 }
 
 /* ── 그리기 ─────────────────────────────────────────────────── */
-//@ 무대.그리기 — 계기판 · 카르테 · 손패 · 상태판
+//@ 무대.그리기 — 계기판 · 카르테 · 손패
 function stageRender(){
   if(!STAGE_ON || !S || STAGE_QUIET) return;
   /* 겨누던 카드가 손에서 사라졌으면 겨눔을 푼다.
@@ -89,7 +89,7 @@ function stageRender(){
   stageActbar();
   stagePanel();
   stageHand();
-  const lg = $('sg_lg'); if(lg) lg.innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
@@ -197,7 +197,7 @@ function stageActbar(){
   $('sg_av').innerHTML = v + '<br>' + nodeMarks(S, n);
 }
 
-/* 우측 계기 — 턴 · 코스트 · 파일 · 상태판 */
+/* 우측 계기 — 턴 · 코스트 · 파일. 아래칸 카르테는 stageKarte() 가 채운다 */
 function stagePanel(){
   $('sg_turn').textContent = S.turn;
   $('sg_spent').textContent = MODE==='sess' && SESS ? `${SESS.idx+1}/${sessList().length}명` : '';
@@ -227,8 +227,6 @@ function stagePanel(){
   $('sg_pDisc').textContent = S.discard.length;
   $('sg_pHand').textContent = S.hand.length;
 
-  const st = $('sg_state'); if(st) st.innerHTML = stateHTML();
-
   const eb = $('sg_end');
   eb.className = verdictNow() ? 'off' : '';
   eb.textContent = verdictNow() ? `${verdictNow()} — 정산한다` : '턴 종료';
@@ -247,7 +245,7 @@ function stageHand(){
   $('sg_hand').innerHTML = (pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
-  + S.hand.map((id, ix)=>{
+  + S.hand.map(id=>{
       if(pend){
         const okPick = left.includes(id);
         return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick,
@@ -256,7 +254,7 @@ function stageHand(){
       const {ok, why} = cardWhy(S, id, selNode);
       const aiming = STAGE_MODE==='card' && STAGE_CARD===id;
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
-        onclick:`stageCardClick('${id}')`, keyhint: ix<9?ix+1:'',
+        onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
 }
@@ -480,10 +478,11 @@ function fxPlanDiff(b, plan){
   }
 
   /* 전역 게이지 */
-  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_state', `기세 ${cur.rush}`, cur.rush>b.rush));
-  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_state', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
+  /* 상태판을 걷었으므로 이 셋은 환자 위에 떠서 알린다 — 붙을 계기판이 없다 */
+  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>b.rush));
+  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
   if(cur.stage !== b.stage){
-    fxq(()=>FXE.gauge('sg_state', `병기 ${cur.stage}`, false));
+    fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
   if(cur.evid !== b.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
@@ -523,6 +522,7 @@ document.addEventListener('keydown', e=>{
   const t = e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   const k = e.key;
+  if(PILE_OPEN){ if(k==='Escape'){ e.preventDefault(); pileClose() } return }
   if(k==='Escape'){
     e.preventDefault();
     if(PICK){ cancelPick(); stageRender(); return }

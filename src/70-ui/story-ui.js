@@ -33,8 +33,7 @@ function newStory(){
   } else {
     log('<span class="d">1막 — 진단 카드를 검사 파라미터에 써서 증거를 모은다.</span>');
   }
-  render();
-  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
+  render();          // 판만 깐다 — 전투 화면은 사람이 문을 열 때 뜬다
 }
 
 function declareDx(){

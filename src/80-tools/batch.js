@@ -101,12 +101,11 @@ async function batch(){
 
 async function batchSession(){
   const n=+$('bn').value, B=+$('bbudget').value, ai=$('bai').value, rows=[];
-  BUDGET_SRC = $('bsrcbud') ? $('bsrcbud').value : BUDGET_SRC;
   let done=0; const keys=Object.keys(SESSIONS); const total=keys.length*n;
   for(const sk of keys){
     const sess=SESSIONS[sk];
     const tally={}; let unseen=0, used=0;
-    /* v19 와 견줄 수 있게 같은 대응을 쓴다 — d1→1일차 8종, d2 계열→2일차 8종, 왕진→가방 앞 8장 */
+    /* 옛 판본과 견줄 수 있게 같은 대응을 쓴다 — d1→1일차 8종, d2 계열→2일차 8종, 왕진→가방 앞 8장 */
     const deck = sess.pool==='d1' ? DECK_D1 : sess.pool==='d2' ? DECK_D2 : POOL.d3.slice(0, sess.cap);
     for(let i=0;i<n;i++){
       const s=runSession(sess.list, deck, B||sessBudget(sess), 80000+i*13, {ai});

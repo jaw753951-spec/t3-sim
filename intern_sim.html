@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>인턴 심 0.1.2.1 — 전투 시뮬레이터</title><style>
+<title>인턴 심 0.2 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -11,8 +11,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
 .wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
 .col{padding:16px;border-right:1px solid var(--line)}
 .col:last-child{border-right:0;border-left:1px solid var(--line)}
-h1{font:600 15px/1 var(--sans);letter-spacing:.10em;margin:0 0 4px}h1 span{color:var(--blood)}
-.sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
+/* 「패치」는 제 자리에 못 박아 둔다 — 오른쪽 위 모서리다.
+   판본이 길어지면 이름과 판본만 아래로 접히고 단추는 그대로 있는다.
+   오른쪽 여백은 단추가 앉을 자리를 미리 비워 둔 것이다 */
+h1{position:relative;padding-right:52px;
+  font:600 15px/1.35 var(--sans);letter-spacing:.10em;margin:0 0 16px}
+/* 이름도 판본도 도중에 끊지 않는다 — 자리가 모자라면 판본이 통째로 아랫줄로 내려간다 */
+h1 .ttl,h1 .ver{white-space:nowrap}
+h1 .ver{color:var(--blood)}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
  cursor:pointer;border-right:1px solid var(--line);color:var(--dim)}
@@ -95,18 +101,78 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 /* ── 손패 ── */
 .bar{display:flex;align-items:center;gap:14px;margin:18px 0 8px;font:11px var(--mono);letter-spacing:.14em;color:var(--dim);border-top:1px solid var(--line);padding-top:12px}
 .hand{display:flex;flex-wrap:wrap;gap:10px}
-.card{width:238px;min-height:132px;border:1px solid var(--line);background:var(--panel);padding:11px 12px;cursor:pointer;display:flex;flex-direction:column}
-.card:hover{border-color:var(--ink)}.card.no{opacity:.42;cursor:default}
+/* ── 카드 한 장 ── 작업대에서는 예전 그대로 한 줄짜리 상자다.
+   전투 화면 손패(#sg_hand)에서만 낡은 종이 액자를 입는다 — 그 규칙은 아래에 따로 있다.
+   그리는 함수(cardHTML)는 하나이므로 칸은 늘 같다. 옷만 화면 따라 갈아입힌다. */
+.card{width:238px;min-height:132px;border:1px solid var(--line);background:var(--panel);
+  padding:11px 12px;cursor:pointer;display:flex;flex-direction:column}
+.card:hover{border-color:var(--ink)}
+.card.no{opacity:.42;cursor:default}
 .card.pick{border-color:var(--t3);box-shadow:inset 0 0 0 2px rgba(138,106,16,.35)}
 .card.내과{border-top:3px solid var(--calm)}.card.외과{border-top:3px solid var(--blood)}
 .card.의공학{border-top:3px solid var(--t3)}.card.공통{border-top:3px solid var(--dim)}
-.chead{display:flex;align-items:baseline;gap:7px;width:100%}.chead b{font-size:15px}
+.chead{display:flex;align-items:baseline;gap:7px;width:100%;
+  padding-bottom:6px;border-bottom:1px solid var(--line)}
+.ctitle{flex:1;min-width:0}
+.chead b{font:600 15px/1.3 var(--sans);color:var(--ink)}
 .cost{font:600 15px var(--mono);color:var(--t3);min-width:15px}
 .bl{font:600 10px var(--mono);color:#fff;background:var(--blood);border:1px solid var(--blood);padding:1px 5px;cursor:help}
-.cmeta{font:10.5px var(--mono);color:var(--dim);margin-top:5px;border-bottom:1px solid var(--line);padding-bottom:6px}
-.ctext{font:12.5px/1.6 var(--sans);margin-top:8px;color:var(--ink);flex:1}
+.cart{display:none}                       /* 그림칸은 전투 화면에서만 편다 */
+.cbody{margin-top:8px;flex:1;display:flex;flex-direction:column}
+.ctext{font:12.5px/1.6 var(--sans);color:var(--ink);flex:1}
 .kw{border-bottom:1px dotted var(--blood);color:var(--blood);cursor:help;font-weight:600}
 .keep{display:inline-block;margin-top:6px;font:10.5px var(--mono);color:var(--shield)}
+
+/* ── 전투 화면 손패의 카드 ── 낡은 종이에 제본한 카르테.
+   그림 파일은 한 장도 쓰지 않는다 — 종이결까지 SVG 노이즈를 배경으로 깔아 만든다.
+   색은 카드가 스스로 들고 다닌다 (--cd-*). #sg 가 --ink · --line · --t3 을 무대 색으로
+   갈아 끼우므로, 그 셋을 쓰는 규칙은 여기서 하나씩 되짚어 덮는다. */
+#sg_hand .card{
+  --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
+  --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
+  position:relative;flex:0 0 auto;                      /* 줄에 여럿 서도 찌그러지지 않는다 */
+  width:200px;min-height:292px;                         /* 액자 비율 519:760 */
+  border:2px solid var(--cd-rule);color:var(--cd-ink);
+  padding:13px 26px 13px 13px;                          /* 오른쪽 26px 은 제본 띠 몫 */
+  gap:7px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
+  box-shadow:0 6px 16px rgba(0,0,0,.35);
+  transition:transform .18s ease,box-shadow .18s ease}
+#sg_hand .card:hover{transform:translateY(-8px);border-color:var(--cd-rule);
+  box-shadow:0 15px 28px rgba(0,0,0,.45)}
+/* 안쪽 두 번째 줄 — 제본 띠 앞에서 끝난다 */
+#sg_hand .card::before{content:"";position:absolute;inset:5px 29px 5px 5px;
+  border:1px solid var(--cd-line);pointer-events:none}
+/* 제본 띠 — 세로줄 하나에 리벳 여섯 */
+#sg_hand .card::after{content:"";position:absolute;right:0;top:0;bottom:0;width:26px;
+  border-left:1px solid var(--cd-line);pointer-events:none;
+  background-image:radial-gradient(circle 6px at 50% 50%,
+    #E4CE9E 0 26%,var(--cd-rivet) 30% 58%,#4E3B20 62% 74%,transparent 78%);
+  background-size:100% 16.666%}
+#sg_hand .card.no:hover{transform:none;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+#sg_hand .card.pick{border-color:#8A6A10;box-shadow:0 0 0 2px rgba(138,106,16,.55),0 6px 16px rgba(0,0,0,.35)}
+/* 부서는 코스트 동그라미의 테를 물들인다 */
+#sg_hand .card.내과 .cost{border-color:var(--calm)}#sg_hand .card.외과 .cost{border-color:var(--blood)}
+#sg_hand .card.의공학 .cost{border-color:var(--shield)}#sg_hand .card.공통 .cost{border-color:var(--cd-mut)}
+#sg_hand .chead{align-items:center;gap:9px;padding-bottom:7px;border-bottom:1px solid var(--cd-line)}
+#sg_hand .cost{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:2px solid var(--cd-rule);
+  display:grid;place-items:center;background:rgba(255,252,240,.30);
+  font:700 17px/1 var(--mono);color:var(--cd-ink);min-width:0}
+#sg_hand .chead b{display:block;font:700 14.5px/1.25 var(--sans);color:var(--cd-ink)}
+#sg_hand .bl{align-self:flex-start;color:#F2E6CE;border-color:#6E211C}
+/* 카드 그림이 들어올 칸 */
+#sg_hand .cart{display:grid;flex:0 0 116px;border:1px solid var(--cd-line);
+  background:rgba(255,250,235,.16);place-items:center;
+  font:10.5px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+#sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
+  padding:7px 9px}
+#sg_hand .ctext{font:11.5px/1.5 var(--sans);color:var(--cd-ink)}
+#sg_hand .keep{margin-top:5px;font:10px var(--mono);color:var(--cd-mut)}
+#sg_hand .keep.on{color:#6B5410}
+#sg_hand .keep.why{color:var(--blood)}
+
 .empty{color:var(--dim);font:12px var(--mono);padding:10px 0}
 .done{font:600 18px var(--mono);letter-spacing:.2em;color:var(--calm)}.done.bad{color:var(--blood)}
 .chart{border:1px solid var(--t3);padding:10px 12px;font:12.5px var(--mono);color:#6B520B;margin-bottom:8px;background:rgba(138,106,16,.07)}
@@ -139,9 +205,8 @@ summary{font:11px var(--mono);letter-spacing:.1em;color:var(--dim);cursor:pointe
 .prog{height:6px;border:1px solid var(--line);margin-top:10px;background:#C6BFA8}
 .prog i{display:block;height:100%;background:var(--t3);width:0%}
 .up{color:var(--blood)}.dn{color:var(--calm)}
-.keep.on{color:var(--t3)}
-.keep.why{color:var(--dim)}
-.key{margin-left:auto;font:10px var(--mono);color:var(--dim);border:1px solid var(--line);padding:0 5px}
+.keep.on{color:#6B5410}
+.keep.why{color:var(--blood)}
 .mini{width:auto;margin:0;padding:3px 8px;font-size:10px}
 .mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:10px 0}
 label.mk{display:block;margin:0;text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim)}
@@ -204,10 +269,35 @@ td input[type=checkbox]{width:auto}
    글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
 /* 이름표 옆 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다.
    그래서 글자 수는 두 자로 묶어 두고 크기만 키웠다 */
-.pnbtn{width:auto;margin:0 0 0 9px;padding:3px 9px;vertical-align:middle;
+.pnbtn{position:absolute;right:0;top:0;width:auto;margin:0;padding:3px 9px;
   font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
   border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
 .pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+/* ── 더미 들여다보기 ── 덱 · 버림에 남은 카드.
+   무대(#sg)가 z-index 400 이므로 그보다 위에 떠야 두 화면이 같이 쓴다 */
+#pv{position:fixed;inset:0;z-index:500;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(221,216,198,.90);backdrop-filter:blur(2px)}
+#pv.on{display:flex}
+/* 상자는 든 카드만큼만 넓어진다 — 한 장을 보자고 화면을 다 덮지 않는다 */
+.pvbox{width:auto;min-width:460px;max-width:min(1080px,100%);max-height:100%;
+  display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18)}
+.pvcnt{font:600 14px var(--mono);color:var(--ink)}
+.pvnote{font:11.5px var(--mono);color:var(--dim)}
+.pvlist{overflow:auto;padding:16px;min-height:0;align-content:flex-start;justify-content:center}
+
+/* 손패 줄 맨 앞에 서는 작은 상자 둘 — 카드 한 장 높이 안에 위아래로 포갠다.
+   카드 옆에 붙는 것이므로 색은 작업대 것을 쓰고 크기만 작다.
+   눌러서 그 더미에 남은 카드를 본다 */
+.piles2{flex:0 0 auto;align-self:stretch;display:flex;flex-direction:column;gap:8px}
+.pilebox{flex:1;min-height:54px;width:72px;padding:9px 0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+.pilebox:hover{border-color:var(--ink);background:var(--panel)}
+.pn2{font:600 17px/1 var(--mono);color:var(--ink)}
+.pl2{font:10px/1 var(--mono);letter-spacing:.14em;color:var(--dim);margin-top:5px}
 
 #pn{position:fixed;inset:0;z-index:300;display:none;
   align-items:center;justify-content:center;padding:28px;
@@ -334,34 +424,25 @@ body.sgon{overflow:hidden}
 #sg .actbadge{font:800 12px/1 var(--sans);letter-spacing:.1em;color:var(--hanjiW);
   background:var(--steelD);border:2px solid var(--brass);padding:5px 10px}
 
-/* ── 카르테 ───────────────────────────────────────────────── */
-#sg .karte{position:absolute;left:1.4%;top:8.5%;width:15.5%;height:73%;z-index:20;padding:14px;
-  display:flex;flex-direction:column}
-#sg .kname{font:800 19px/1.25 var(--sans);color:var(--ink3)}
-#sg .kmeta{font:11.5px/1.5 var(--sans);color:var(--ink2);margin-top:3px}
+/* ── 카르테 ── 우측 패널 아래칸(.rbot) 안에 산다 ───────────── */
+#sg .kname{font:800 23px/1.25 var(--sans);color:var(--ink3)}
+#sg .kmeta{font:14px/1.5 var(--sans);color:var(--ink2);margin-top:3px}
 #sg .ktags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
-#sg .ktag{font:700 10.5px/1 var(--sans);border:2px solid var(--line);padding:4px 7px;color:var(--ink2)}
+#sg .ktag{font:700 12.5px/1 var(--sans);border:2px solid var(--line);padding:5px 8px;color:var(--ink2)}
 #sg .ktag.hid{border-style:dashed;color:var(--mut)}
-#sg .kdiv{height:3px;background:var(--steel);margin:10px 0}
-#sg .kfield{font:12px/1.5 var(--sans);padding:6px 0;border-top:1px solid rgba(0,0,0,.14)}
-#sg .kfield b{display:block;font:700 9.5px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:4px}
-#sg .ai{display:block;font:600 12px/1.4 var(--sans);color:var(--ink3);
+#sg .kfield{font:14.5px/1.55 var(--sans);padding:8px 0;border-top:1px solid rgba(0,0,0,.14)}
+#sg .kfield b{display:block;font:700 11.5px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:5px}
+#sg .ai{display:block;font:600 14px/1.45 var(--sans);color:var(--ink3);
   border-left:3px solid var(--t3);padding:3px 0 3px 8px;margin-top:5px}
-#sg .ai em{display:block;font-style:normal;font:10.5px/1.3 var(--sans);color:var(--t3);margin-top:2px}
-#sg .klog{margin-top:10px;display:flex;flex-direction:column;min-height:0;flex:1;
-  padding-top:9px;border-top:3px solid var(--steel)}
-#sg .lg{overflow:auto;flex:1;min-height:0;display:flex;flex-direction:column-reverse}
-#sg .lg div{font:11px/1.5 var(--sans);color:var(--ink2);padding:4px 0;border-bottom:1px solid rgba(0,0,0,.09)}
-#sg .lg div b{color:var(--ink3)}
-#sg .lg .say{color:var(--ink3)}
-#sg .lg .d{color:var(--mut)}
+#sg .ai em{display:block;font-style:normal;font:12.5px/1.35 var(--sans);color:var(--t3);margin-top:2px}
 
 /* ── 판 ───────────────────────────────────────────────────── */
-#sg_board{position:absolute;left:18.2%;top:8%;width:62%;height:65%;z-index:15}
+#sg_board{position:absolute;left:1.4%;top:8%;width:78.8%;height:65%;z-index:15}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_board.dark .gz:not(.evoing),#sg_board.dark #sg_pat{filter:brightness(.42) saturate(.6);transition:filter .4s}
 
-#sg_pat{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);width:196px;height:196px;z-index:16}
+#sg_pat{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);width:196px;height:196px;z-index:16;
+  border-radius:50%}  /* 전역 게이지 연출(FX.pulse)이 둥글게 뛴다 */
 #sg_pat .ring{position:absolute;inset:-10px;overflow:visible}
 #sg_pat .bust{position:absolute;inset:0;border-radius:50%;overflow:hidden;
   background:radial-gradient(circle at 42% 30%,#6a625a,#33302b 72%);
@@ -394,11 +475,13 @@ body.sgon{overflow:hidden}
   width:0;height:0;border:11px solid transparent;border-top-color:var(--steelD)}
 
 /* 고른 자리에 대한 한 줄 — 지금 끊으면 무슨 일이 나는가 */
-#sg_actbar{position:absolute;left:50%;bottom:-2%;transform:translateX(-50%);z-index:35;
-  padding:8px 16px;display:none;align-items:baseline;gap:14px;max-width:86%}
+/* 고른 자리 한 줄 — 자리 이름표와 손패 사이 좁은 틈에 낀다.
+   내리면 카드가 덮고 올리면 이름표를 가리므로 높이부터 줄여 놓는다 */
+#sg_actbar{position:absolute;left:50%;bottom:4.5%;transform:translateX(-50%);z-index:35;
+  padding:6px 14px;display:none;align-items:baseline;gap:12px;max-width:86%}
 #sg_actbar.on{display:flex}
-#sg_actbar .n{font:800 15px/1 var(--sans);color:var(--ink3);white-space:nowrap}
-#sg_actbar .v{font:12.5px/1.4 var(--sans);color:var(--ink2)}
+#sg_actbar .n{font:800 14px/1 var(--sans);color:var(--ink3);white-space:nowrap}
+#sg_actbar .v{font:12px/1.35 var(--sans);color:var(--ink2)}
 #sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
 /* ── 계기판 ───────────────────────────────────────────────── */
@@ -520,54 +603,19 @@ body.sgon{overflow:hidden}
 #sg .btn.on .c{color:var(--hanji)}
 #sg .piles{display:flex;gap:6px;margin-top:9px}
 #sg .pile{flex:1;border:2px solid var(--line);padding:5px 0;text-align:center}
+#sg .pile.go{cursor:pointer}
+#sg .pile.go:hover{border-color:var(--steel);background:rgba(255,255,255,.35)}
 #sg .pile .n{font:800 15px/1 var(--mono);color:var(--ink3)}
 #sg .pile .l{font:700 9px/1 var(--sans);letter-spacing:.1em;color:var(--ink2);margin-top:3px}
 #sg .rbot{margin-top:11px;padding-top:10px;border-top:3px solid var(--steel);
   flex:1;min-height:0;overflow:auto}
 
-/* 상태판 — stateHTML() 이 뱉은 것을 무대 옷으로 갈아입힌다 */
-#sg .state{border:0;background:transparent;padding:0;position:relative}
-#sg .state h4{margin:0 0 8px;font:700 10px var(--sans);letter-spacing:.16em;color:var(--ink2)}
-#sg .st{margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(0,0,0,.14)}
-#sg .st:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
-#sg .stt{display:flex;justify-content:space-between;align-items:baseline;font:11.5px var(--sans);color:var(--ink2)}
-#sg .stt b{font:800 15px var(--mono);color:var(--ink3)}
-#sg .state .pips{display:flex;gap:3px;margin-top:5px}
-#sg .pip{flex:1;height:7px;border:1px solid var(--line);background:var(--paper3)}
-#sg .pip.on{background:var(--t3);border-color:var(--t3)}
-#sg .pip.rm.on{background:var(--mut);border-color:var(--mut)}
-#sg .pip.bl.on{background:var(--red);border-color:var(--red)}
-#sg .stnote{font:10.5px/1.45 var(--sans);color:var(--ink2);margin-top:4px}
-#sg .stempty{font:11px/1.5 var(--sans);color:var(--mut)}
-
 /* ── 손패 ─────────────────────────────────────────────────── */
-#sg_hand{position:absolute;left:18.2%;right:18.2%;bottom:2.2%;z-index:25;
+#sg_hand{position:absolute;left:1.4%;right:18.2%;bottom:2.2%;z-index:25;
   display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap}
-#sg_hand .card{width:206px;min-height:150px;border:3px solid var(--steelD);background:var(--paper);
-  padding:9px 11px;cursor:pointer;display:flex;flex-direction:column;
-  box-shadow:0 5px 14px rgba(0,0,0,.5);transition:transform .18s}
-#sg_hand .card:hover{transform:translateY(-9px);border-color:var(--steelD)}
-#sg_hand .card.no{opacity:.45;cursor:default;transform:none}
-#sg_hand .card.pick{border-color:var(--brass);box-shadow:0 0 0 3px rgba(201,164,74,.6),0 5px 14px rgba(0,0,0,.5)}
-#sg_hand .card.내과{border-top:7px solid #3C6E52}
-#sg_hand .card.외과{border-top:7px solid var(--red)}
-#sg_hand .card.의공학{border-top:7px solid #3D6673}
-#sg_hand .card.공통{border-top:7px solid var(--ink2)}
-#sg .chead{display:flex;align-items:baseline;gap:7px;width:100%}
-#sg .chead b{font:800 14px/1.25 var(--sans);color:var(--ink3)}
-#sg .cost{font:800 17px/1 var(--mono);color:var(--anno);min-width:15px}
-#sg .bl{font:800 9.5px var(--mono);color:var(--hanjiW);background:var(--red);
-  border:1px solid var(--red);padding:1px 5px;cursor:help}
-#sg .cmeta{font:9.5px var(--sans);letter-spacing:.06em;color:var(--ink2);margin-top:5px;
-  border-bottom:2px solid var(--steel);padding-bottom:5px}
-#sg .ctext{font:11.5px/1.55 var(--sans);margin-top:7px;color:var(--ink);flex:1}
-#sg .kw{border-bottom:1px dotted var(--red);color:var(--red);cursor:help;font-weight:700}
-#sg .keep{display:inline-block;margin-top:5px;font:9.5px var(--sans);color:var(--mut)}
-#sg .keep.on{color:var(--t3)}
-#sg .keep.why{color:var(--anno)}
-#sg .key{margin-left:auto;font:9.5px var(--mono);color:var(--ink2);border:1px solid var(--line);padding:0 5px}
-#sg .vup{color:#2F6B4F;font-weight:800}
-#sg .vdn{color:var(--red);font-weight:800}
+/* 카드 한 장은 무대 옷을 입지 않는다 — 가방에서 보던 그 카드 그대로다.
+   그리는 함수도 (cardHTML) 겉모습도 (style.css 의 .card) 하나뿐이고,
+   카드가 제 색을 스스로 들고 다니므로 (--cd-*) 여기서 덧입힐 것이 없다. */
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 
@@ -680,9 +728,9 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 <div id="tip"></div>
 <div class="wrap">
  <div class="col">
-  <h1>INTERN SIM <span>0.1.2.1</span><button class="pnbtn" onclick="openPatch()"
-      title="패치 노트를 연다">패치</button></h1>
-  <div class="sub">전투 시뮬레이터<br>규칙 출처 = 카드 시스템 정리</div>
+  <!-- 이름과 판본 사이의 빈칸은 줄을 바꿀 수 있는 자리다 — 판본이 길면 여기서 접힌다 -->
+  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.2</span
+      ><button class="pnbtn" onclick="openPatch()" title="패치 노트를 연다">패치</button></h1>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
     <div class="tab" data-m="sess" onclick="setMode('sess')">세션</div>
@@ -694,11 +742,6 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
-  <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
-    <input type="checkbox" id="sg_use" checked style="width:auto"> 전투를 무대에서 본다</label>
-  <div class="note" style="margin:4px 0 0">끄면 이 작업대에서 그대로 둔다. 배치를 돌릴 때는 꺼 두는 편이 빠르다.</div>
-  <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
-  <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
   <details><summary>규칙 덮어쓰기</summary>
     <div class="note">전투 규칙의 숫자를 여기서 바꾼다. R 은 전투 공통, SR 은 스토리 전용이다.
@@ -730,8 +773,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <div class="tags" id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
-    <!-- 새 판이 아니라 보던 판이다 — 작업대로 나왔다가 그대로 되돌아간다 -->
-    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
+    <!-- 전투 화면으로 들어가는 문. 새 판이 아니라 지금 깔린 판을 그대로 띄운다 -->
+    <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
   </div>
 
@@ -740,7 +783,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <select id="ssel"><option value="d1">1일차 아침</option><option value="d2">2일차 아침</option><option value="d2m">2일차 오후 · 시장</option><option value="d3">3일차 왕진 (2라운드)</option></select>
     <label>턴 예산 직접 지정 (0 = 기준값)</label><input type="number" id="sbudget" value="0">
     <button class="go" onclick="sessInit()">가방을 연다</button>
-    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div id="se_ctrl" style="margin-top:14px"></div>
   </div>
 
@@ -759,8 +802,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
       <select id="sk_evid"><option value="1">증거 1</option><option value="2">증거 2</option><option value="3" selected>증거 3</option><option value="4">증거 4</option></select>
       <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
     </div>
-    <button class="go" onclick="newStory()">전투를 시작한다</button>
-    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
+    <button class="go" id="btn_story_go" onclick="newStory()">전투를 시작한다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
     <div id="st_ctrl" style="margin-top:14px"></div>
   </div>
@@ -768,7 +811,10 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <div id="side-batch" style="display:none">
     <label>표본 수</label><input type="number" id="bn" value="200">
     <label>자동 플레이</label>
-    <select id="bai"><option value="D" selected>빔 탐색 (v19 기본)</option><option value="H">휴리스틱 (v18 대조)</option></select>
+    <select id="bai"><option value="D" selected>빔 탐색 (기본)</option><option value="H">휴리스틱 (옛 대조군)</option></select>
+    <div class="note" style="margin:4px 0 0">빔 탐색은 몇 수 앞을 넓게 펼쳐 보고 고른다 — 기록 칸 아래
+      「자동 진행 규칙」의 저울과 빔 폭·깊이를 그대로 쓴다. 휴리스틱은 그 규칙을 안 보고 정해진 순서로만
+      두는 옛 손이다. 새 규칙이 판을 얼마나 바꾸는지 견줄 때만 쓴다.</div>
     <label>대상</label>
     <select id="bsrc"><option value="levels">레벨 1~5</option><option value="script">대본 환자</option></select>
     <label>덱</label>
@@ -832,6 +878,19 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
  </div>
 </div>
 
+<!-- ══ 더미 들여다보기 ══ 덱 · 버림에 남은 카드. 두 화면이 같이 쓴다 ══ -->
+<div id="pv" onclick="if(event.target===this)pileClose()">
+  <div class="pvbox">
+    <div class="pntop">
+      <div class="pnttl" id="pv_ttl">덱</div>
+      <div class="pvcnt" id="pv_cnt"></div>
+      <div class="pvnote" id="pv_note"></div>
+      <button class="pnx" onclick="pileClose()" title="닫는다 (Esc)">✕</button>
+    </div>
+    <div class="pvlist hand" id="pv_list"></div>
+  </div>
+</div>
+
 <!-- ══ 패치 노트 ══ 판본 옆 단추가 연다. 글은 60-text/patch-notes.js 에 있다 ══ -->
 <div id="pn">
   <div class="pnbox">
@@ -860,17 +919,6 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   </div>
   <button id="sg_exit" onclick="stageClose()">작업대로 (Esc)</button>
 
-  <!-- 카르테 -->
-  <div class="karte plate">
-    <div class="kname" id="sg_kname">—</div>
-    <div class="kmeta" id="sg_kmeta"></div>
-    <div class="ktags" id="sg_ktags"></div>
-    <div class="kdiv"></div>
-    <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
-    <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
-    <div class="klog"><div class="ph">기록</div><div class="lg" id="sg_lg"></div></div>
-  </div>
-
   <!-- 판 -->
   <div id="sg_board">
     <svg id="sg_links" viewBox="0 0 1000 700" preserveAspectRatio="none"></svg>
@@ -892,12 +940,19 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
       <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
       <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
       <div class="piles">
-        <div class="pile"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
-        <div class="pile"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
+        <div class="pile go" onclick="pileToggle('deck')"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
+        <div class="pile go" onclick="pileToggle('discard')"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
         <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
       </div>
     </div>
-    <div class="rbot"><aside class="state" id="sg_state"></aside></div>
+    <!-- 카르테 — 이 사람에 대해 알아낸 것 -->
+    <div class="rbot">
+      <div class="kname" id="sg_kname">—</div>
+      <div class="kmeta" id="sg_kmeta"></div>
+      <div class="ktags" id="sg_ktags"></div>
+      <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
+      <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
+    </div>
   </div>
 
   <div id="sg_hand"></div>
@@ -977,7 +1032,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
    껍데기(HTML)는 {{VERSION}} 이라 적어 두면 build.js 가 갈아 넣는다.
    ══════════════════════════════════════════════════════════════════ */
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = '0.1.2.1';
+const VERSION = '0.2';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -4004,6 +4059,25 @@ const RULE_GROUP = {
    ══════════════════════════════════════════════════════════════════ */
 //@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
 const PATCH_NOTES = [
+{v:'0.2', size:'M', date:'2026-08-27', tag:'편의성 개선', body:`
+시뮬레이터
+
+-전투 화면 UI 개선
+*로그와 판 위의 값 항목 삭제
+*좌측 UI의 환자 정보와 호소 증상, 문진을 우측으로 흡수
+
+-전투 화면 카드 이미지 변경
+
+-시뮬레이터에서 사용하지 않는 설정 삭제
+
+-가독성 개선
+
+전투
+
+-덱과 버린 카드 확인 기능 추가
+`},
+
+   
 {v:'0.1.2.1', size:'m', date:'2026-08-27', tag:'편의성 개선', body:`
 시뮬레이터
 
@@ -4591,20 +4665,29 @@ function fillText(id, S, node){
       (key in v || key==='cost') ? valSpan(S, id, key, node) : m);
 }
 
-/* 카드 한 장 그리기 — 손패와 가방이 같은 것을 쓴다 */
+/* 카드 한 장 그리기 — 손패와 가방이 같은 것을 쓴다.
+   낡은 종이에 제본한 카르테 한 장이다. 칸은 넷 —
+     동그라미  코스트 (테두리 색이 부서다)
+     그 옆      이름 · 사혈
+     큰 사각형  카드 그림
+     아래 사각형 설명과 꼬리표
+   겉모습은 style.css 의 .card 무리가 짠다. 여기는 칸만 세운다 */
 function cardHTML(id, o={}){
   const c = CARDS[id], S = o.S, node = o.node || null;
   const keepLeft = S && c.keep ? c.keep-((S.keepUses||{})[id]||0) : c.keep;
   const rvOn = S && !!(S.revisitOn||{})[id];
   const dPlus = S ? ((S.diagPlus||{})[id]||0) : 0;
   return `<div class="card ${o.dim?'no':''} ${o.mark?'pick':''} ${c.dept}" ${o.onclick?`onclick="${o.onclick}"`:''}>
-    <div class="chead"><span class="cost">${valSpan(S, id, 'cost', node)}</span>${bleedIcon(c,S)}<b>${esc(id)}</b>
-      ${o.keyhint!==undefined?`<span class="key">${o.keyhint}</span>`:''}</div>
-    <div class="cmeta">${c.dept} · ${c.verb}${c.sub?`(${c.sub})`:''}${c.kw?` · ${c.kw}`:''}${c.target==='all'?' · 전체':''}${c.target==='hand'?' · 손패':''}</div>
-    <div class="ctext">${fillText(id, S, node)}</div>
-    ${rvOn||dPlus?`<span class="keep on"${tip((rvOn?KWTIP['재진']+'<br><br>':'')+`이 카드에 붙은 것은 이번 전투 내내 남는다. 써도 빠지지 않는다.${dPlus?`<br><br>진단 <b>+${dPlus}</b> — 이 카드가 여는 진단 수치에 그대로 더해진다. 1막에서는 검사 파라미터에도 같이 붙는다.`:''}`)}>${[rvOn?'재진':'', dPlus?`진단 +${dPlus}`:''].filter(Boolean).join(' · ')}</span>`:''}
-    ${c.keep?`<span class="keep">손에 남는다${c.keep<90?` ${keepLeft}회`:''}</span>`:''}
-    ${o.foot||''}</div>`;
+    <div class="chead">
+      <span class="cost">${valSpan(S, id, 'cost', node)}</span>
+      <div class="ctitle"><b>${esc(id)}</b></div>
+      ${bleedIcon(c,S)}</div>
+    <div class="cart">(카드 이미지)</div>
+    <div class="cbody">
+      <div class="ctext">${fillText(id, S, node)}</div>
+      ${rvOn||dPlus?`<span class="keep on"${tip((rvOn?KWTIP['재진']+'<br><br>':'')+`이 카드에 붙은 것은 이번 전투 내내 남는다. 써도 빠지지 않는다.${dPlus?`<br><br>진단 <b>+${dPlus}</b> — 이 카드가 여는 진단 수치에 그대로 더해진다. 1막에서는 검사 파라미터에도 같이 붙는다.`:''}`)}>${[rvOn?'재진':'', dPlus?`진단 +${dPlus}`:''].filter(Boolean).join(' · ')}</span>`:''}
+      ${c.keep?`<span class="keep">손에 남는다${c.keep<90?` ${keepLeft}회`:''}</span>`:''}
+      ${o.foot||''}</div></div>`;
 }
 
 //@ 파일.70-ui/board-view
@@ -4650,6 +4733,7 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* ── 환자 머리에 붙는 설명 둘 ────────────────────────────────
@@ -4834,10 +4918,12 @@ function renderInto(h){
     left = handPicks(S, PICK.id);
     for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
   }
+  /* 덱과 버림은 손패 줄 맨 앞에 더미로 선다 — 눌러서 안을 본다 (pile-ui) */
   $(h+'_hand').innerHTML=(pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
-    + S.hand.map((id,ix)=>{
+    + pileTiles()
+    + (S.hand.map(id=>{
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
@@ -4845,11 +4931,11 @@ function renderInto(h){
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
     const {ok, why} = cardWhy(S, id, selNode);
-    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
+    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`,
       foot: why?`<span class="keep why">${why}</span>`:''});
-  }).join('') || '<div class="empty">손이 비었다.</div>';
+  }).join('') || '<div class="empty">손이 비었다.</div>');
 
-  $(h+'_piles').innerHTML=`덱 ${S.deck.length} · 버림 ${S.discard.length} · 판 밖 ${S.exiled.length}`
+  $(h+'_piles').innerHTML=`판 밖 ${S.exiled.length}`
     +` · 합 ${S.hand.length+S.deck.length+S.discard.length+S.exiled.length}`
     +(S.shuffles?` · 셔플 ${S.shuffles}`:'')
     +`<span class="right d" style="font-size:10px">${KEYHELP}</span>`;
@@ -5271,6 +5357,9 @@ function syncDeckBtn(){
     if(on){ b.textContent = '이 가방으로 간다'; b.classList.add('go'); b.setAttribute('onclick', done) }
     else  { b.textContent = '가방을 연다';     b.classList.remove('go'); b.setAttribute('onclick', open) }
   }
+  /* 카드팩을 편 동안에는 새 판을 까는 버튼도 잠근다 — 지금 짜는 가방이
+     들어갈 판을 그 사이에 갈아 치우면 무엇을 짜던 것인지 흐려진다 */
+  const sg = $('btn_story_go'); if(sg) sg.disabled = !!PK;
   syncBackBtn();          // 가방을 펼친 동안에는 무대로 돌아가는 문을 잠근다
 }
 
@@ -5383,6 +5472,67 @@ function openDeckOne(){
 }
 
 /* 스토리 가방은 여기 없다 — 낱장이 아니라 팩으로 짠다 (70-ui/pack-ui.js). */
+
+//@ 파일.70-ui/pile-ui
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.26 더미 들여다보기
+   ──────────────────────────────────────────────────────────────────
+   덱과 버림에 무엇이 남았는지 카드로 펼쳐 본다. 작업대와 무대가 같은
+   창 하나를 쓴다 — 창(#pv)은 두 화면 위로 덮으므로 어느 쪽에서 눌러도
+   같은 것이 뜬다.
+
+   덱은 가나다 순으로 적는다. 섞인 순서 그대로 보이면 다음에 뽑을 것이
+   그대로 드러난다 — 「무엇이 남았나」만 알려 주고 차례는 덮어 둔다.
+   버림은 감출 것이 없으므로 최근 버린 것부터 그대로 적는다.
+   ══════════════════════════════════════════════════════════════════ */
+//@ 화면.더미 — §9.26 덱 · 버림에 남은 카드
+let PILE_OPEN = null;                 // null | 'deck' | 'discard'
+
+const PILE_DEF = {
+  deck:    {ttl:'덱',   note:'가나다 순으로 적는다 — 뽑을 차례는 감춘다.',
+            list:s=>[...s.deck].sort((a,b)=>a.localeCompare(b,'ko'))},
+  discard: {ttl:'버림', note:'최근 버린 것이 앞이다.',
+            list:s=>[...s.discard].reverse()},
+};
+
+function pileShow(which){
+  if(!S || !PILE_DEF[which]) return;
+  PILE_OPEN = which;
+  $('pv').classList.add('on');
+  pileRender();
+}
+
+function pileClose(){
+  if(!PILE_OPEN) return;
+  PILE_OPEN = null;
+  $('pv').classList.remove('on');
+}
+
+/* 같은 더미를 다시 누르면 닫힌다 */
+function pileToggle(which){ PILE_OPEN===which ? pileClose() : pileShow(which) }
+
+/* 그릴 때마다 다시 그린다 — 툴팁 등록기(TIPS)가 판을 그릴 때 비워지므로
+   창을 열어 둔 채 판이 바뀌면 열쇠가 끊긴다 (render · stageRender 가 부른다) */
+function pileRender(){
+  if(!PILE_OPEN || !S) return pileClose();
+  const d = PILE_DEF[PILE_OPEN], ids = d.list(S);
+  $('pv_ttl').textContent = d.ttl;
+  $('pv_cnt').textContent = `${ids.length}장`;
+  $('pv_note').textContent = d.note;
+  $('pv_list').innerHTML = ids.length
+    ? ids.map(id=>cardHTML(id, {S})).join('')
+    : '<div class="empty">비었다.</div>';
+}
+
+/* 작업대 손패 줄 맨 앞에 세우는 더미 둘 — 카드 한 장 높이 안에 위아래로 포갠다 */
+function pileTiles(){
+  return `<div class="piles2">` + ['deck','discard'].map(k=>
+    `<div class="pilebox" onclick="pileToggle('${k}')"${tip(
+      `<span class="tt">${PILE_DEF[k].ttl}</span>눌러서 남은 카드를 본다.<br>${PILE_DEF[k].note}`)}>
+      <div class="pn2">${k==='deck'?S.deck.length:S.discard.length}</div>
+      <div class="pl2">${PILE_DEF[k].ttl}</div></div>`).join('') + `</div>`;
+}
 
 //@ 파일.70-ui/pack-ui
 
@@ -5611,8 +5761,7 @@ function newGame(){
   setupDeck(S, ONE_DECK, mulberry32(seed+1)); S.rng=mulberry32(seed);
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.one.started=true;
   log(`<b>${BOARD.script?BOARD.script.name:'레벨 '+BOARD.level}</b> · 노드 ${BOARD.nodes.length} · S ${(BOARD.S||0).toFixed(1)} · 체력 ${BOARD.hp}${ovrNote()}`);
-  render();
-  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
+  render();          // 판만 깐다 — 전투 화면은 사람이 문을 열 때 뜬다
 }
 
 //@ 파일.70-ui/story-ui
@@ -5652,8 +5801,7 @@ function newStory(){
   } else {
     log('<span class="d">1막 — 진단 카드를 검사 파라미터에 써서 증거를 모은다.</span>');
   }
-  render();
-  stageBattleStart();                 // 판이 깔렸다 — 무대로 넘어간다
+  render();          // 판만 깐다 — 전투 화면은 사람이 문을 열 때 뜬다
 }
 
 function declareDx(){
@@ -5680,7 +5828,6 @@ function pickPolicy(p){
 function sessInit(){
   PICK = null;
   const key=$('ssel').value, def=SESSIONS[key];
-  BUDGET_SRC = $('bsrcbud').value;
   SESS={key, def, round:0, idx:0, budget:(+$('sbudget').value)||sessBudget(def),
         used:0, results:[], rep:0, phase:'deck', deck:null};
   LOG=[]; UNDO=[]; PANES.sess.started=true;
@@ -5925,6 +6072,10 @@ const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · 
 document.addEventListener('keydown', e=>{
   if(typeof STAGE_ON!=='undefined' && STAGE_ON) return;   // 무대에 제 자판이 있다
   if(typeof PN_OPEN!=='undefined' && PN_OPEN) return;     // 패치 노트가 덮고 있다 — 판에 손대지 않는다
+  /* 더미 창이 덮고 있다 — Esc 로 그것만 닫고, 나머지 손은 판에 닿지 않는다 */
+  if(typeof PILE_OPEN!=='undefined' && PILE_OPEN){
+    if(e.key==='Escape'){ e.preventDefault(); pileClose() } return;
+  }
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
@@ -6804,7 +6955,7 @@ function stageFlow(){
 }
 
 /* ── 그리기 ─────────────────────────────────────────────────── */
-//@ 무대.그리기 — 계기판 · 카르테 · 손패 · 상태판
+//@ 무대.그리기 — 계기판 · 카르테 · 손패
 function stageRender(){
   if(!STAGE_ON || !S || STAGE_QUIET) return;
   /* 겨누던 카드가 손에서 사라졌으면 겨눔을 푼다.
@@ -6820,7 +6971,7 @@ function stageRender(){
   stageActbar();
   stagePanel();
   stageHand();
-  const lg = $('sg_lg'); if(lg) lg.innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
@@ -6928,7 +7079,7 @@ function stageActbar(){
   $('sg_av').innerHTML = v + '<br>' + nodeMarks(S, n);
 }
 
-/* 우측 계기 — 턴 · 코스트 · 파일 · 상태판 */
+/* 우측 계기 — 턴 · 코스트 · 파일. 아래칸 카르테는 stageKarte() 가 채운다 */
 function stagePanel(){
   $('sg_turn').textContent = S.turn;
   $('sg_spent').textContent = MODE==='sess' && SESS ? `${SESS.idx+1}/${sessList().length}명` : '';
@@ -6958,8 +7109,6 @@ function stagePanel(){
   $('sg_pDisc').textContent = S.discard.length;
   $('sg_pHand').textContent = S.hand.length;
 
-  const st = $('sg_state'); if(st) st.innerHTML = stateHTML();
-
   const eb = $('sg_end');
   eb.className = verdictNow() ? 'off' : '';
   eb.textContent = verdictNow() ? `${verdictNow()} — 정산한다` : '턴 종료';
@@ -6978,7 +7127,7 @@ function stageHand(){
   $('sg_hand').innerHTML = (pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
-  + S.hand.map((id, ix)=>{
+  + S.hand.map(id=>{
       if(pend){
         const okPick = left.includes(id);
         return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick,
@@ -6987,7 +7136,7 @@ function stageHand(){
       const {ok, why} = cardWhy(S, id, selNode);
       const aiming = STAGE_MODE==='card' && STAGE_CARD===id;
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
-        onclick:`stageCardClick('${id}')`, keyhint: ix<9?ix+1:'',
+        onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
 }
@@ -7211,10 +7360,11 @@ function fxPlanDiff(b, plan){
   }
 
   /* 전역 게이지 */
-  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_state', `기세 ${cur.rush}`, cur.rush>b.rush));
-  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_state', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
+  /* 상태판을 걷었으므로 이 셋은 환자 위에 떠서 알린다 — 붙을 계기판이 없다 */
+  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>b.rush));
+  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
   if(cur.stage !== b.stage){
-    fxq(()=>FXE.gauge('sg_state', `병기 ${cur.stage}`, false));
+    fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
   if(cur.evid !== b.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
@@ -7254,6 +7404,7 @@ document.addEventListener('keydown', e=>{
   const t = e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   const k = e.key;
+  if(PILE_OPEN){ if(k==='Escape'){ e.preventDefault(); pileClose() } return }
   if(k==='Escape'){
     e.preventDefault();
     if(PICK){ cancelPick(); stageRender(); return }
@@ -7531,16 +7682,13 @@ function stageDeclare(){
 }
 
 /* ── 작업대에서 무대로 ────────────────────────────────────────
-   「환자를 들인다」 · 「전투를 시작한다」 · 「진료를 시작한다」가 여기로 온다.
-   무대를 안 쓰겠다고 꺼 두면 작업대에 그대로 머문다. */
+   판이 깔린다고 무대가 열리지는 않는다 — 작업대가 기본 화면이다.
+   저절로 넘어가는 길은 하나뿐이다: 세션에서 가방을 확정하는
+   「진료를 시작한다」. 나머지 모드는 「전투 화면으로 간다」(stageResume)로
+   사람이 연다. */
 //@ 무대.진입 — 판이 깔린 뒤 무대를 연다
-function stageWanted(){
-  const c = $('sg_use');
-  return !c || c.checked;
-}
-
 function stageBattleStart(){
-  if(!stageWanted() || !S) return false;
+  if(!S) return false;
   stageOpen();
   return true;
 }
@@ -7835,12 +7983,11 @@ async function batch(){
 
 async function batchSession(){
   const n=+$('bn').value, B=+$('bbudget').value, ai=$('bai').value, rows=[];
-  BUDGET_SRC = $('bsrcbud') ? $('bsrcbud').value : BUDGET_SRC;
   let done=0; const keys=Object.keys(SESSIONS); const total=keys.length*n;
   for(const sk of keys){
     const sess=SESSIONS[sk];
     const tally={}; let unseen=0, used=0;
-    /* v19 와 견줄 수 있게 같은 대응을 쓴다 — d1→1일차 8종, d2 계열→2일차 8종, 왕진→가방 앞 8장 */
+    /* 옛 판본과 견줄 수 있게 같은 대응을 쓴다 — d1→1일차 8종, d2 계열→2일차 8종, 왕진→가방 앞 8장 */
     const deck = sess.pool==='d1' ? DECK_D1 : sess.pool==='d2' ? DECK_D2 : POOL.d3.slice(0, sess.cap);
     for(let i=0;i<n;i++){
       const s=runSession(sess.list, deck, B||sessBudget(sess), 80000+i*13, {ai});

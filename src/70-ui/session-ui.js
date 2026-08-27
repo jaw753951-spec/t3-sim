@@ -5,7 +5,6 @@
 function sessInit(){
   PICK = null;
   const key=$('ssel').value, def=SESSIONS[key];
-  BUDGET_SRC = $('bsrcbud').value;
   SESS={key, def, round:0, idx:0, budget:(+$('sbudget').value)||sessBudget(def),
         used:0, results:[], rep:0, phase:'deck', deck:null};
   LOG=[]; UNDO=[]; PANES.sess.started=true;

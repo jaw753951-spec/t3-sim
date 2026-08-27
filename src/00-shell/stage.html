@@ -16,17 +16,6 @@
   </div>
   <button id="sg_exit" onclick="stageClose()">작업대로 (Esc)</button>
 
-  <!-- 카르테 -->
-  <div class="karte plate">
-    <div class="kname" id="sg_kname">—</div>
-    <div class="kmeta" id="sg_kmeta"></div>
-    <div class="ktags" id="sg_ktags"></div>
-    <div class="kdiv"></div>
-    <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
-    <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
-    <div class="klog"><div class="ph">기록</div><div class="lg" id="sg_lg"></div></div>
-  </div>
-
   <!-- 판 -->
   <div id="sg_board">
     <svg id="sg_links" viewBox="0 0 1000 700" preserveAspectRatio="none"></svg>
@@ -48,12 +37,19 @@
       <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
       <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
       <div class="piles">
-        <div class="pile"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
-        <div class="pile"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
+        <div class="pile go" onclick="pileToggle('deck')"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
+        <div class="pile go" onclick="pileToggle('discard')"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
         <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
       </div>
     </div>
-    <div class="rbot"><aside class="state" id="sg_state"></aside></div>
+    <!-- 카르테 — 이 사람에 대해 알아낸 것 -->
+    <div class="rbot">
+      <div class="kname" id="sg_kname">—</div>
+      <div class="kmeta" id="sg_kmeta"></div>
+      <div class="ktags" id="sg_ktags"></div>
+      <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
+      <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
+    </div>
   </div>
 
   <div id="sg_hand"></div>

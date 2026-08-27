@@ -16,8 +16,9 @@
   <label>시드</label>
   <div class="row2"><input type="number" id="seed" value="1003"><button onclick="reseed()">새 시드</button></div>
   <label style="text-transform:none;letter-spacing:0;font:12px var(--sans);color:var(--ink);display:flex;align-items:center;gap:6px;margin:12px 0 0">
-    <input type="checkbox" id="sg_use" checked style="width:auto"> 전투를 무대에서 본다</label>
-  <div class="note" style="margin:4px 0 0">끄면 이 작업대에서 그대로 둔다. 배치를 돌릴 때는 꺼 두는 편이 빠르다.</div>
+    <input type="checkbox" id="sg_use" checked style="width:auto"> 진료 시작 → 전투 화면</label>
+  <div class="note" style="margin:4px 0 0">세션에서 가방을 확정하는 「진료를 시작한다」가 이것을 본다.
+    끄면 세션도 이 작업대에서 그대로 본다. 어느 쪽이든 「전투 화면으로 간다」로 언제든 넘어갈 수 있다.</div>
   <label>턴 예산 기준 <span class="d">(세션 · 배치 공용)</span></label>
   <select id="bsrcbud"><option value="memo" selected>메모 · 실측</option><option value="script">대본 표준턴표</option><option value="calc">실측표로 계산</option></select>
 
@@ -51,8 +52,8 @@
     <div class="tags" id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
-    <!-- 새 판이 아니라 보던 판이다 — 작업대로 나왔다가 그대로 되돌아간다 -->
-    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
+    <!-- 전투 화면으로 들어가는 문. 새 판이 아니라 지금 깔린 판을 그대로 띄운다 -->
+    <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
   </div>
 
@@ -61,7 +62,7 @@
     <select id="ssel"><option value="d1">1일차 아침</option><option value="d2">2일차 아침</option><option value="d2m">2일차 오후 · 시장</option><option value="d3">3일차 왕진 (2라운드)</option></select>
     <label>턴 예산 직접 지정 (0 = 기준값)</label><input type="number" id="sbudget" value="0">
     <button class="go" onclick="sessInit()">가방을 연다</button>
-    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div id="se_ctrl" style="margin-top:14px"></div>
   </div>
 
@@ -81,7 +82,7 @@
       <select id="sk_stage"><option value="0">시작 병기 기본</option><option value="3">병기 3</option><option value="4">병기 4</option><option value="5">병기 5</option></select>
     </div>
     <button class="go" onclick="newStory()">전투를 시작한다</button>
-    <button class="sgback" onclick="stageResume()">전투 화면으로 돌아간다</button>
+    <button class="sgback" onclick="stageResume()">전투 화면으로 간다</button>
     <div class="row2" style="margin-top:8px"><button onclick="autoTurn()">자동 한 턴</button><button onclick="autoAll()">끝까지</button></div>
     <div id="st_ctrl" style="margin-top:14px"></div>
   </div>

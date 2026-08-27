@@ -119,18 +119,29 @@ function fillText(id, S, node){
       (key in v || key==='cost') ? valSpan(S, id, key, node) : m);
 }
 
-/* 카드 한 장 그리기 — 손패와 가방이 같은 것을 쓴다 */
+/* 카드 한 장 그리기 — 손패와 가방이 같은 것을 쓴다.
+   낡은 종이에 제본한 카르테 한 장이다. 칸은 넷 —
+     동그라미  코스트
+     그 옆      이름 · 부서줄 · 사혈
+     큰 사각형  카드 그림
+     아래 사각형 설명과 꼬리표
+   겉모습은 style.css 의 .card 무리가 짠다. 여기는 칸만 세운다 */
 function cardHTML(id, o={}){
   const c = CARDS[id], S = o.S, node = o.node || null;
   const keepLeft = S && c.keep ? c.keep-((S.keepUses||{})[id]||0) : c.keep;
   const rvOn = S && !!(S.revisitOn||{})[id];
   const dPlus = S ? ((S.diagPlus||{})[id]||0) : 0;
+  const meta = `${c.dept} · ${c.verb}${c.sub?`(${c.sub})`:''}${c.kw?` · ${c.kw}`:''}`
+             + `${c.target==='all'?' · 전체':''}${c.target==='hand'?' · 손패':''}`;
   return `<div class="card ${o.dim?'no':''} ${o.mark?'pick':''} ${c.dept}" ${o.onclick?`onclick="${o.onclick}"`:''}>
-    <div class="chead"><span class="cost">${valSpan(S, id, 'cost', node)}</span>${bleedIcon(c,S)}<b>${esc(id)}</b>
-      ${o.keyhint!==undefined?`<span class="key">${o.keyhint}</span>`:''}</div>
-    <div class="cmeta">${c.dept} · ${c.verb}${c.sub?`(${c.sub})`:''}${c.kw?` · ${c.kw}`:''}${c.target==='all'?' · 전체':''}${c.target==='hand'?' · 손패':''}</div>
-    <div class="ctext">${fillText(id, S, node)}</div>
-    ${rvOn||dPlus?`<span class="keep on"${tip((rvOn?KWTIP['재진']+'<br><br>':'')+`이 카드에 붙은 것은 이번 전투 내내 남는다. 써도 빠지지 않는다.${dPlus?`<br><br>진단 <b>+${dPlus}</b> — 이 카드가 여는 진단 수치에 그대로 더해진다. 1막에서는 검사 파라미터에도 같이 붙는다.`:''}`)}>${[rvOn?'재진':'', dPlus?`진단 +${dPlus}`:''].filter(Boolean).join(' · ')}</span>`:''}
-    ${c.keep?`<span class="keep">손에 남는다${c.keep<90?` ${keepLeft}회`:''}</span>`:''}
-    ${o.foot||''}</div>`;
+    <div class="chead">
+      <span class="cost">${valSpan(S, id, 'cost', node)}</span>
+      <div class="ctitle"><b>${esc(id)}</b><div class="cmeta">${meta}</div></div>
+      ${bleedIcon(c,S)}${o.keyhint!==undefined?`<span class="key">${o.keyhint}</span>`:''}</div>
+    <div class="cart">(카드 이미지)</div>
+    <div class="cbody">
+      <div class="ctext">${fillText(id, S, node)}</div>
+      ${rvOn||dPlus?`<span class="keep on"${tip((rvOn?KWTIP['재진']+'<br><br>':'')+`이 카드에 붙은 것은 이번 전투 내내 남는다. 써도 빠지지 않는다.${dPlus?`<br><br>진단 <b>+${dPlus}</b> — 이 카드가 여는 진단 수치에 그대로 더해진다. 1막에서는 검사 파라미터에도 같이 붙는다.`:''}`)}>${[rvOn?'재진':'', dPlus?`진단 +${dPlus}`:''].filter(Boolean).join(' · ')}</span>`:''}
+      ${c.keep?`<span class="keep">손에 남는다${c.keep<90?` ${keepLeft}회`:''}</span>`:''}
+      ${o.foot||''}</div></div>`;
 }

@@ -1,7 +1,4 @@
-/* 무대 손패(#sg_hand)도 이 팔레트를 쓴다 — 전투 화면의 카드가 가방의 카드와
-   똑같아야 한다. #sg 가 --ink · --line · --t3 을 무대 색으로 갈아 끼우므로,
-   손패 안에서만 작업대 값으로 되돌려 준다. 값은 여기 한 곳에만 적는다 */
-:root,#sg_hand{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
+:root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
  --sans:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
@@ -95,18 +92,58 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 /* ── 손패 ── */
 .bar{display:flex;align-items:center;gap:14px;margin:18px 0 8px;font:11px var(--mono);letter-spacing:.14em;color:var(--dim);border-top:1px solid var(--line);padding-top:12px}
 .hand{display:flex;flex-wrap:wrap;gap:10px}
-.card{width:238px;min-height:132px;border:1px solid var(--line);background:var(--panel);padding:11px 12px;cursor:pointer;display:flex;flex-direction:column}
-.card:hover{border-color:var(--ink)}.card.no{opacity:.42;cursor:default}
-.card.pick{border-color:var(--t3);box-shadow:inset 0 0 0 2px rgba(138,106,16,.35)}
-.card.내과{border-top:3px solid var(--calm)}.card.외과{border-top:3px solid var(--blood)}
-.card.의공학{border-top:3px solid var(--t3)}.card.공통{border-top:3px solid var(--dim)}
-.chead{display:flex;align-items:baseline;gap:7px;width:100%}.chead b{font-size:15px}
-.cost{font:600 15px var(--mono);color:var(--t3);min-width:15px}
-.bl{font:600 10px var(--mono);color:#fff;background:var(--blood);border:1px solid var(--blood);padding:1px 5px;cursor:help}
-.cmeta{font:10.5px var(--mono);color:var(--dim);margin-top:5px;border-bottom:1px solid var(--line);padding-bottom:6px}
-.ctext{font:12.5px/1.6 var(--sans);margin-top:8px;color:var(--ink);flex:1}
+/* ── 카드 한 장 ── 낡은 종이에 제본한 카르테.
+   그림 파일은 한 장도 쓰지 않는다 — 종이결까지 SVG 노이즈를 배경으로 깔아 만든다.
+   색은 카드가 스스로 들고 다닌다 (--cd-*). 무대에 놓이든 작업대에 놓이든
+   그 화면이 무슨 색을 쓰든 카드는 언제나 같은 얼굴이다. */
+.card{
+  --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
+  --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
+  position:relative;flex:0 0 auto;                      /* 줄에 여럿 서도 찌그러지지 않는다 */
+  width:200px;min-height:292px;                         /* 첨부 액자와 같은 519:760 비율 */
+  border:2px solid var(--cd-rule);color:var(--cd-ink);cursor:pointer;
+  padding:13px 26px 13px 13px;                          /* 오른쪽 26px 은 제본 띠 몫 */
+  display:flex;flex-direction:column;gap:7px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
+  box-shadow:0 6px 16px rgba(0,0,0,.35);
+  transition:transform .18s ease,box-shadow .18s ease}
+.card:hover{transform:translateY(-8px);box-shadow:0 15px 28px rgba(0,0,0,.45)}
+/* 안쪽 두 번째 줄 — 제본 띠 앞에서 끝난다 */
+.card::before{content:"";position:absolute;inset:5px 29px 5px 5px;
+  border:1px solid var(--cd-line);pointer-events:none}
+/* 제본 띠 — 세로줄 하나에 리벳 여섯 */
+.card::after{content:"";position:absolute;right:0;top:0;bottom:0;width:26px;
+  border-left:1px solid var(--cd-line);pointer-events:none;
+  background-image:radial-gradient(circle 6px at 50% 50%,
+    #E4CE9E 0 26%,var(--cd-rivet) 30% 58%,#4E3B20 62% 74%,transparent 78%);
+  background-size:100% 16.666%}
+.card.no{opacity:.42;cursor:default}
+.card.no:hover{transform:none;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.card.pick{border-color:var(--t3);box-shadow:0 0 0 2px rgba(138,106,16,.55),0 6px 16px rgba(0,0,0,.35)}
+/* 부서는 코스트 동그라미의 테를 물들인다 */
+.card.내과 .cost{border-color:var(--calm)}.card.외과 .cost{border-color:var(--blood)}
+.card.의공학 .cost{border-color:var(--shield)}.card.공통 .cost{border-color:var(--cd-mut)}
+
+.chead{display:flex;align-items:center;gap:9px;padding-bottom:7px;border-bottom:1px solid var(--cd-line)}
+.cost{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:2px solid var(--cd-rule);
+  display:grid;place-items:center;background:rgba(255,252,240,.30);
+  font:700 17px/1 var(--mono);color:var(--cd-ink)}
+.ctitle{flex:1;min-width:0}
+.chead b{display:block;font:700 13.5px/1.25 var(--sans);color:var(--cd-ink)}
+.cmeta{font:9.5px/1.3 var(--mono);color:var(--cd-mut);margin-top:3px;letter-spacing:.02em}
+.bl{align-self:flex-start;font:600 9.5px var(--mono);color:#F2E6CE;background:var(--blood);
+  border:1px solid #6E211C;padding:1px 5px;cursor:help}
+/* 카드 그림이 들어올 칸. 아직 그림이 없어 이름만 적어 둔다 */
+.cart{flex:0 0 116px;border:1px solid var(--cd-line);
+  background:rgba(255,250,235,.16);display:grid;place-items:center;
+  font:10.5px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+.cbody{flex:1 1 auto;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
+  padding:7px 9px;display:flex;flex-direction:column}
+.ctext{font:11.5px/1.5 var(--sans);color:var(--cd-ink);flex:1}
 .kw{border-bottom:1px dotted var(--blood);color:var(--blood);cursor:help;font-weight:600}
-.keep{display:inline-block;margin-top:6px;font:10.5px var(--mono);color:var(--shield)}
+.keep{display:inline-block;margin-top:5px;font:10px var(--mono);color:var(--cd-mut)}
 .empty{color:var(--dim);font:12px var(--mono);padding:10px 0}
 .done{font:600 18px var(--mono);letter-spacing:.2em;color:var(--calm)}.done.bad{color:var(--blood)}
 .chart{border:1px solid var(--t3);padding:10px 12px;font:12.5px var(--mono);color:#6B520B;margin-bottom:8px;background:rgba(138,106,16,.07)}
@@ -139,9 +176,10 @@ summary{font:11px var(--mono);letter-spacing:.1em;color:var(--dim);cursor:pointe
 .prog{height:6px;border:1px solid var(--line);margin-top:10px;background:#C6BFA8}
 .prog i{display:block;height:100%;background:var(--t3);width:0%}
 .up{color:var(--blood)}.dn{color:var(--calm)}
-.keep.on{color:var(--t3)}
-.keep.why{color:var(--dim)}
-.key{margin-left:auto;font:10px var(--mono);color:var(--dim);border:1px solid var(--line);padding:0 5px}
+.keep.on{color:#6B5410}
+.keep.why{color:var(--blood)}
+.key{align-self:flex-start;font:10px var(--mono);color:var(--cd-mut);
+  border:1px solid var(--cd-line);padding:0 4px}
 .mini{width:auto;margin:0;padding:3px 8px;font-size:10px}
 .mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:10px 0}
 label.mk{display:block;margin:0;text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim)}

@@ -242,12 +242,10 @@ body.sgon{overflow:hidden}
 
 /* ── 손패 ─────────────────────────────────────────────────── */
 #sg_hand{position:absolute;left:1.4%;right:18.2%;bottom:2.2%;z-index:25;
-  display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap;
-  color:var(--ink)}   /* 물려받는 글자색도 작업대 것으로 — 카드 이름이 이 색을 탄다 */
-/* 카드 한 장은 무대 옷을 입지 않는다 — 가방(작업대)에서 보던 그 카드 그대로다.
-   그리는 함수가 이미 같으므로 (cardHTML) 여기서 덧입히지만 않으면 된다.
-   style.css 의 .card 규칙이 그대로 걸리고, 팔레트는 그쪽 :root 가 #sg_hand 에도
-   같이 얹혀 있다 — #sg 가 갈아 끼운 이름을 손패 안에서만 되돌리는 자리다. */
+  display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap}
+/* 카드 한 장은 무대 옷을 입지 않는다 — 가방에서 보던 그 카드 그대로다.
+   그리는 함수도 (cardHTML) 겉모습도 (style.css 의 .card) 하나뿐이고,
+   카드가 제 색을 스스로 들고 다니므로 (--cd-*) 여기서 덧입힐 것이 없다. */
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 

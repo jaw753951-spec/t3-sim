@@ -244,7 +244,7 @@ function stageHand(){
   $('sg_hand').innerHTML = (pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
-  + S.hand.map((id, ix)=>{
+  + S.hand.map(id=>{
       if(pend){
         const okPick = left.includes(id);
         return cardHTML(id, {S, node:selNode, dim:!okPick, mark:okPick,
@@ -253,7 +253,7 @@ function stageHand(){
       const {ok, why} = cardWhy(S, id, selNode);
       const aiming = STAGE_MODE==='card' && STAGE_CARD===id;
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
-        onclick:`stageCardClick('${id}')`, keyhint: ix<9?ix+1:'',
+        onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
 }

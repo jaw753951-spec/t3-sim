@@ -121,8 +121,8 @@ function fillText(id, S, node){
 
 /* 카드 한 장 그리기 — 손패와 가방이 같은 것을 쓴다.
    낡은 종이에 제본한 카르테 한 장이다. 칸은 넷 —
-     동그라미  코스트
-     그 옆      이름 · 부서줄 · 사혈
+     동그라미  코스트 (테두리 색이 부서다)
+     그 옆      이름 · 사혈
      큰 사각형  카드 그림
      아래 사각형 설명과 꼬리표
    겉모습은 style.css 의 .card 무리가 짠다. 여기는 칸만 세운다 */
@@ -131,13 +131,11 @@ function cardHTML(id, o={}){
   const keepLeft = S && c.keep ? c.keep-((S.keepUses||{})[id]||0) : c.keep;
   const rvOn = S && !!(S.revisitOn||{})[id];
   const dPlus = S ? ((S.diagPlus||{})[id]||0) : 0;
-  const meta = `${c.dept} · ${c.verb}${c.sub?`(${c.sub})`:''}${c.kw?` · ${c.kw}`:''}`
-             + `${c.target==='all'?' · 전체':''}${c.target==='hand'?' · 손패':''}`;
   return `<div class="card ${o.dim?'no':''} ${o.mark?'pick':''} ${c.dept}" ${o.onclick?`onclick="${o.onclick}"`:''}>
     <div class="chead">
       <span class="cost">${valSpan(S, id, 'cost', node)}</span>
-      <div class="ctitle"><b>${esc(id)}</b><div class="cmeta">${meta}</div></div>
-      ${bleedIcon(c,S)}${o.keyhint!==undefined?`<span class="key">${o.keyhint}</span>`:''}</div>
+      <div class="ctitle"><b>${esc(id)}</b></div>
+      ${bleedIcon(c,S)}</div>
     <div class="cart">(카드 이미지)</div>
     <div class="cbody">
       <div class="ctext">${fillText(id, S, node)}</div>

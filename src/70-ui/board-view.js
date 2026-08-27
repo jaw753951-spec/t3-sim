@@ -226,7 +226,7 @@ function renderInto(h){
   $(h+'_hand').innerHTML=(pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
-    + S.hand.map((id,ix)=>{
+    + S.hand.map(id=>{
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
@@ -234,7 +234,7 @@ function renderInto(h){
         foot: taken?'<span class="keep on">골랐다</span>':''});
     }
     const {ok, why} = cardWhy(S, id, selNode);
-    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`, keyhint: ix<9?ix+1:'',
+    return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`,
       foot: why?`<span class="keep why">${why}</span>`:''});
   }).join('') || '<div class="empty">손이 비었다.</div>';
 

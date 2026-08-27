@@ -237,6 +237,8 @@ body.sgon{overflow:hidden}
 #sg .btn.on .c{color:var(--hanji)}
 #sg .piles{display:flex;gap:6px;margin-top:9px}
 #sg .pile{flex:1;border:2px solid var(--line);padding:5px 0;text-align:center}
+#sg .pile.go{cursor:pointer}
+#sg .pile.go:hover{border-color:var(--steel);background:rgba(255,255,255,.35)}
 #sg .pile .n{font:800 15px/1 var(--mono);color:var(--ink3)}
 #sg .pile .l{font:700 9px/1 var(--sans);letter-spacing:.1em;color:var(--ink2);margin-top:3px}
 #sg .rbot{margin-top:11px;padding-top:10px;border-top:3px solid var(--steel);

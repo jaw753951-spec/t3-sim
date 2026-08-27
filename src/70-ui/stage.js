@@ -89,6 +89,7 @@ function stageRender(){
   stageActbar();
   stagePanel();
   stageHand();
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
@@ -521,6 +522,7 @@ document.addEventListener('keydown', e=>{
   const t = e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   const k = e.key;
+  if(PILE_OPEN){ if(k==='Escape'){ e.preventDefault(); pileClose() } return }
   if(k==='Escape'){
     e.preventDefault();
     if(PICK){ cancelPick(); stageRender(); return }

@@ -96,16 +96,17 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
    그림 파일은 한 장도 쓰지 않는다 — 종이결까지 SVG 노이즈를 배경으로 깔아 만든다.
    색은 카드가 스스로 들고 다닌다 (--cd-*). 무대에 놓이든 작업대에 놓이든
    그 화면이 무슨 색을 쓰든 카드는 언제나 같은 얼굴이다. */
-.card{
+.card,.pilebox{
   --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
   --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
+  --cd-face:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E")}
+.card{
   position:relative;flex:0 0 auto;                      /* 줄에 여럿 서도 찌그러지지 않는다 */
   width:200px;min-height:292px;                         /* 첨부 액자와 같은 519:760 비율 */
   border:2px solid var(--cd-rule);color:var(--cd-ink);cursor:pointer;
   padding:13px 26px 13px 13px;                          /* 오른쪽 26px 은 제본 띠 몫 */
   display:flex;flex-direction:column;gap:7px;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E"),
+  background-image:var(--cd-face),
     radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
   box-shadow:0 6px 16px rgba(0,0,0,.35);
   transition:transform .18s ease,box-shadow .18s ease}
@@ -243,6 +244,35 @@ td input[type=checkbox]{width:auto}
   font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
   border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
 .pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+/* ── 더미 들여다보기 ── 덱 · 버림에 남은 카드.
+   무대(#sg)가 z-index 400 이므로 그보다 위에 떠야 두 화면이 같이 쓴다 */
+#pv{position:fixed;inset:0;z-index:500;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(20,24,28,.72);backdrop-filter:blur(2px)}
+#pv.on{display:flex}
+/* 상자는 든 카드만큼만 넓어진다 — 한 장을 보자고 화면을 다 덮지 않는다 */
+.pvbox{width:auto;min-width:460px;max-width:min(1080px,100%);max-height:100%;
+  display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.35)}
+.pvcnt{font:600 14px var(--mono);color:var(--ink)}
+.pvnote{font:11.5px var(--mono);color:var(--dim)}
+.pvlist{overflow:auto;padding:16px;min-height:0;align-content:flex-start;justify-content:center}
+
+/* 손패 줄 맨 앞에 서는 더미 둘 — 카드와 같은 종이, 폭만 좁다 */
+.pilebox{flex:0 0 auto;width:96px;min-height:292px;cursor:pointer;color:var(--cd-ink);
+  border:2px solid var(--cd-rule);
+  background-image:var(--cd-face),
+    radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  /* 뒤로 두 장이 더 겹쳐 있는 것처럼 — 더미는 한 장이 아니다 */
+  box-shadow:5px -5px 0 -2px var(--cd-paper2),5px -5px 0 0 var(--cd-rule),
+             10px -10px 0 -2px var(--cd-paper2),10px -10px 0 0 var(--cd-rule),
+             0 6px 16px rgba(0,0,0,.35);
+  transition:transform .18s ease}
+.pilebox:hover{transform:translateY(-8px)}
+.pn2{font:700 28px/1 var(--mono);color:var(--cd-ink)}
+.pl2{font:700 11px/1 var(--mono);letter-spacing:.2em;color:var(--cd-mut)}
 
 #pn{position:fixed;inset:0;z-index:300;display:none;
   align-items:center;justify-content:center;padding:28px;

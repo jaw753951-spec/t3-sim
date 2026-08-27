@@ -99,16 +99,17 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
    그림 파일은 한 장도 쓰지 않는다 — 종이결까지 SVG 노이즈를 배경으로 깔아 만든다.
    색은 카드가 스스로 들고 다닌다 (--cd-*). 무대에 놓이든 작업대에 놓이든
    그 화면이 무슨 색을 쓰든 카드는 언제나 같은 얼굴이다. */
-.card{
+.card,.pilebox{
   --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
   --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
+  --cd-face:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E")}
+.card{
   position:relative;flex:0 0 auto;                      /* 줄에 여럿 서도 찌그러지지 않는다 */
   width:200px;min-height:292px;                         /* 첨부 액자와 같은 519:760 비율 */
   border:2px solid var(--cd-rule);color:var(--cd-ink);cursor:pointer;
   padding:13px 26px 13px 13px;                          /* 오른쪽 26px 은 제본 띠 몫 */
   display:flex;flex-direction:column;gap:7px;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E"),
+  background-image:var(--cd-face),
     radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
   box-shadow:0 6px 16px rgba(0,0,0,.35);
   transition:transform .18s ease,box-shadow .18s ease}
@@ -246,6 +247,35 @@ td input[type=checkbox]{width:auto}
   font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
   border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
 .pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+/* ── 더미 들여다보기 ── 덱 · 버림에 남은 카드.
+   무대(#sg)가 z-index 400 이므로 그보다 위에 떠야 두 화면이 같이 쓴다 */
+#pv{position:fixed;inset:0;z-index:500;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(20,24,28,.72);backdrop-filter:blur(2px)}
+#pv.on{display:flex}
+/* 상자는 든 카드만큼만 넓어진다 — 한 장을 보자고 화면을 다 덮지 않는다 */
+.pvbox{width:auto;min-width:460px;max-width:min(1080px,100%);max-height:100%;
+  display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.35)}
+.pvcnt{font:600 14px var(--mono);color:var(--ink)}
+.pvnote{font:11.5px var(--mono);color:var(--dim)}
+.pvlist{overflow:auto;padding:16px;min-height:0;align-content:flex-start;justify-content:center}
+
+/* 손패 줄 맨 앞에 서는 더미 둘 — 카드와 같은 종이, 폭만 좁다 */
+.pilebox{flex:0 0 auto;width:96px;min-height:292px;cursor:pointer;color:var(--cd-ink);
+  border:2px solid var(--cd-rule);
+  background-image:var(--cd-face),
+    radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  /* 뒤로 두 장이 더 겹쳐 있는 것처럼 — 더미는 한 장이 아니다 */
+  box-shadow:5px -5px 0 -2px var(--cd-paper2),5px -5px 0 0 var(--cd-rule),
+             10px -10px 0 -2px var(--cd-paper2),10px -10px 0 0 var(--cd-rule),
+             0 6px 16px rgba(0,0,0,.35);
+  transition:transform .18s ease}
+.pilebox:hover{transform:translateY(-8px)}
+.pn2{font:700 28px/1 var(--mono);color:var(--cd-ink)}
+.pl2{font:700 11px/1 var(--mono);letter-spacing:.2em;color:var(--cd-mut)}
 
 #pn{position:fixed;inset:0;z-index:300;display:none;
   align-items:center;justify-content:center;padding:28px;
@@ -551,6 +581,8 @@ body.sgon{overflow:hidden}
 #sg .btn.on .c{color:var(--hanji)}
 #sg .piles{display:flex;gap:6px;margin-top:9px}
 #sg .pile{flex:1;border:2px solid var(--line);padding:5px 0;text-align:center}
+#sg .pile.go{cursor:pointer}
+#sg .pile.go:hover{border-color:var(--steel);background:rgba(255,255,255,.35)}
 #sg .pile .n{font:800 15px/1 var(--mono);color:var(--ink3)}
 #sg .pile .l{font:700 9px/1 var(--sans);letter-spacing:.1em;color:var(--ink2);margin-top:3px}
 #sg .rbot{margin-top:11px;padding-top:10px;border-top:3px solid var(--steel);
@@ -824,6 +856,19 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
  </div>
 </div>
 
+<!-- ══ 더미 들여다보기 ══ 덱 · 버림에 남은 카드. 두 화면이 같이 쓴다 ══ -->
+<div id="pv" onclick="if(event.target===this)pileClose()">
+  <div class="pvbox">
+    <div class="pntop">
+      <div class="pnttl" id="pv_ttl">덱</div>
+      <div class="pvcnt" id="pv_cnt"></div>
+      <div class="pvnote" id="pv_note"></div>
+      <button class="pnx" onclick="pileClose()" title="닫는다 (Esc)">✕</button>
+    </div>
+    <div class="pvlist hand" id="pv_list"></div>
+  </div>
+</div>
+
 <!-- ══ 패치 노트 ══ 판본 옆 단추가 연다. 글은 60-text/patch-notes.js 에 있다 ══ -->
 <div id="pn">
   <div class="pnbox">
@@ -873,8 +918,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
       <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
       <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
       <div class="piles">
-        <div class="pile"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
-        <div class="pile"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
+        <div class="pile go" onclick="pileToggle('deck')"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
+        <div class="pile go" onclick="pileToggle('discard')"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
         <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
       </div>
     </div>
@@ -4647,6 +4692,7 @@ function render(){
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* ── 환자 머리에 붙는 설명 둘 ────────────────────────────────
@@ -4831,10 +4877,12 @@ function renderInto(h){
     left = handPicks(S, PICK.id);
     for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
   }
+  /* 덱과 버림은 손패 줄 맨 앞에 더미로 선다 — 눌러서 안을 본다 (pile-ui) */
   $(h+'_hand').innerHTML=(pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다.
        ${PICK.chosen.length?`고른 것 <b>${esc(PICK.chosen.join(' · '))}</b> · `:''}<span class="d">esc 로 취소</span></div>` : '')
-    + S.hand.map(id=>{
+    + pileTiles()
+    + (S.hand.map(id=>{
     if(pend){
       const taken = PICK.chosen.filter(x=>x===id).length;
       const okPick = left.includes(id);
@@ -4844,9 +4892,9 @@ function renderInto(h){
     const {ok, why} = cardWhy(S, id, selNode);
     return cardHTML(id, {S, node:selNode, dim:!ok, onclick:`playCard('${id}')`,
       foot: why?`<span class="keep why">${why}</span>`:''});
-  }).join('') || '<div class="empty">손이 비었다.</div>';
+  }).join('') || '<div class="empty">손이 비었다.</div>');
 
-  $(h+'_piles').innerHTML=`덱 ${S.deck.length} · 버림 ${S.discard.length} · 판 밖 ${S.exiled.length}`
+  $(h+'_piles').innerHTML=`판 밖 ${S.exiled.length}`
     +` · 합 ${S.hand.length+S.deck.length+S.discard.length+S.exiled.length}`
     +(S.shuffles?` · 셔플 ${S.shuffles}`:'')
     +`<span class="right d" style="font-size:10px">${KEYHELP}</span>`;
@@ -5383,6 +5431,67 @@ function openDeckOne(){
 }
 
 /* 스토리 가방은 여기 없다 — 낱장이 아니라 팩으로 짠다 (70-ui/pack-ui.js). */
+
+//@ 파일.70-ui/pile-ui
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.26 더미 들여다보기
+   ──────────────────────────────────────────────────────────────────
+   덱과 버림에 무엇이 남았는지 카드로 펼쳐 본다. 작업대와 무대가 같은
+   창 하나를 쓴다 — 창(#pv)은 두 화면 위로 덮으므로 어느 쪽에서 눌러도
+   같은 것이 뜬다.
+
+   덱은 가나다 순으로 적는다. 섞인 순서 그대로 보이면 다음에 뽑을 것이
+   그대로 드러난다 — 「무엇이 남았나」만 알려 주고 차례는 덮어 둔다.
+   버림은 감출 것이 없으므로 최근 버린 것부터 그대로 적는다.
+   ══════════════════════════════════════════════════════════════════ */
+//@ 화면.더미 — §9.26 덱 · 버림에 남은 카드
+let PILE_OPEN = null;                 // null | 'deck' | 'discard'
+
+const PILE_DEF = {
+  deck:    {ttl:'덱',   note:'가나다 순으로 적는다 — 뽑을 차례는 감춘다.',
+            list:s=>[...s.deck].sort((a,b)=>a.localeCompare(b,'ko'))},
+  discard: {ttl:'버림', note:'최근 버린 것이 앞이다.',
+            list:s=>[...s.discard].reverse()},
+};
+
+function pileShow(which){
+  if(!S || !PILE_DEF[which]) return;
+  PILE_OPEN = which;
+  $('pv').classList.add('on');
+  pileRender();
+}
+
+function pileClose(){
+  if(!PILE_OPEN) return;
+  PILE_OPEN = null;
+  $('pv').classList.remove('on');
+}
+
+/* 같은 더미를 다시 누르면 닫힌다 */
+function pileToggle(which){ PILE_OPEN===which ? pileClose() : pileShow(which) }
+
+/* 그릴 때마다 다시 그린다 — 툴팁 등록기(TIPS)가 판을 그릴 때 비워지므로
+   창을 열어 둔 채 판이 바뀌면 열쇠가 끊긴다 (render · stageRender 가 부른다) */
+function pileRender(){
+  if(!PILE_OPEN || !S) return pileClose();
+  const d = PILE_DEF[PILE_OPEN], ids = d.list(S);
+  $('pv_ttl').textContent = d.ttl;
+  $('pv_cnt').textContent = `${ids.length}장`;
+  $('pv_note').textContent = d.note;
+  $('pv_list').innerHTML = ids.length
+    ? ids.map(id=>cardHTML(id, {S})).join('')
+    : '<div class="empty">비었다.</div>';
+}
+
+/* 작업대 손패 줄 맨 앞에 세우는 더미 둘 */
+function pileTiles(){
+  return ['deck','discard'].map(k=>
+    `<div class="pilebox" onclick="pileToggle('${k}')"${tip(
+      `<span class="tt">${PILE_DEF[k].ttl}</span>눌러서 남은 카드를 본다.<br>${PILE_DEF[k].note}`)}>
+      <div class="pn2">${k==='deck'?S.deck.length:S.discard.length}</div>
+      <div class="pl2">${PILE_DEF[k].ttl}</div></div>`).join('');
+}
 
 //@ 파일.70-ui/pack-ui
 
@@ -5922,6 +6031,10 @@ const KEYHELP = '1~9 카드 · ←→ 자리 · X 처치 · Space 턴 종료 · 
 document.addEventListener('keydown', e=>{
   if(typeof STAGE_ON!=='undefined' && STAGE_ON) return;   // 무대에 제 자판이 있다
   if(typeof PN_OPEN!=='undefined' && PN_OPEN) return;     // 패치 노트가 덮고 있다 — 판에 손대지 않는다
+  /* 더미 창이 덮고 있다 — Esc 로 그것만 닫고, 나머지 손은 판에 닿지 않는다 */
+  if(typeof PILE_OPEN!=='undefined' && PILE_OPEN){
+    if(e.key==='Escape'){ e.preventDefault(); pileClose() } return;
+  }
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
@@ -6817,6 +6930,7 @@ function stageRender(){
   stageActbar();
   stagePanel();
   stageHand();
+  pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
 /* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
@@ -7249,6 +7363,7 @@ document.addEventListener('keydown', e=>{
   const t = e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   const k = e.key;
+  if(PILE_OPEN){ if(k==='Escape'){ e.preventDefault(); pileClose() } return }
   if(k==='Escape'){
     e.preventDefault();
     if(PICK){ cancelPick(); stageRender(); return }

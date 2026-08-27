@@ -151,6 +151,19 @@
  </div>
 </div>
 
+<!-- ══ 더미 들여다보기 ══ 덱 · 버림에 남은 카드. 두 화면이 같이 쓴다 ══ -->
+<div id="pv" onclick="if(event.target===this)pileClose()">
+  <div class="pvbox">
+    <div class="pntop">
+      <div class="pnttl" id="pv_ttl">덱</div>
+      <div class="pvcnt" id="pv_cnt"></div>
+      <div class="pvnote" id="pv_note"></div>
+      <button class="pnx" onclick="pileClose()" title="닫는다 (Esc)">✕</button>
+    </div>
+    <div class="pvlist hand" id="pv_list"></div>
+  </div>
+</div>
+
 <!-- ══ 패치 노트 ══ 판본 옆 단추가 연다. 글은 60-text/patch-notes.js 에 있다 ══ -->
 <div id="pn">
   <div class="pnbox">

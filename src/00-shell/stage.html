@@ -37,8 +37,8 @@
       <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
       <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
       <div class="piles">
-        <div class="pile"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
-        <div class="pile"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
+        <div class="pile go" onclick="pileToggle('deck')"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
+        <div class="pile go" onclick="pileToggle('discard')"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
         <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
       </div>
     </div>

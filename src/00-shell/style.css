@@ -12,11 +12,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
    판본이 길어지면 이름과 판본만 아래로 접히고 단추는 그대로 있는다.
    오른쪽 여백은 단추가 앉을 자리를 미리 비워 둔 것이다 */
 h1{position:relative;padding-right:52px;
-  font:600 15px/1.35 var(--sans);letter-spacing:.10em;margin:0 0 4px}
+  font:600 15px/1.35 var(--sans);letter-spacing:.10em;margin:0 0 16px}
 /* 이름도 판본도 도중에 끊지 않는다 — 자리가 모자라면 판본이 통째로 아랫줄로 내려간다 */
 h1 .ttl,h1 .ver{white-space:nowrap}
 h1 .ver{color:var(--blood)}
-.sub{font:11px/1.4 var(--mono);color:var(--dim);margin-bottom:14px}
 .tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
 .tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
  cursor:pointer;border-right:1px solid var(--line);color:var(--dim)}

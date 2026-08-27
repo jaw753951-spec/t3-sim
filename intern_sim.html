@@ -1,7 +1,10 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>인턴 심 0.1.2.1 — 전투 시뮬레이터</title><style>
-:root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
+/* 무대 손패(#sg_hand)도 이 팔레트를 쓴다 — 전투 화면의 카드가 가방의 카드와
+   똑같아야 한다. #sg 가 --ink · --line · --t3 을 무대 색으로 갈아 끼우므로,
+   손패 안에서만 작업대 값으로 되돌려 준다. 값은 여기 한 곳에만 적는다 */
+:root,#sg_hand{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
  --sans:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
@@ -518,32 +521,12 @@ body.sgon{overflow:hidden}
 
 /* ── 손패 ─────────────────────────────────────────────────── */
 #sg_hand{position:absolute;left:1.4%;right:18.2%;bottom:2.2%;z-index:25;
-  display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap}
-#sg_hand .card{width:206px;min-height:150px;border:3px solid var(--steelD);background:var(--paper);
-  padding:9px 11px;cursor:pointer;display:flex;flex-direction:column;
-  box-shadow:0 5px 14px rgba(0,0,0,.5);transition:transform .18s}
-#sg_hand .card:hover{transform:translateY(-9px);border-color:var(--steelD)}
-#sg_hand .card.no{opacity:.45;cursor:default;transform:none}
-#sg_hand .card.pick{border-color:var(--brass);box-shadow:0 0 0 3px rgba(201,164,74,.6),0 5px 14px rgba(0,0,0,.5)}
-#sg_hand .card.내과{border-top:7px solid #3C6E52}
-#sg_hand .card.외과{border-top:7px solid var(--red)}
-#sg_hand .card.의공학{border-top:7px solid #3D6673}
-#sg_hand .card.공통{border-top:7px solid var(--ink2)}
-#sg .chead{display:flex;align-items:baseline;gap:7px;width:100%}
-#sg .chead b{font:800 14px/1.25 var(--sans);color:var(--ink3)}
-#sg .cost{font:800 17px/1 var(--mono);color:var(--anno);min-width:15px}
-#sg .bl{font:800 9.5px var(--mono);color:var(--hanjiW);background:var(--red);
-  border:1px solid var(--red);padding:1px 5px;cursor:help}
-#sg .cmeta{font:9.5px var(--sans);letter-spacing:.06em;color:var(--ink2);margin-top:5px;
-  border-bottom:2px solid var(--steel);padding-bottom:5px}
-#sg .ctext{font:11.5px/1.55 var(--sans);margin-top:7px;color:var(--ink);flex:1}
-#sg .kw{border-bottom:1px dotted var(--red);color:var(--red);cursor:help;font-weight:700}
-#sg .keep{display:inline-block;margin-top:5px;font:9.5px var(--sans);color:var(--mut)}
-#sg .keep.on{color:var(--t3)}
-#sg .keep.why{color:var(--anno)}
-#sg .key{margin-left:auto;font:9.5px var(--mono);color:var(--ink2);border:1px solid var(--line);padding:0 5px}
-#sg .vup{color:#2F6B4F;font-weight:800}
-#sg .vdn{color:var(--red);font-weight:800}
+  display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap;
+  color:var(--ink)}   /* 물려받는 글자색도 작업대 것으로 — 카드 이름이 이 색을 탄다 */
+/* 카드 한 장은 무대 옷을 입지 않는다 — 가방(작업대)에서 보던 그 카드 그대로다.
+   그리는 함수가 이미 같으므로 (cardHTML) 여기서 덧입히지만 않으면 된다.
+   style.css 의 .card 규칙이 그대로 걸리고, 팔레트는 그쪽 :root 가 #sg_hand 에도
+   같이 얹혀 있다 — #sg 가 갈아 끼운 이름을 손패 안에서만 되돌리는 자리다. */
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 

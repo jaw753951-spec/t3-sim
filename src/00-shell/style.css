@@ -248,6 +248,10 @@ body.pnon{overflow:hidden}
 .pngn{font:600 12px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
 .pngrp ul{margin:7px 0 0;padding-left:19px}
 .pngrp li{font:13.5px/1.75 var(--sans);color:var(--ink)}
+/* 「*」로 적은 딸린 줄 — 한 칸 들어가고 한 톤 죽인다 */
+.pnsub{margin:2px 0 4px;padding-left:14px;list-style:none}
+.pnsub li{font-size:12.5px;color:var(--dim);position:relative}
+.pnsub li::before{content:'–';position:absolute;left:-13px}
 .pnempty{font:13px var(--mono);color:var(--dim);padding:12px 0}
 
 /* ── 큰 판올림 ── 목록만 훑어도 어디가 마디인지 보이도록 통째로 키운다.
@@ -265,4 +269,5 @@ body.pnon{overflow:hidden}
 .pnrow.big .pngn{font-size:13px}
 .pnrow.big .pngrp ul{padding-left:21px}
 .pnrow.big .pngrp li{font-size:15px;line-height:1.8}
+.pnrow.big .pnsub li{font-size:13.5px}
 .pnrow.big .pnempty{font-size:14px}

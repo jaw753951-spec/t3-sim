@@ -4,7 +4,7 @@
    판본 옆의 단추를 누르면 작업대가 흐려지고 가운데에 뜬다.
    판본 하나가 한 줄이고, 줄을 누르면 그 아래가 열린다 (한 번에 여럿 열린다).
    맨 위 — 지금 판본 — 은 처음부터 열려 있다.
-   major 를 단 판본은 줄과 글자가 커진다 (.pnrow.big).
+   size:'M' 을 단 판본은 줄과 글자가 커진다 (.pnrow.big).
 
    글은 60-text/patch-notes.js 에만 있다. 여기는 그리기만 한다.
    본문을 읽는 규칙도 거기 주석에 적혀 있다 — 두 벌로 적지 않는다.
@@ -42,29 +42,38 @@ function togglePatch(v){
 }
 
 /* 본문 한 덩이를 묶음들로 가른다.
-   「-」「·」「*」로 시작하면 글머리, 그 밖에 글이 있는 줄이면 묶음 이름, 빈 줄은 버린다.
-   이름 없이 글머리부터 나오면 제목 없는 묶음 하나로 담는다 */
+   「-」「·」는 글머리, 「*」는 바로 위 글머리에 딸린 줄, 그 밖에 글이 있는 줄이면
+   묶음 이름, 빈 줄은 버린다. 이름 없이 글머리부터 나오면 제목 없는 묶음에 담는다 */
 function pnParse(text){
   const out = [];
-  let cur = null;
+  let cur = null, last = null;
   for(const raw of String(text).split('\n')){
     const line = raw.trim();
     if(!line) continue;
-    if(/^[-·*]\s*/.test(line)){
-      if(!cur){ cur = {name:'', items:[]}; out.push(cur) }
-      cur.items.push(line.replace(/^[-·*]\s*/, ''));
-    } else {
-      cur = {name:line, items:[]}; out.push(cur);
-    }
+    const m = /^([-·*])\s*/.exec(line);
+    if(!m){ cur = {name:line, items:[]}; out.push(cur); last = null; continue }
+    if(!cur){ cur = {name:'', items:[]}; out.push(cur) }
+    const body = line.slice(m[0].length);
+    /* 「*」는 딸릴 데가 있을 때만 딸린다. 없으면 저 혼자 한 줄이 된다 —
+       하위 항목부터 적기 시작한 덩이를 통째로 삼키지 않게 하려는 것이다 */
+    if(m[1]==='*' && last){ (last.sub = last.sub || []).push(body) }
+    else { last = {t:body}; cur.items.push(last) }
   }
   return out.filter(g=>g.name || g.items.length);
+}
+
+/* 글머리 한 줄. 옛 표기(groups)는 글자만 넘어오므로 그것도 받는다 */
+function pnLi(it){
+  if(typeof it === 'string') return `<li>${it}</li>`;
+  const sub = (it.sub||[]).map(s=>`<li>${s}</li>`).join('');
+  return `<li>${it.t}${sub?`<ul class="pnsub">${sub}</ul>`:''}</li>`;
 }
 
 /* 묶음 한 벌을 화면으로. name 이 비면 제목 없이 목록만 낸다 */
 function pnGroups(groups, raw){
   return groups.map(g=>{
     const nm = g.name ? `<div class="pngn">${raw ? g.name : esc(g.name)}</div>` : '';
-    const li = (g.items||[]).map(t=>`<li>${t}</li>`).join('');
+    const li = (g.items||[]).map(pnLi).join('');
     return `<div class="pngrp">${nm}${li?`<ul>${li}</ul>`:''}</div>`;
   }).join('');
 }
@@ -84,8 +93,9 @@ function renderPatch(){
   box.innerHTML = PATCH_NOTES.map(n=>{
     const open = !!PN_ROWS[n.v];
     const cls  = PN_TAG_CLS[n.tag] || '';
-    /* 큰 판올림은 줄째로 커진다 — 목록만 훑어도 어디가 마디인지 보인다 */
-    return `<div class="pnrow ${n.major?'big':''} ${open?'on':''}">
+    /* 큰 판올림은 줄째로 커진다 — 목록만 훑어도 어디가 마디인지 보인다.
+       가르는 것은 대문자 M 하나다. 'm' 도 없는 것도 작은 판올림이다 */
+    return `<div class="pnrow ${n.size==='M'?'big':''} ${open?'on':''}">
       <button class="pnhead" onclick="togglePatch('${n.v}')">
         <span class="pnarw">${open?'▾':'▸'}</span>
         <span class="pnv">${esc(n.v)}</span>

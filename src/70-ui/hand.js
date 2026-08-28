@@ -116,7 +116,6 @@ function killSel(){
     log(`<b>처치 예약</b> ${n.sym} <span class="d">— 공황이라 손이 늦다. 다음 턴 시작에 터진다. 그 사이 처치선 위로 올라가면 헛돈다.</span>`);
     SEL=null; render(); return;
   }
-  if(n.role==='disease') n.dead=true;
   log(`<b>처치</b> ${n.sym} — ${r==='strong'?'강반응':r==='weak'?'약반응':'휴면'} · 판 전체 <span class="n">−${amt}</span>`);
   SEL=null; render();
 }
@@ -127,12 +126,14 @@ function resolveTurn(quiet){
   /* 순서는 act1/act3 과 같다 — 플레이어 → 병 → 턴 정산 → 유지 계수.
      v19 는 수동만 병을 정산 뒤에 움직여서 배치와 결과가 달랐다. */
   const story = (S.act===1||S.act===3);
+  /* 예고를 병보다 먼저 뽑는다 — forecast 가 스스로 병을 움직여 보기 때문이다.
+     병이 이미 움직인 뒤에 부르면 '다음' 박자를 당겨 예고하게 된다. */
+  const f=forecast();
   const ph = story ? storyPhase(S, S.nodes[0]) : null;
   if(ph && !quiet){
     if(ph.line) log(`<span class="d">병 —</span> ${ph.line}`);
     if(ph.up)   log(`<b>병기 ${ph.up}</b> — 판이 무거워진다.`);
   }
-  const f=forecast();
   endTurnHand(S); turnResolve(S);
   if(story) storyTick(S);
   if(!quiet){

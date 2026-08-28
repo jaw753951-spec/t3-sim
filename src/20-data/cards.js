@@ -120,7 +120,7 @@ const CARDS = {
 '손이 기억한다': {cost:1, dept:'내과', verb:'억제', kw:'지연', target:'node', v:{sup:6, delay:1},
   text:'억제 −{sup}, 지연 {delay}',
   fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); K.delay(S,n,v.delay) }},
-'빌려온 물건': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', when:'set', v:{rig:6},
+'빌려온 물건': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', v:{rig:6},
   need:n=>!(n.rigLent>0),
   text:'설치 {rig}. 이 설치물은 따로 놓이고 강화되지도 개방되지도 않는다',
   fx:(S,n,a,v)=>{ if(!(n.rigLent>0)){ n.rigLent = v.rig; K.ev(S,{t:'rig', n, amt:v.rig}) } }},

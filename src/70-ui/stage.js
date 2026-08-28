@@ -8,8 +8,9 @@
    그래서 무대와 작업대는 언제나 같은 판을 본다. 되돌리기 · 자동 진행 ·
    배치가 무대를 몰라도 되는 이유다 — render() 가 무대까지 맞춘다.
 
-   연출은 「부르기 전 판」과 「부른 뒤 판」을 견줘서 짠다 (fxPlanDiff).
-   커널에 훅을 심지 않은 것은 규칙 파일을 건드리지 않기 위해서다.
+   연출은 커널이 S.ev 에 적어 둔 사건 줄을 읽어서 짠다 (fxPlanLog).
+   커널에 심은 것은 훅이 아니라 기록이다 — 화면을 부르지 않고 배열에 밀어 넣기만
+   하므로 30-core 는 여전히 화면을 모른다. S.ev 를 안 켜면 아무것도 쌓지 않는다.
    ══════════════════════════════════════════════════════════════════ */
 
 //@ 무대.전역 — 무대가 떠 있는가, 무엇을 겨누는 중인가
@@ -299,9 +300,11 @@ function stageCardClick(id){
 
 function stagePickCard(id){
   if(FX_BUSY) return;
-  const b = fxSnap(S);
+  const b = fxMark(S);
+  S.ev = [];
   pickCard(id);
-  if(!PICK) fxPlanDiff(b, {verb:'card'});
+  if(!PICK) fxPlanLog(S.ev, b, {verb:'card'});
+  if(S) S.ev = null;
   fxFlush();
 }
 
@@ -335,13 +338,17 @@ function stageEndBtn(){
 }
 
 /* ── 손 → 커널 → 연출 ────────────────────────────────────────
-   기존 손을 그대로 부른다. 앞뒤로 판을 떠서 무슨 일이 났는지만 읽는다. */
-//@ 무대.행동 — 기존 손을 부르고 그 전후를 견준다
+   기존 손을 그대로 부른다. 부르는 동안 커널이 S.ev 에 적어 둔 사건 줄을 읽는다.
+   구간 넘김과 스토리 게이지만 전후를 견준다 (fxMark). */
+//@ 무대.행동 — 기존 손을 부르고 커널이 적은 사건 줄을 읽는다
 function stageAct(fn, plan){
   if(FX_BUSY || !S) return;
-  const b = fxSnap(S);
+  const b = fxMark(S);
+  const rec = S;                       // 손이 판을 갈아 끼울 수 있다 (되돌리기 · 세션) — 켠 자리를 기억해 둔다
+  rec.ev = [];
   fn();
-  if(S) fxPlanDiff(b, plan);
+  if(S) fxPlanLog(S===rec ? rec.ev : [], b, plan);
+  rec.ev = null; if(S) S.ev = null;
   fxFlush(()=>{ if(STAGE_ON) stageAfter() });
 }
 
@@ -375,124 +382,103 @@ function stageAfter(){
   sayTurnTick();
 }
 
-/* ── 판을 뜬다 · 견준다 ──────────────────────────────────────── */
-//@ 무대.스냅 — 연출이 볼 수 있는 만큼만 뜬다
-function fxSnap(S){
+/* ── 사건으로 낼 수 없는 나머지 ────────────────────────────────
+   커널이 S.ev 에 적어 주지 못하는 것만 여기 남는다. 둘뿐이다.
+
+   · 구간 넘김(zone) — reaction() 은 painShare(S) 를 타서 **전역**이다.
+     한 자리를 억제하면 손도 안 댄 자리의 등급이 같이 바뀐다. 어느 한 대입
+     자리에서 낼 수 있는 사건이 아니라서 전후를 견주는 수밖에 없다.
+   · 증거 · 병기 — 스토리 층(30-core/story.js)이 올리는 값이다. 이 층에는
+     아직 사건을 안 붙였다.
+
+   전에 fxSnap 이 뜨던 「자리마다 11필드 + 전역 7개」가 이만큼으로 줄었다. */
+//@ 무대.나머지 — 사건으로 못 내는 것만 뜬다
+function fxMark(S){
   const dis = S.nodes.find(n=>n.role==='disease');
   return {
-    hp:S.hp, mind:S.mind, turn:S.turn,
-    rush:S.rush||0, remGauge:S.remGauge||0,
-    evid:S.evid, stage: dis?dis.stage:0,
-    len:S.nodes.length,
-    nodes:S.nodes.map(n=>({
-      dead:!!n.dead, val:n.val, shielded:!!n.shielded, dormT:n.dormT||0,
-      evolved:!!n.evolved, weak:n.weak||0, rig:rigTotal(n), stabAcc:n.stabAcc||0,
-      diagRound:n.diagRound||0, diagAcc:n.diagAcc||0, demoted:!!n.demoted,
-      react: n.dead ? null : reaction(S,n),
-    })),
+    evid: S.evid, stage: dis?dis.stage:0, mind: S.mind,
+    rush: S.rush||0, remGauge: S.remGauge||0,
+    react: S.nodes.map(n=>n.dead ? null : reaction(S,n)),
   };
 }
 
-/* 무슨 일이 났는가 — 순서가 곧 연출 순서다.
-   자리 하나에 여러 일이 겹치면 「값이 움직인 것 → 막이 깨진 것 → 잠든 것」 순이다. */
-//@ 무대.연출짜기 — 전후를 견줘 줄을 세운다
-function fxPlanDiff(b, plan){
+/* ── 사건 줄을 연출 줄로 ────────────────────────────────────────
+   커널이 적어 준 차례가 곧 연출 차례다. 되짚기와 달리
+     · 같은 자리를 두 번 억제하면 두 번 뜬다 (전에는 차이 하나로 뭉쳤다)
+     · 아무것도 안 움직인 튕김도 뜬다 (무적 · 완화 면역)
+     · 촉발 · 전이는 커널이 '실제로 건 것'만 넘겨 준다 — 무대가 흉내 내지 않는다
+   구간 넘김과 손패 돌리기만 마지막에 따로 붙인다. */
+//@ 무대.연출짜기 — 커널이 적어 준 사건 줄을 그대로 옮긴다
+function fxPlanLog(log, before, plan){
   plan = plan || {};
-  const cur = fxSnap(S);
-  const zoneAfter = [];
+  const cur = fxMark(S);
+  let killed = false, turned = false;
 
-  /* 처치는 그 자리의 사라짐이 먼저다 */
-  if(plan.verb==='kill' && plan.killIx!=null){
-    const n = S.nodes[plan.killIx];
-    const was = b.nodes[plan.killIx];
+  for(const e of (log||[])){
+    const n = e.n;
+    switch(e.t){
+      case 'kill':
+        killed = true;
+        fxq(()=>FXE.treat(n, e.grade));
+        sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
+        break;
+      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade)); break;
+      case 'spawn':      fxq(()=>FXE.spawn(e.from, n)); sayEmit('spawn', {key:n.sym, node:n}); break;
+      case 'sup':        fxq(()=>FXE.suppress(n, e.amt)); break;
+      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt)); break;
+      case 'shBreak':    fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}); break;
+      case 'weak':       fxq(()=>FXE.weaken(n, e.add)); break;
+      case 'rig':        fxq(()=>FXE.rig(n, e.amt)); break;
+      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt)); break;
+      case 'diag':       fxq(()=>FXE.diagnose(n, e.round));
+                         sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
+      case 'demote':     fxq(()=>FXE.demote(n)); break;
+      case 'evolve':     fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}); break;
+      case 'dorm':       fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}); break;
+      case 'revive':     fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}); break;
+      /* 손은 닿았는데 판이 안 움직인 자리 — 되짚기로는 볼 수 없던 것들 */
+      case 'immune':
+      case 'calmBounce': fxq(()=>FXE.immune(n)); break;
+      case 'delay':      fxq(()=>FXE.stabilize(n, 0)); break;
+      case 'hp':         e.why==='bleed' ? fxq(()=>FXE.patPay(e.amt)) : fxq(()=>FXE.patHit(e.amt)); break;
+      /* 정신은 여기서 띄우지 않는다 — 한 손에 두세 번 흔들리는 일이 흔해서
+         (억제로 악화 → 휴면 도달로 호전 …) 사건마다 띄우면 배너가 겹친다.
+         결과만 아래에서 한 번 알린다. 게이지를 결과 한 번으로 내는 것과 같다. */
+      case 'turn':       turned = true; break;
+      /* 성장 · 뽑기 · 성장 정지는 계기판이 그리므로 연출을 따로 내지 않는다 */
+    }
+  }
+
+  /* 처치를 걸었는데 사건이 안 왔다 — 못 끊었다. 표를 도로 뗀다 */
+  if(plan.verb==='kill' && plan.killIx!=null && !killed){
     const el = STAGE_ELS.get(plan.killIx);
-    if(!(n && was && !was.dead && cur.nodes[plan.killIx].dead)){
-      if(el) delete el.dataset.dying;     // 못 끊었다 — 표를 도로 뗀다
-    } else {
-      fxq(()=>FXE.treat(n, plan.grade));
-      sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
-      /* 촉발 · 전이 — 이 자리에서 뻗은 선이 터진다 */
-      if(plan.grade && plan.grade!=='none'){
-        const lines = [...basicLines(b.nodes.map((_,i)=>S.nodes[i]).filter(x=>x&&!x.dead).map(x=>x.sym)),
-                       ...((BOARD.enh)||[])];
-        for(const l of lines){
-          if(l.a!==n.sym) continue;
-          const t = alive(S).find(x=>x.sym===l.b && x!==n);
-          if(t) fxq(()=>FXE.trigger(n, t, plan.grade));
-        }
-      }
-    }
+    if(el) delete el.dataset.dying;
   }
 
-  /* 자리마다 — 값 · 막 · 약화 · 설치 · 진단 · 진화 · 휴면 */
-  for(let i=0;i<cur.len;i++){
-    const a = b.nodes[i], c = cur.nodes[i], n = S.nodes[i];
-    if(!n) continue;
-    if(!a){                                   // 새로 난 자리 (전이)
-      const src = plan.killIx!=null ? S.nodes[plan.killIx] : null;
-      if(src) fxq(()=>FXE.spawn(src, n));
-      sayEmit('spawn', {key:n.sym, node:n});
-      continue;
-    }
-    if(a.dead || c.dead) continue;            // 이미 위에서 다뤘거나 볼 것이 없다
-
-    if(c.val < a.val)      fxq(()=>FXE.suppress(n, a.val-c.val));
-    else if(c.val > a.val && plan.verb!=='turn') fxq(()=>FXE.stabilize(n, 0));
-    if(c.stabAcc > a.stabAcc && c.shielded) fxq(()=>FXE.stabilize(n, c.stabAcc-a.stabAcc));
-    if(c.weak > a.weak)    fxq(()=>FXE.weaken(n, c.weak-a.weak));
-    if(c.rig  > a.rig)     fxq(()=>FXE.rig(n, c.rig));
-    if(c.rig  < a.rig)     fxq(()=>FXE.rigOpen(n, a.rig-c.rig));
-    if(a.shielded && !c.shielded){ fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}) }
-    if(c.diagRound > a.diagRound){
-      fxq(()=>FXE.diagnose(n, c.diagRound));
-      sayEmit('diag', {key:n.sym, node:n, round:c.diagRound});
-    }
-    if(!a.demoted && c.demoted) fxq(()=>FXE.demote(n));
-    if(!a.evolved && c.evolved){ fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}) }
-    if(a.dormT===0 && c.dormT>0){ fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}) }
-    if(a.dormT>0 && c.dormT===0 && c.val>0){ fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}) }
-    if(c.react !== a.react && c.react && c.react!=='none') zoneAfter.push([n, c.react]);
-  }
-
-  /* 1막 병 노드를 건드렸는데 아무것도 안 움직였다 — 튕겨 낸다 */
-  if(plan.verb==='card'){
-    const n = alive(S)[SEL];
-    if(n && immune(S,n) && CARDS[plan.card] && CARDS[plan.card].verb!=='진단'){
-      const i = S.nodes.indexOf(n);
-      if(b.nodes[i] && b.nodes[i].val === cur.nodes[i].val) fxq(()=>FXE.immune(n));
-    }
-  }
-
-  /* 환자 쪽 */
-  if(cur.hp < b.hp){
-    const d = b.hp - cur.hp;
-    if(plan.verb==='turn') fxq(()=>FXE.patHit(d));
-    else if(CARDS[plan.card] && CARDS[plan.card].bleed) fxq(()=>FXE.patPay(d));
-    else fxq(()=>FXE.patHit(d));
-  }
-  if(cur.mind !== b.mind){
-    const worse = ['평정','불안','공황','의식불명'].indexOf(cur.mind)
-                > ['평정','불안','공황','의식불명'].indexOf(b.mind);
+  /* 정신 — 오간 끝에 자리가 바뀌었을 때만 */
+  if(cur.mind !== before.mind){
+    const M = ['평정','불안','공황','의식불명'];
+    const worse = M.indexOf(cur.mind) > M.indexOf(before.mind);
     fxq(()=>FXE.mind(cur.mind, worse));
     sayEmit(worse?'mind':'mindUp', {key:cur.mind});
   }
 
-  /* 전역 게이지 */
-  /* 상태판을 걷었으므로 이 셋은 환자 위에 떠서 알린다 — 붙을 계기판이 없다 */
-  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>b.rush));
-  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
-  if(cur.stage !== b.stage){
+  /* 전역 게이지 — 사건이 여러 번 왔어도 결과 한 번만 알린다 */
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>before.rush));
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
+  if(cur.stage !== before.stage){
     fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
-  if(cur.evid !== b.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
+  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
 
   /* 구간을 새로 넘어선 자리는 마지막에 한 번씩 김을 뿜는다 */
-  for(const [n, r] of zoneAfter) fxq(()=>FXE.zone(n, r));
+  for(let i=0;i<cur.react.length;i++){
+    const a = before.react[i], c = cur.react[i];
+    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c));
+  }
 
-  /* 턴이 넘어갔으면 손패를 새로 돌린다 */
-  if(cur.turn > b.turn) fxq(()=>FXE.dealHand());
-
+  if(turned) fxq(()=>FXE.dealHand());
   sayHpCheck();
 }
 

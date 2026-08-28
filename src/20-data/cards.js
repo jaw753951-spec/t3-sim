@@ -37,7 +37,7 @@ const CARDS = {
             K.suppress(S,t,v.sup) }},
 '멈춰!': {cost:1, dept:'내과', verb:'보조', target:'node', v:{hold:()=>R.GROW_HOLD},
   text:'이 자리의 성장을 {hold}턴 멈춘다. 감염이 살아 있어도 그동안 몫을 받지 않는다',
-  fx:(S,n,a,v)=>{ if(n && !n.dead) n.growHold = v.hold }},
+  fx:(S,n,a,v)=>{ if(n && !n.dead){ n.growHold = v.hold; K.ev(S,{t:'hold', n, turns:v.hold}) } }},
 '감초 탕약': {cost:1, dept:'내과', verb:'억제', target:'node', v:{sup:6},
   text:'억제 −{sup}',
   fx:(S,n,a,v)=>K.suppress(S,n,v.sup)},
@@ -73,14 +73,14 @@ const CARDS = {
 /* ── 분과 보급 6장 ────────────────────────────────────────── */
 '박리': {cost:1, dept:'외과', verb:'억제', kw:'약화', target:'node', v:{sup:4, weak:1},
   text:'억제 −{sup}, 약화 {weak} 부여',
-  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); n.weak += v.weak }},
+  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); n.weak += v.weak; K.ev(S,{t:'weak', n, add:v.weak}) }},
 /* 기세 하나가 사는 억제는 이 카드의 수치다. 규칙이 아니라 카드가 정한다 */
 /* live — 본문의 이 열쇠는 '적힌 수' 가 아니라 '지금 실제로 들어가는 수' 를 보인다.
    기세가 쌓여 있으면 −4 가 −22 로 물들어 보인다 */
 '몰아붙인다': {cost:1, dept:'외과', verb:'억제', kw:'기세', target:'node', rushCard:true, live:'sup', v:{sup:4, per:6},
   text:'억제 −{sup}. 기세를 전부 소비하고 소비한 기세 당 추가 억제 −{per}',
   raw:(S,n,v)=> v.sup + (S.rush||0)*v.per,
-  fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.suppress(S,n, v.sup + st*v.per) }},
+  fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.ev(S,{t:'rush', v:0}); K.suppress(S,n, v.sup + st*v.per) }},
 '관해 유도': {cost:2, dept:'내과', verb:'보조', kw:'관해', target:'none', v:{},
   costWhen:S=>S.rem?0:CARDS['관해 유도'].cost,   // 관해 중에는 0코스트로 되돌린다
   text:'관해 시작. 관해 중 재사용 시 관해를 즉시 끝낸다',
@@ -123,7 +123,7 @@ const CARDS = {
 '빌려온 물건': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', when:'set', v:{rig:6},
   need:n=>!(n.rigLent>0),
   text:'설치 {rig}. 이 설치물은 따로 놓이고 강화되지도 개방되지도 않는다',
-  fx:(S,n,a,v)=>{ if(!(n.rigLent>0)) n.rigLent = v.rig }},
+  fx:(S,n,a,v)=>{ if(!(n.rigLent>0)){ n.rigLent = v.rig; K.ev(S,{t:'rig', n, amt:v.rig}) } }},
 '매듭 짓다': {cost:1, dept:'외과', verb:'억제', kw:'사혈', bleed:1, target:'node', v:{sup:14},
   text:'사혈 {bleed}단 · 억제 −{sup}',
   fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup) }},

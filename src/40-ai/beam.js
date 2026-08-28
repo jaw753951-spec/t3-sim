@@ -13,6 +13,9 @@ function clone(S){
     rng: ()=>0.5, rec: null, revisitOn: {...(S.revisitOn||{})}, diagPlus: {...(S.diagPlus||{})},
     drawQueue: (S.drawQueue||[]).slice(),
     pendKill: (S.pendKill||[]).slice(), killLate: [],
+    /* 사건 기록은 복제본이 물려받지 않는다. {...S} 로 뜨면 원본과 '같은 배열'을
+       가리키게 되어 탐색이 무대의 줄에 사건을 쏟아붓는다 (forecast 도 이 clone 을 쓴다) */
+    ev: null,
     board: {...S.board, nodes},
   };
   return T;

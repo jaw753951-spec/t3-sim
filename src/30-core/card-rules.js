@@ -38,6 +38,7 @@ function rigSet(S,n,amt){
   } else {
     n.rig = amt; n.rigUp = 0; n.rigCap = rigCapOf(amt);
   }
+  K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
 
@@ -46,6 +47,7 @@ function rigOpen(S,n,mult){
   if(!(n.rig>0)) return 0;
   const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
+  K.ev(S,{t:'rigOpen', n, amt});
   n.rig=0; n.rigUp=0; n.rigCap=0;
   return got;
 }
@@ -81,13 +83,16 @@ function cardRaw(S, id, n){
 function shuffle(a,rng){ for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
 
 function draw(S,k){
+  let got = 0;
   for(let i=0;i<k;i++){
     if(!S.deck.length){
-      if(!S.discard.length) return;
+      if(!S.discard.length) break;        // 더 뽑을 것이 없다 — 뽑은 만큼은 아래에서 알린다
       S.deck = shuffle(S.discard.slice(), S.rng); S.discard.length=0; S.shuffles=(S.shuffles||0)+1;
     }
     S.hand.push(S.deck.pop());
+    got++;
   }
+  if(got) K.ev(S,{t:'draw', k:got});
 }
 
 function setupDeck(S, list, rng){

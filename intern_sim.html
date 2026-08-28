@@ -1476,7 +1476,7 @@ const CARDS = {
             K.suppress(S,t,v.sup) }},
 '멈춰!': {cost:1, dept:'내과', verb:'보조', target:'node', v:{hold:()=>R.GROW_HOLD},
   text:'이 자리의 성장을 {hold}턴 멈춘다. 감염이 살아 있어도 그동안 몫을 받지 않는다',
-  fx:(S,n,a,v)=>{ if(n && !n.dead) n.growHold = v.hold }},
+  fx:(S,n,a,v)=>{ if(n && !n.dead){ n.growHold = v.hold; K.ev(S,{t:'hold', n, turns:v.hold}) } }},
 '감초 탕약': {cost:1, dept:'내과', verb:'억제', target:'node', v:{sup:6},
   text:'억제 −{sup}',
   fx:(S,n,a,v)=>K.suppress(S,n,v.sup)},
@@ -1512,14 +1512,14 @@ const CARDS = {
 /* ── 분과 보급 6장 ────────────────────────────────────────── */
 '박리': {cost:1, dept:'외과', verb:'억제', kw:'약화', target:'node', v:{sup:4, weak:1},
   text:'억제 −{sup}, 약화 {weak} 부여',
-  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); n.weak += v.weak }},
+  fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup); n.weak += v.weak; K.ev(S,{t:'weak', n, add:v.weak}) }},
 /* 기세 하나가 사는 억제는 이 카드의 수치다. 규칙이 아니라 카드가 정한다 */
 /* live — 본문의 이 열쇠는 '적힌 수' 가 아니라 '지금 실제로 들어가는 수' 를 보인다.
    기세가 쌓여 있으면 −4 가 −22 로 물들어 보인다 */
 '몰아붙인다': {cost:1, dept:'외과', verb:'억제', kw:'기세', target:'node', rushCard:true, live:'sup', v:{sup:4, per:6},
   text:'억제 −{sup}. 기세를 전부 소비하고 소비한 기세 당 추가 억제 −{per}',
   raw:(S,n,v)=> v.sup + (S.rush||0)*v.per,
-  fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.suppress(S,n, v.sup + st*v.per) }},
+  fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.ev(S,{t:'rush', v:0}); K.suppress(S,n, v.sup + st*v.per) }},
 '관해 유도': {cost:2, dept:'내과', verb:'보조', kw:'관해', target:'none', v:{},
   costWhen:S=>S.rem?0:CARDS['관해 유도'].cost,   // 관해 중에는 0코스트로 되돌린다
   text:'관해 시작. 관해 중 재사용 시 관해를 즉시 끝낸다',
@@ -1562,7 +1562,7 @@ const CARDS = {
 '빌려온 물건': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', when:'set', v:{rig:6},
   need:n=>!(n.rigLent>0),
   text:'설치 {rig}. 이 설치물은 따로 놓이고 강화되지도 개방되지도 않는다',
-  fx:(S,n,a,v)=>{ if(!(n.rigLent>0)) n.rigLent = v.rig }},
+  fx:(S,n,a,v)=>{ if(!(n.rigLent>0)){ n.rigLent = v.rig; K.ev(S,{t:'rig', n, amt:v.rig}) } }},
 '매듭 짓다': {cost:1, dept:'외과', verb:'억제', kw:'사혈', bleed:1, target:'node', v:{sup:14},
   text:'사혈 {bleed}단 · 억제 −{sup}',
   fx:(S,n,a,v)=>{ K.suppress(S,n,v.sup) }},
@@ -2053,6 +2053,20 @@ function drawCount(S){
   return Math.max(1, R.HAND - Math.round(cut) + (S.drawBonus||0));
 }
 
+/* ── 사건 기록 ────────────────────────────────────────────────
+   판에서 무슨 일이 어느 차례로 났는가를 그대로 적어 둔다. 무대가 이것을 읽어
+   연출을 짠다 — 전에는 전후 판을 견줘서 되짚었고, 되짚기로는 못 보는 것이 있었다
+   (같은 자리를 두 번 억제하면 한 번으로 뭉치고, 아무것도 안 움직인 튕김은 아예 안 보이고,
+   촉발·전이는 UI 가 커널을 따로 흉내 내다 틀렸다).
+
+   이것은 훅이 아니라 자료다 — 커널은 화면을 부르지 않고 배열에 밀어 넣기만 한다.
+   30-core 는 여전히 화면을 한 번도 안 쓴다.
+
+   S.ev 가 없으면 아무것도 쌓지 않는다. 무대가 손을 부르기 직전에만 켜므로
+   탐색 · 배치 · 자동 진행에는 비용이 없다. */
+//@ 커널.사건 — 무대가 켤 때만 쌓는다. 끄면 비용 0
+function ev(S, e){ if(S.ev) S.ev.push(e) }
+
 /* ── 억제 ───────────────────────────────────────────────────── */
 //@ 커널.억제 — 억제 · 무적 판정 · 안정화
 /* 억제 amt 가 이 자리에 실제로 들어가는 값.
@@ -2071,7 +2085,9 @@ function supAmt(S,n,amt,opt={}){
 }
 function suppress(S,n,amt,opt={}){
   const v = supAmt(S,n,amt,opt);
-  if(v<=0) return 0;
+  /* 무적이라 한 톨도 안 들어갔다 — 판은 그대로지만 손은 닿았다.
+     되짚기로는 볼 수 없던 자리다 (값이 안 변하니 diff 에 안 잡힌다) */
+  if(v<=0){ if(amt>0 && immune(S,n)) ev(S,{t:'immune', n}); return 0 }
   const before = n.val;
   n.val = Math.max(0, n.val - v);
   /* 정신 — 한 노드를 한 턴에 두 번 억제하면 악화.
@@ -2084,7 +2100,8 @@ function suppress(S,n,amt,opt={}){
     /* v25 — 3회부터, 그리고 불안까지만. 억제로는 공황에 못 간다 */
     if(hits===R.HIT_ANX && S.mind==='평정') mind(S,+1);
   }
-  if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); }  // 휴면 도달 = 호전
+  ev(S,{t:'sup', n, amt:before-n.val, by: opt.raw ? 'rig' : opt.sweep ? 'sweep' : 'card'});
+  if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); ev(S,{t:'dorm', n}) }  // 휴면 도달 = 호전
   return before-n.val;
 }
 
@@ -2104,9 +2121,10 @@ function stabAmt(S,n,amt){
 }
 function stabilize(S,n,amt){
   const v = stabAmt(S,n,amt);
-  if(v<=0) return;
+  if(v<=0){ if(amt>0 && immune(S,n)) ev(S,{t:'immune', n}); return }
   n.stabAcc += v;
-  if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); }
+  ev(S,{t:'stab', n, amt:v});
+  if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); ev(S,{t:'shBreak', n}) }
 }
 
 /* ── 완화 ─────────────────────────────────────────────
@@ -2117,7 +2135,7 @@ function stabilize(S,n,amt){
 function calm(S,n){
   if(!n || n.dead) return false;
   if(n.evolved && (n.sym==='통증'||n.sym==='호흡곤란')){
-    if(!n.calmUsed){ n.calmUsed = true; return false }   // 이번 턴 몫으로 한 번 튕긴다
+    if(!n.calmUsed){ n.calmUsed = true; ev(S,{t:'calmBounce', n}); return false }   // 이번 턴 몫으로 한 번 튕긴다
   }
   n.muted = true;
   return true;
@@ -2161,7 +2179,8 @@ function diagnose(S,n,amt,opt={}){
       const k = n.diagRound===R.DIAG_DEMOTE_ROUND ? R.DIAG_CUT_R2 : R.DIAG_CUT_LATE;
       if(!immune(S,n)) n.val = Math.max(0, n.val - Math.ceil(n.init*k));  // 초기값 기준 %p. 보호막 무시
     }
-    if(n.diagRound===R.DIAG_DEMOTE_ROUND) n.demoted = true;
+    ev(S,{t:'diag', n, round:n.diagRound});
+    if(n.diagRound===R.DIAG_DEMOTE_ROUND){ n.demoted = true; ev(S,{t:'demote', n}) }
     if(n.diagRound===1) mind(S,-1);                      // v25 — 1회차만. 재진은 완화를 주지 않는다
     if(n.val===0 && n.dormT===0) n.dormT = R.DORMANT;
     if(R.DIAG_DEEP_MAX && n.diagRound>=R.DIAG_DEEP_MAX) break;
@@ -2188,6 +2207,7 @@ function doBleed(S,tier){
   if(!canBleed(S,tier)) return false;
   const pay = bleedPay(S,tier);
   S.hp -= pay;
+  ev(S,{t:'hp', amt:pay, why:'bleed'});
   S.bledRate = (S.bledRate||0) + (R.BLEED_PAY[tier]||0);
   S.lostThisTurn = (S.lostThisTurn||0) + pay;
   if(!S.bigHitFired && S.lostThisTurn >= S.hpMax*R.MIND_BIGHIT){ S.bigHitFired = true; mind(S,+1) }
@@ -2202,6 +2222,7 @@ function delay(S,n,k){
   n.delayed = (n.delayed||0) + k;
   const add = Math.ceil(n.init * R.DELAY_GROW) * k;
   n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val + add);
+  ev(S,{t:'delay', n, add});
   return add;
 }
 
@@ -2212,15 +2233,16 @@ function delay(S,n,k){
 function remStart(S){
   if(S.rem) return false;
   S.rem = true; S.remGauge = R.REM_START; S.remTurns = 0; S.remOpened = true;
+  ev(S,{t:'rem', gauge:S.remGauge});
   return true;
 }
 
-function remGain(S,k){ if(!S.rem) return; S.remGauge = Math.min(R.REM_MAX, S.remGauge + k) }
+function remGain(S,k){ if(!S.rem) return; S.remGauge = Math.min(R.REM_MAX, S.remGauge + k); ev(S,{t:'rem', gauge:S.remGauge}) }
 
 function remUpkeep(S){
   if(!S.rem) return null;
-  if(S.remGauge >= R.REM_UPKEEP){ S.remGauge -= R.REM_UPKEEP; S.remTurns++; return 'keep' }
-  S.rem = false; S.remGauge = 0; return 'end';
+  if(S.remGauge >= R.REM_UPKEEP){ S.remGauge -= R.REM_UPKEEP; S.remTurns++; ev(S,{t:'rem', gauge:S.remGauge}); return 'keep' }
+  S.rem = false; S.remGauge = 0; ev(S,{t:'rem', gauge:0}); return 'end';
 }
 
 function mind(S,d){
@@ -2228,7 +2250,9 @@ function mind(S,d){
   if(d>0 && S.mindGuard){ S.mindGuard=false; return }   // 「붕대 감기」 — 악화 1회 방어
   let i = MINDS.indexOf(S.mind);
   i = Math.max(0, Math.min(2, i+d));
+  const was = S.mind;
   S.mind = MINDS[i];
+  if(S.mind!==was) ev(S,{t:'mind', to:S.mind, worse:d>0});
 }
 
 /* ── 처치 ───────────────────────────────────────────────────── */
@@ -2283,6 +2307,8 @@ function killNow(S,n){
   S.killed++; S.acts=(S.acts||0)+1;
   if(S.rec) S.rec.push(`처치 ${n.sym}`);
   S.rush = Math.min(R.RUSH_MAX, S.rush + R.RUSH_PER);   // 참조 카드가 없어도 쌓인다. 계기판만 가린다
+  ev(S,{t:'kill', n, grade:r});
+  ev(S,{t:'rush', v:S.rush});
   mind(S,-1);                                     // 처치 성공 = 호전
   // ① 광역 억제 먼저 — 다른 노드가 처치선 아래로 내려가 연쇄가 열린다
   const before = alive(S);          // alive 가 이미 새 배열을 낸다 — 한 벌 더 뜨지 않는다
@@ -2307,10 +2333,14 @@ function fireReactions(S,src,grade){
     if(L.kind==='trig'){
       if(!tgt) continue;
       const LK = R.LINK;
-      if(L.k==='가속') tgt.grow += strong?LK.가속.강:LK.가속.약;
+      /* 사건은 '실제로 건 것'만 낸다 — 점화는 목표가 공격 증상일 때만 걸린다.
+         무대가 이 조건을 따로 흉내 내다 틀렸던 자리다. */
+      if(L.k==='가속'){ tgt.grow += strong?LK.가속.강:LK.가속.약; ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       /* 약한 경화는 평범한 보호막이다 — SHIELD_CUT 을 그대로 쓴다 */
-      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT; }
-      if(L.k==='점화'){ if(SYM[tgt.sym].atk) hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약))) }
+      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
+                        ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
+      if(L.k==='점화'){ if(SYM[tgt.sym].atk){ ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade});
+                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk') } }
     } else {
       if(tgt) continue;                            // 이미 있으면 생성하지 않는다
       const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
@@ -2321,6 +2351,7 @@ function fireReactions(S,src,grade){
                   diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
                   revealed:false, spawned:true, born:S.turn, role:'sym'};
       S.nodes.push(nn);
+      ev(S,{t:'spawn', from:src, n:nn});
     }
   }
 }
@@ -2385,13 +2416,14 @@ function policyDmg(S){
 /* noDeath 판은 체력이 0이 되지 않는다 — 문구 그대로 바닥을 1로 깐다.
    v21.2 까지는 사망 판정만 건너뛰고 값은 계속 내려가서 스토리 자동 진행이
    체력 −1985 같은 숫자를 찍었다. 화면과 예고가 전부 무의미해졌다. */
-function hurtPatient(S, amt){
+function hurtPatient(S, amt, why){
   if(amt<=0) return;
   const floor = (S.board && S.board.noDeath) ? 1 : -Infinity;
   const before = S.hp;
   S.hp = Math.max(floor, S.hp - amt);
   const real = before - S.hp;                    // 바닥에 걸리면 실제로 깎인 만큼만 센다
   if(real<=0) return;
+  ev(S,{t:'hp', amt:real, why: why||'atk'});
   S.lostThisTurn = (S.lostThisTurn||0) + real;
   if(!S.bigHitFired && S.lostThisTurn >= S.hpMax*R.MIND_BIGHIT){ S.bigHitFired=true; mind(S,+1) }
 }
@@ -2428,7 +2460,7 @@ function turnResolve(S){
     for(const n of active(S)){
       if(n.role==='disease' || born(n)) continue;
       const add = growAmt(S,n,pool);
-      if(add>0) n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val+add);
+      if(add>0){ n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val+add); ev(S,{t:'grow', n, amt:add}) }
     }
     for(const n of S.nodes) if(n.growHold>0) n.growHold--;   // 멈춰 둔 턴을 하나 깎는다
   }
@@ -2453,7 +2485,8 @@ function turnResolve(S){
     n.evoLeft--;
     if(n.evoLeft>0) continue;
     n.evolved = true;
-    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // 진화 '시점' 수치의 50%
+    ev(S,{t:'evolve', n});
+    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo');   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
     if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
@@ -2463,12 +2496,13 @@ function turnResolve(S){
   // 7 휴면 부활 — 관해 중에는 일어나지 않는다
   if(!S.rem) for(const n of S.nodes){
     if(n.role==='disease' || n.dead || n.val>0) continue;
-    if(n.dormT>0){ n.dormT--; if(n.dormT===0){ n.val=n.init; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0; } }
+    if(n.dormT>0){ n.dormT--; if(n.dormT===0){ n.val=n.init; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0; ev(S,{t:'revive', n}) } }
   }
   // 8 결과 판정 — 호출부가 읽는다. 여기서는 아무것도 하지 않는다
 
   /* ── 턴 시작 ── */
   S.turn++;
+  ev(S,{t:'turn', turn:S.turn});
   S.played = 0;
   S.hitThisTurn = {};
   S.bledRate = 0;                                  // 사혈 턴 상한 초기화
@@ -2723,6 +2757,7 @@ function rigSet(S,n,amt){
   } else {
     n.rig = amt; n.rigUp = 0; n.rigCap = rigCapOf(amt);
   }
+  K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
 
@@ -2731,6 +2766,7 @@ function rigOpen(S,n,mult){
   if(!(n.rig>0)) return 0;
   const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
+  K.ev(S,{t:'rigOpen', n, amt});
   n.rig=0; n.rigUp=0; n.rigCap=0;
   return got;
 }
@@ -2766,13 +2802,16 @@ function cardRaw(S, id, n){
 function shuffle(a,rng){ for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
 
 function draw(S,k){
+  let got = 0;
   for(let i=0;i<k;i++){
     if(!S.deck.length){
-      if(!S.discard.length) return;
+      if(!S.discard.length) break;        // 더 뽑을 것이 없다 — 뽑은 만큼은 아래에서 알린다
       S.deck = shuffle(S.discard.slice(), S.rng); S.discard.length=0; S.shuffles=(S.shuffles||0)+1;
     }
     S.hand.push(S.deck.pop());
+    got++;
   }
+  if(got) K.ev(S,{t:'draw', k:got});
 }
 
 function setupDeck(S, list, rng){
@@ -3448,6 +3487,9 @@ function clone(S){
     rng: ()=>0.5, rec: null, revisitOn: {...(S.revisitOn||{})}, diagPlus: {...(S.diagPlus||{})},
     drawQueue: (S.drawQueue||[]).slice(),
     pendKill: (S.pendKill||[]).slice(), killLate: [],
+    /* 사건 기록은 복제본이 물려받지 않는다. {...S} 로 뜨면 원본과 '같은 배열'을
+       가리키게 되어 탐색이 무대의 줄에 사건을 쏟아붓는다 (forecast 도 이 clone 을 쓴다) */
+    ev: null,
     board: {...S.board, nodes},
   };
   return T;
@@ -3714,7 +3756,7 @@ function aiTurnH(S, opt={}){
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
 /* ── 모듈 간 참조를 잇는다 (원본 파일이 require 로 나눠져 있던 자리) ── */
-const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,
+const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,ev,
   killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,outcome,
   supAmt,stabAmt,diagAmt,
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
@@ -6051,7 +6093,9 @@ function renderSess(){
 //@ 화면.되돌리기 — §9.8 한 수 무르기
 function snapS(S){
   if(!S) return null;
-  const {rng, board, ...rest} = S;
+  /* ev 는 뜨지 않는다 — pushUndo 는 playCard 안에서, 즉 무대가 사건 기록을 켜 둔
+     동안에 불린다. 그대로 두면 노드 객체를 문 사건 배열이 통째로 직렬화된다 */
+  const {rng, board, ev, ...rest} = S;
   const c = JSON.parse(JSON.stringify({...rest, board:{...board, nodes:null}}));
   c.__rng = (rng && rng.state) ? rng.state() : null;
   return c;
@@ -6918,8 +6962,9 @@ function stageLinks(){
    그래서 무대와 작업대는 언제나 같은 판을 본다. 되돌리기 · 자동 진행 ·
    배치가 무대를 몰라도 되는 이유다 — render() 가 무대까지 맞춘다.
 
-   연출은 「부르기 전 판」과 「부른 뒤 판」을 견줘서 짠다 (fxPlanDiff).
-   커널에 훅을 심지 않은 것은 규칙 파일을 건드리지 않기 위해서다.
+   연출은 커널이 S.ev 에 적어 둔 사건 줄을 읽어서 짠다 (fxPlanLog).
+   커널에 심은 것은 훅이 아니라 기록이다 — 화면을 부르지 않고 배열에 밀어 넣기만
+   하므로 30-core 는 여전히 화면을 모른다. S.ev 를 안 켜면 아무것도 쌓지 않는다.
    ══════════════════════════════════════════════════════════════════ */
 
 //@ 무대.전역 — 무대가 떠 있는가, 무엇을 겨누는 중인가
@@ -7209,9 +7254,11 @@ function stageCardClick(id){
 
 function stagePickCard(id){
   if(FX_BUSY) return;
-  const b = fxSnap(S);
+  const b = fxMark(S);
+  S.ev = [];
   pickCard(id);
-  if(!PICK) fxPlanDiff(b, {verb:'card'});
+  if(!PICK) fxPlanLog(S.ev, b, {verb:'card'});
+  if(S) S.ev = null;
   fxFlush();
 }
 
@@ -7245,13 +7292,17 @@ function stageEndBtn(){
 }
 
 /* ── 손 → 커널 → 연출 ────────────────────────────────────────
-   기존 손을 그대로 부른다. 앞뒤로 판을 떠서 무슨 일이 났는지만 읽는다. */
-//@ 무대.행동 — 기존 손을 부르고 그 전후를 견준다
+   기존 손을 그대로 부른다. 부르는 동안 커널이 S.ev 에 적어 둔 사건 줄을 읽는다.
+   구간 넘김과 스토리 게이지만 전후를 견준다 (fxMark). */
+//@ 무대.행동 — 기존 손을 부르고 커널이 적은 사건 줄을 읽는다
 function stageAct(fn, plan){
   if(FX_BUSY || !S) return;
-  const b = fxSnap(S);
+  const b = fxMark(S);
+  const rec = S;                       // 손이 판을 갈아 끼울 수 있다 (되돌리기 · 세션) — 켠 자리를 기억해 둔다
+  rec.ev = [];
   fn();
-  if(S) fxPlanDiff(b, plan);
+  if(S) fxPlanLog(S===rec ? rec.ev : [], b, plan);
+  rec.ev = null; if(S) S.ev = null;
   fxFlush(()=>{ if(STAGE_ON) stageAfter() });
 }
 
@@ -7285,124 +7336,103 @@ function stageAfter(){
   sayTurnTick();
 }
 
-/* ── 판을 뜬다 · 견준다 ──────────────────────────────────────── */
-//@ 무대.스냅 — 연출이 볼 수 있는 만큼만 뜬다
-function fxSnap(S){
+/* ── 사건으로 낼 수 없는 나머지 ────────────────────────────────
+   커널이 S.ev 에 적어 주지 못하는 것만 여기 남는다. 둘뿐이다.
+
+   · 구간 넘김(zone) — reaction() 은 painShare(S) 를 타서 **전역**이다.
+     한 자리를 억제하면 손도 안 댄 자리의 등급이 같이 바뀐다. 어느 한 대입
+     자리에서 낼 수 있는 사건이 아니라서 전후를 견주는 수밖에 없다.
+   · 증거 · 병기 — 스토리 층(30-core/story.js)이 올리는 값이다. 이 층에는
+     아직 사건을 안 붙였다.
+
+   전에 fxSnap 이 뜨던 「자리마다 11필드 + 전역 7개」가 이만큼으로 줄었다. */
+//@ 무대.나머지 — 사건으로 못 내는 것만 뜬다
+function fxMark(S){
   const dis = S.nodes.find(n=>n.role==='disease');
   return {
-    hp:S.hp, mind:S.mind, turn:S.turn,
-    rush:S.rush||0, remGauge:S.remGauge||0,
-    evid:S.evid, stage: dis?dis.stage:0,
-    len:S.nodes.length,
-    nodes:S.nodes.map(n=>({
-      dead:!!n.dead, val:n.val, shielded:!!n.shielded, dormT:n.dormT||0,
-      evolved:!!n.evolved, weak:n.weak||0, rig:rigTotal(n), stabAcc:n.stabAcc||0,
-      diagRound:n.diagRound||0, diagAcc:n.diagAcc||0, demoted:!!n.demoted,
-      react: n.dead ? null : reaction(S,n),
-    })),
+    evid: S.evid, stage: dis?dis.stage:0, mind: S.mind,
+    rush: S.rush||0, remGauge: S.remGauge||0,
+    react: S.nodes.map(n=>n.dead ? null : reaction(S,n)),
   };
 }
 
-/* 무슨 일이 났는가 — 순서가 곧 연출 순서다.
-   자리 하나에 여러 일이 겹치면 「값이 움직인 것 → 막이 깨진 것 → 잠든 것」 순이다. */
-//@ 무대.연출짜기 — 전후를 견줘 줄을 세운다
-function fxPlanDiff(b, plan){
+/* ── 사건 줄을 연출 줄로 ────────────────────────────────────────
+   커널이 적어 준 차례가 곧 연출 차례다. 되짚기와 달리
+     · 같은 자리를 두 번 억제하면 두 번 뜬다 (전에는 차이 하나로 뭉쳤다)
+     · 아무것도 안 움직인 튕김도 뜬다 (무적 · 완화 면역)
+     · 촉발 · 전이는 커널이 '실제로 건 것'만 넘겨 준다 — 무대가 흉내 내지 않는다
+   구간 넘김과 손패 돌리기만 마지막에 따로 붙인다. */
+//@ 무대.연출짜기 — 커널이 적어 준 사건 줄을 그대로 옮긴다
+function fxPlanLog(log, before, plan){
   plan = plan || {};
-  const cur = fxSnap(S);
-  const zoneAfter = [];
+  const cur = fxMark(S);
+  let killed = false, turned = false;
 
-  /* 처치는 그 자리의 사라짐이 먼저다 */
-  if(plan.verb==='kill' && plan.killIx!=null){
-    const n = S.nodes[plan.killIx];
-    const was = b.nodes[plan.killIx];
+  for(const e of (log||[])){
+    const n = e.n;
+    switch(e.t){
+      case 'kill':
+        killed = true;
+        fxq(()=>FXE.treat(n, e.grade));
+        sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
+        break;
+      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade)); break;
+      case 'spawn':      fxq(()=>FXE.spawn(e.from, n)); sayEmit('spawn', {key:n.sym, node:n}); break;
+      case 'sup':        fxq(()=>FXE.suppress(n, e.amt)); break;
+      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt)); break;
+      case 'shBreak':    fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}); break;
+      case 'weak':       fxq(()=>FXE.weaken(n, e.add)); break;
+      case 'rig':        fxq(()=>FXE.rig(n, e.amt)); break;
+      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt)); break;
+      case 'diag':       fxq(()=>FXE.diagnose(n, e.round));
+                         sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
+      case 'demote':     fxq(()=>FXE.demote(n)); break;
+      case 'evolve':     fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}); break;
+      case 'dorm':       fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}); break;
+      case 'revive':     fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}); break;
+      /* 손은 닿았는데 판이 안 움직인 자리 — 되짚기로는 볼 수 없던 것들 */
+      case 'immune':
+      case 'calmBounce': fxq(()=>FXE.immune(n)); break;
+      case 'delay':      fxq(()=>FXE.stabilize(n, 0)); break;
+      case 'hp':         e.why==='bleed' ? fxq(()=>FXE.patPay(e.amt)) : fxq(()=>FXE.patHit(e.amt)); break;
+      /* 정신은 여기서 띄우지 않는다 — 한 손에 두세 번 흔들리는 일이 흔해서
+         (억제로 악화 → 휴면 도달로 호전 …) 사건마다 띄우면 배너가 겹친다.
+         결과만 아래에서 한 번 알린다. 게이지를 결과 한 번으로 내는 것과 같다. */
+      case 'turn':       turned = true; break;
+      /* 성장 · 뽑기 · 성장 정지는 계기판이 그리므로 연출을 따로 내지 않는다 */
+    }
+  }
+
+  /* 처치를 걸었는데 사건이 안 왔다 — 못 끊었다. 표를 도로 뗀다 */
+  if(plan.verb==='kill' && plan.killIx!=null && !killed){
     const el = STAGE_ELS.get(plan.killIx);
-    if(!(n && was && !was.dead && cur.nodes[plan.killIx].dead)){
-      if(el) delete el.dataset.dying;     // 못 끊었다 — 표를 도로 뗀다
-    } else {
-      fxq(()=>FXE.treat(n, plan.grade));
-      sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
-      /* 촉발 · 전이 — 이 자리에서 뻗은 선이 터진다 */
-      if(plan.grade && plan.grade!=='none'){
-        const lines = [...basicLines(b.nodes.map((_,i)=>S.nodes[i]).filter(x=>x&&!x.dead).map(x=>x.sym)),
-                       ...((BOARD.enh)||[])];
-        for(const l of lines){
-          if(l.a!==n.sym) continue;
-          const t = alive(S).find(x=>x.sym===l.b && x!==n);
-          if(t) fxq(()=>FXE.trigger(n, t, plan.grade));
-        }
-      }
-    }
+    if(el) delete el.dataset.dying;
   }
 
-  /* 자리마다 — 값 · 막 · 약화 · 설치 · 진단 · 진화 · 휴면 */
-  for(let i=0;i<cur.len;i++){
-    const a = b.nodes[i], c = cur.nodes[i], n = S.nodes[i];
-    if(!n) continue;
-    if(!a){                                   // 새로 난 자리 (전이)
-      const src = plan.killIx!=null ? S.nodes[plan.killIx] : null;
-      if(src) fxq(()=>FXE.spawn(src, n));
-      sayEmit('spawn', {key:n.sym, node:n});
-      continue;
-    }
-    if(a.dead || c.dead) continue;            // 이미 위에서 다뤘거나 볼 것이 없다
-
-    if(c.val < a.val)      fxq(()=>FXE.suppress(n, a.val-c.val));
-    else if(c.val > a.val && plan.verb!=='turn') fxq(()=>FXE.stabilize(n, 0));
-    if(c.stabAcc > a.stabAcc && c.shielded) fxq(()=>FXE.stabilize(n, c.stabAcc-a.stabAcc));
-    if(c.weak > a.weak)    fxq(()=>FXE.weaken(n, c.weak-a.weak));
-    if(c.rig  > a.rig)     fxq(()=>FXE.rig(n, c.rig));
-    if(c.rig  < a.rig)     fxq(()=>FXE.rigOpen(n, a.rig-c.rig));
-    if(a.shielded && !c.shielded){ fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}) }
-    if(c.diagRound > a.diagRound){
-      fxq(()=>FXE.diagnose(n, c.diagRound));
-      sayEmit('diag', {key:n.sym, node:n, round:c.diagRound});
-    }
-    if(!a.demoted && c.demoted) fxq(()=>FXE.demote(n));
-    if(!a.evolved && c.evolved){ fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}) }
-    if(a.dormT===0 && c.dormT>0){ fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}) }
-    if(a.dormT>0 && c.dormT===0 && c.val>0){ fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}) }
-    if(c.react !== a.react && c.react && c.react!=='none') zoneAfter.push([n, c.react]);
-  }
-
-  /* 1막 병 노드를 건드렸는데 아무것도 안 움직였다 — 튕겨 낸다 */
-  if(plan.verb==='card'){
-    const n = alive(S)[SEL];
-    if(n && immune(S,n) && CARDS[plan.card] && CARDS[plan.card].verb!=='진단'){
-      const i = S.nodes.indexOf(n);
-      if(b.nodes[i] && b.nodes[i].val === cur.nodes[i].val) fxq(()=>FXE.immune(n));
-    }
-  }
-
-  /* 환자 쪽 */
-  if(cur.hp < b.hp){
-    const d = b.hp - cur.hp;
-    if(plan.verb==='turn') fxq(()=>FXE.patHit(d));
-    else if(CARDS[plan.card] && CARDS[plan.card].bleed) fxq(()=>FXE.patPay(d));
-    else fxq(()=>FXE.patHit(d));
-  }
-  if(cur.mind !== b.mind){
-    const worse = ['평정','불안','공황','의식불명'].indexOf(cur.mind)
-                > ['평정','불안','공황','의식불명'].indexOf(b.mind);
+  /* 정신 — 오간 끝에 자리가 바뀌었을 때만 */
+  if(cur.mind !== before.mind){
+    const M = ['평정','불안','공황','의식불명'];
+    const worse = M.indexOf(cur.mind) > M.indexOf(before.mind);
     fxq(()=>FXE.mind(cur.mind, worse));
     sayEmit(worse?'mind':'mindUp', {key:cur.mind});
   }
 
-  /* 전역 게이지 */
-  /* 상태판을 걷었으므로 이 셋은 환자 위에 떠서 알린다 — 붙을 계기판이 없다 */
-  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>b.rush));
-  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
-  if(cur.stage !== b.stage){
+  /* 전역 게이지 — 사건이 여러 번 왔어도 결과 한 번만 알린다 */
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>before.rush));
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
+  if(cur.stage !== before.stage){
     fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
-  if(cur.evid !== b.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
+  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
 
   /* 구간을 새로 넘어선 자리는 마지막에 한 번씩 김을 뿜는다 */
-  for(const [n, r] of zoneAfter) fxq(()=>FXE.zone(n, r));
+  for(let i=0;i<cur.react.length;i++){
+    const a = before.react[i], c = cur.react[i];
+    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c));
+  }
 
-  /* 턴이 넘어갔으면 손패를 새로 돌린다 */
-  if(cur.turn > b.turn) fxq(()=>FXE.dealHand());
-
+  if(turned) fxq(()=>FXE.dealHand());
   sayHpCheck();
 }
 

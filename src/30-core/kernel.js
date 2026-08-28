@@ -109,6 +109,20 @@ function drawCount(S){
   return Math.max(1, R.HAND - Math.round(cut) + (S.drawBonus||0));
 }
 
+/* ── 사건 기록 ────────────────────────────────────────────────
+   판에서 무슨 일이 어느 차례로 났는가를 그대로 적어 둔다. 무대가 이것을 읽어
+   연출을 짠다 — 전에는 전후 판을 견줘서 되짚었고, 되짚기로는 못 보는 것이 있었다
+   (같은 자리를 두 번 억제하면 한 번으로 뭉치고, 아무것도 안 움직인 튕김은 아예 안 보이고,
+   촉발·전이는 UI 가 커널을 따로 흉내 내다 틀렸다).
+
+   이것은 훅이 아니라 자료다 — 커널은 화면을 부르지 않고 배열에 밀어 넣기만 한다.
+   30-core 는 여전히 화면을 한 번도 안 쓴다.
+
+   S.ev 가 없으면 아무것도 쌓지 않는다. 무대가 손을 부르기 직전에만 켜므로
+   탐색 · 배치 · 자동 진행에는 비용이 없다. */
+//@ 커널.사건 — 무대가 켤 때만 쌓는다. 끄면 비용 0
+function ev(S, e){ if(S.ev) S.ev.push(e) }
+
 /* ── 억제 ───────────────────────────────────────────────────── */
 //@ 커널.억제 — 억제 · 무적 판정 · 안정화
 /* 억제 amt 가 이 자리에 실제로 들어가는 값.
@@ -127,7 +141,9 @@ function supAmt(S,n,amt,opt={}){
 }
 function suppress(S,n,amt,opt={}){
   const v = supAmt(S,n,amt,opt);
-  if(v<=0) return 0;
+  /* 무적이라 한 톨도 안 들어갔다 — 판은 그대로지만 손은 닿았다.
+     되짚기로는 볼 수 없던 자리다 (값이 안 변하니 diff 에 안 잡힌다) */
+  if(v<=0){ if(amt>0 && immune(S,n)) ev(S,{t:'immune', n}); return 0 }
   const before = n.val;
   n.val = Math.max(0, n.val - v);
   /* 정신 — 한 노드를 한 턴에 두 번 억제하면 악화.
@@ -140,7 +156,8 @@ function suppress(S,n,amt,opt={}){
     /* v25 — 3회부터, 그리고 불안까지만. 억제로는 공황에 못 간다 */
     if(hits===R.HIT_ANX && S.mind==='평정') mind(S,+1);
   }
-  if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); }  // 휴면 도달 = 호전
+  ev(S,{t:'sup', n, amt:before-n.val, by: opt.raw ? 'rig' : opt.sweep ? 'sweep' : 'card'});
+  if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); ev(S,{t:'dorm', n}) }  // 휴면 도달 = 호전
   return before-n.val;
 }
 
@@ -160,9 +177,10 @@ function stabAmt(S,n,amt){
 }
 function stabilize(S,n,amt){
   const v = stabAmt(S,n,amt);
-  if(v<=0) return;
+  if(v<=0){ if(amt>0 && immune(S,n)) ev(S,{t:'immune', n}); return }
   n.stabAcc += v;
-  if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); }
+  ev(S,{t:'stab', n, amt:v});
+  if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); ev(S,{t:'shBreak', n}) }
 }
 
 /* ── 완화 ─────────────────────────────────────────────
@@ -173,7 +191,7 @@ function stabilize(S,n,amt){
 function calm(S,n){
   if(!n || n.dead) return false;
   if(n.evolved && (n.sym==='통증'||n.sym==='호흡곤란')){
-    if(!n.calmUsed){ n.calmUsed = true; return false }   // 이번 턴 몫으로 한 번 튕긴다
+    if(!n.calmUsed){ n.calmUsed = true; ev(S,{t:'calmBounce', n}); return false }   // 이번 턴 몫으로 한 번 튕긴다
   }
   n.muted = true;
   return true;
@@ -217,7 +235,8 @@ function diagnose(S,n,amt,opt={}){
       const k = n.diagRound===R.DIAG_DEMOTE_ROUND ? R.DIAG_CUT_R2 : R.DIAG_CUT_LATE;
       if(!immune(S,n)) n.val = Math.max(0, n.val - Math.ceil(n.init*k));  // 초기값 기준 %p. 보호막 무시
     }
-    if(n.diagRound===R.DIAG_DEMOTE_ROUND) n.demoted = true;
+    ev(S,{t:'diag', n, round:n.diagRound});
+    if(n.diagRound===R.DIAG_DEMOTE_ROUND){ n.demoted = true; ev(S,{t:'demote', n}) }
     if(n.diagRound===1) mind(S,-1);                      // v25 — 1회차만. 재진은 완화를 주지 않는다
     if(n.val===0 && n.dormT===0) n.dormT = R.DORMANT;
     if(R.DIAG_DEEP_MAX && n.diagRound>=R.DIAG_DEEP_MAX) break;
@@ -244,6 +263,7 @@ function doBleed(S,tier){
   if(!canBleed(S,tier)) return false;
   const pay = bleedPay(S,tier);
   S.hp -= pay;
+  ev(S,{t:'hp', amt:pay, why:'bleed'});
   S.bledRate = (S.bledRate||0) + (R.BLEED_PAY[tier]||0);
   S.lostThisTurn = (S.lostThisTurn||0) + pay;
   if(!S.bigHitFired && S.lostThisTurn >= S.hpMax*R.MIND_BIGHIT){ S.bigHitFired = true; mind(S,+1) }
@@ -258,6 +278,7 @@ function delay(S,n,k){
   n.delayed = (n.delayed||0) + k;
   const add = Math.ceil(n.init * R.DELAY_GROW) * k;
   n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val + add);
+  ev(S,{t:'delay', n, add});
   return add;
 }
 
@@ -268,15 +289,16 @@ function delay(S,n,k){
 function remStart(S){
   if(S.rem) return false;
   S.rem = true; S.remGauge = R.REM_START; S.remTurns = 0; S.remOpened = true;
+  ev(S,{t:'rem', gauge:S.remGauge});
   return true;
 }
 
-function remGain(S,k){ if(!S.rem) return; S.remGauge = Math.min(R.REM_MAX, S.remGauge + k) }
+function remGain(S,k){ if(!S.rem) return; S.remGauge = Math.min(R.REM_MAX, S.remGauge + k); ev(S,{t:'rem', gauge:S.remGauge}) }
 
 function remUpkeep(S){
   if(!S.rem) return null;
-  if(S.remGauge >= R.REM_UPKEEP){ S.remGauge -= R.REM_UPKEEP; S.remTurns++; return 'keep' }
-  S.rem = false; S.remGauge = 0; return 'end';
+  if(S.remGauge >= R.REM_UPKEEP){ S.remGauge -= R.REM_UPKEEP; S.remTurns++; ev(S,{t:'rem', gauge:S.remGauge}); return 'keep' }
+  S.rem = false; S.remGauge = 0; ev(S,{t:'rem', gauge:0}); return 'end';
 }
 
 function mind(S,d){
@@ -284,7 +306,9 @@ function mind(S,d){
   if(d>0 && S.mindGuard){ S.mindGuard=false; return }   // 「붕대 감기」 — 악화 1회 방어
   let i = MINDS.indexOf(S.mind);
   i = Math.max(0, Math.min(2, i+d));
+  const was = S.mind;
   S.mind = MINDS[i];
+  if(S.mind!==was) ev(S,{t:'mind', to:S.mind, worse:d>0});
 }
 
 /* ── 처치 ───────────────────────────────────────────────────── */
@@ -339,6 +363,8 @@ function killNow(S,n){
   S.killed++; S.acts=(S.acts||0)+1;
   if(S.rec) S.rec.push(`처치 ${n.sym}`);
   S.rush = Math.min(R.RUSH_MAX, S.rush + R.RUSH_PER);   // 참조 카드가 없어도 쌓인다. 계기판만 가린다
+  ev(S,{t:'kill', n, grade:r});
+  ev(S,{t:'rush', v:S.rush});
   mind(S,-1);                                     // 처치 성공 = 호전
   // ① 광역 억제 먼저 — 다른 노드가 처치선 아래로 내려가 연쇄가 열린다
   const before = alive(S);          // alive 가 이미 새 배열을 낸다 — 한 벌 더 뜨지 않는다
@@ -363,10 +389,14 @@ function fireReactions(S,src,grade){
     if(L.kind==='trig'){
       if(!tgt) continue;
       const LK = R.LINK;
-      if(L.k==='가속') tgt.grow += strong?LK.가속.강:LK.가속.약;
+      /* 사건은 '실제로 건 것'만 낸다 — 점화는 목표가 공격 증상일 때만 걸린다.
+         무대가 이 조건을 따로 흉내 내다 틀렸던 자리다. */
+      if(L.k==='가속'){ tgt.grow += strong?LK.가속.강:LK.가속.약; ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       /* 약한 경화는 평범한 보호막이다 — SHIELD_CUT 을 그대로 쓴다 */
-      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT; }
-      if(L.k==='점화'){ if(SYM[tgt.sym].atk) hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약))) }
+      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
+                        ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
+      if(L.k==='점화'){ if(SYM[tgt.sym].atk){ ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade});
+                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk') } }
     } else {
       if(tgt) continue;                            // 이미 있으면 생성하지 않는다
       const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
@@ -377,6 +407,7 @@ function fireReactions(S,src,grade){
                   diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
                   revealed:false, spawned:true, born:S.turn, role:'sym'};
       S.nodes.push(nn);
+      ev(S,{t:'spawn', from:src, n:nn});
     }
   }
 }
@@ -441,13 +472,14 @@ function policyDmg(S){
 /* noDeath 판은 체력이 0이 되지 않는다 — 문구 그대로 바닥을 1로 깐다.
    v21.2 까지는 사망 판정만 건너뛰고 값은 계속 내려가서 스토리 자동 진행이
    체력 −1985 같은 숫자를 찍었다. 화면과 예고가 전부 무의미해졌다. */
-function hurtPatient(S, amt){
+function hurtPatient(S, amt, why){
   if(amt<=0) return;
   const floor = (S.board && S.board.noDeath) ? 1 : -Infinity;
   const before = S.hp;
   S.hp = Math.max(floor, S.hp - amt);
   const real = before - S.hp;                    // 바닥에 걸리면 실제로 깎인 만큼만 센다
   if(real<=0) return;
+  ev(S,{t:'hp', amt:real, why: why||'atk'});
   S.lostThisTurn = (S.lostThisTurn||0) + real;
   if(!S.bigHitFired && S.lostThisTurn >= S.hpMax*R.MIND_BIGHIT){ S.bigHitFired=true; mind(S,+1) }
 }
@@ -484,7 +516,7 @@ function turnResolve(S){
     for(const n of active(S)){
       if(n.role==='disease' || born(n)) continue;
       const add = growAmt(S,n,pool);
-      if(add>0) n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val+add);
+      if(add>0){ n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val+add); ev(S,{t:'grow', n, amt:add}) }
     }
     for(const n of S.nodes) if(n.growHold>0) n.growHold--;   // 멈춰 둔 턴을 하나 깎는다
   }
@@ -509,7 +541,8 @@ function turnResolve(S){
     n.evoLeft--;
     if(n.evoLeft>0) continue;
     n.evolved = true;
-    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // 진화 '시점' 수치의 50%
+    ev(S,{t:'evolve', n});
+    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo');   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
     if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
@@ -519,12 +552,13 @@ function turnResolve(S){
   // 7 휴면 부활 — 관해 중에는 일어나지 않는다
   if(!S.rem) for(const n of S.nodes){
     if(n.role==='disease' || n.dead || n.val>0) continue;
-    if(n.dormT>0){ n.dormT--; if(n.dormT===0){ n.val=n.init; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0; } }
+    if(n.dormT>0){ n.dormT--; if(n.dormT===0){ n.val=n.init; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0; ev(S,{t:'revive', n}) } }
   }
   // 8 결과 판정 — 호출부가 읽는다. 여기서는 아무것도 하지 않는다
 
   /* ── 턴 시작 ── */
   S.turn++;
+  ev(S,{t:'turn', turn:S.turn});
   S.played = 0;
   S.hitThisTurn = {};
   S.bledRate = 0;                                  // 사혈 턴 상한 초기화

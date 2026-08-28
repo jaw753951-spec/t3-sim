@@ -2006,11 +2006,14 @@ const active = S => S.nodes.filter(n=>!n.dead && n.val>0);
 
 /* 통증 배율 — 살아 있는 통증 자리마다 곱한다. 하한은 여기가 아니라 처치선에서 건다 */
 function painMul(S){
-  const ps = active(S).filter(n=>n.sym==='통증' && !n.muted);
-  if(!ps.length) return 1;
+  /* killLine → reaction → canKill 이 이것을 판마다 수십 번 부른다.
+     중간 배열을 만들지 않고 S.nodes 를 한 번만 훑는다 — 곱할 것이 없으면 1 그대로다. */
   let m = 1;
-  if(R.PAIN_STACK) for(const n of ps) m *= sp(n,'통증');     // 곱연산으로 겹친다
-  else m = sp(ps[0],'통증');                                 // 겹치지 않으면 가장 앞의 하나
+  for(const n of S.nodes){
+    if(n.dead || n.val<=0 || n.sym!=='통증' || n.muted) continue;
+    if(!R.PAIN_STACK) return sp(n,'통증');                   // 겹치지 않으면 가장 앞의 하나
+    m *= sp(n,'통증');                                       // 곱연산으로 겹친다
+  }
   return m;
 }
 
@@ -2075,9 +2078,11 @@ function suppress(S,n,amt,opt={}){
      opt.sweep 는 '판이 스스로 일으킨 억제'라는 표시다 — 처치 광역 억제와 설치물 자동 억제.
      카드가 일으킨 억제는 광역이든 단일이든 전부 센다 (그물·개방 포함). */
   if(!opt.sweep){
-    S.hitThisTurn[S.nodes.indexOf(n)] = (S.hitThisTurn[S.nodes.indexOf(n)]||0)+1;
+    const i = S.nodes.indexOf(n);
+    const hits = (S.hitThisTurn[i]||0)+1;
+    S.hitThisTurn[i] = hits;
     /* v25 — 3회부터, 그리고 불안까지만. 억제로는 공황에 못 간다 */
-    if(S.hitThisTurn[S.nodes.indexOf(n)]===R.HIT_ANX && S.mind==='평정') mind(S,+1);
+    if(hits===R.HIT_ANX && S.mind==='평정') mind(S,+1);
   }
   if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); }  // 휴면 도달 = 호전
   return before-n.val;
@@ -2230,7 +2235,8 @@ function mind(S,d){
 //@ 커널.처치 — 처치 · 광역 억제 보상 · 반응 발동
 function canKill(S,n){
   if(n.dead) return false;
-  if(active(S).some(x=>x.sym==='통증'&&x.evolved) && n.sym!=='통증') return false; // 통증 진화
+  // 통증 진화 — 통증 아닌 자리는 끊지 못한다. 판마다 부르는 자리라 배열을 만들지 않는다
+  if(n.sym!=='통증' && S.nodes.some(x=>!x.dead && x.val>0 && x.sym==='통증' && x.evolved)) return false;
   return reaction(S,n)!==null;
 }
 
@@ -2279,7 +2285,7 @@ function killNow(S,n){
   S.rush = Math.min(R.RUSH_MAX, S.rush + R.RUSH_PER);   // 참조 카드가 없어도 쌓인다. 계기판만 가린다
   mind(S,-1);                                     // 처치 성공 = 호전
   // ① 광역 억제 먼저 — 다른 노드가 처치선 아래로 내려가 연쇄가 열린다
-  const before = alive(S).slice();
+  const before = alive(S);          // alive 가 이미 새 배열을 낸다 — 한 벌 더 뜨지 않는다
   for(const m of before) if(m!==n) suppress(S,m,amt,{sweep:true});
   // ② 반응 발동. 전이로 새로 생긴 노드는 ①을 못 받는다
   if(r!=='none') fireReactions(S,n,r);
@@ -2328,8 +2334,9 @@ function fireReactions(S,src,grade){
    자리마다 따로 얹던 v22 까지는 노드 넷이면 판 전체 성장이 네 배였다. */
 function infPool(S){
   const pool = new Map();
+  /* 감염이 없는 판이 대부분이다. 그때는 배열을 하나도 만들지 않고 나간다 */
+  if(!S.nodes.some(n=>!n.dead && n.val>0 && n.sym==='감염')) return pool;
   const infs = active(S).filter(f=>f.sym==='감염');
-  if(!infs.length) return pool;
   const tgtAll = active(S).filter(n=>n.role!=='disease');
   for(const f of infs){
     const tgt = tgtAll.filter(n=>n!==f);
@@ -3442,7 +3449,6 @@ function clone(S){
     drawQueue: (S.drawQueue||[]).slice(),
     pendKill: (S.pendKill||[]).slice(), killLate: [],
     board: {...S.board, nodes},
-    _log: (S._log||[]).slice(),
   };
   return T;
 }
@@ -3451,6 +3457,10 @@ function clone(S){
 function evalState(S){
   const W = AIW;
   let v = 0;
+  /* 감염 배분은 판 하나에 한 번만 센다. growAmt 에 넘기지 않으면 자리마다 다시 짠다 —
+     빔 탐색이 이 함수를 후보마다 부르므로 자리 수만큼 곱해져 돌아온다.
+     turnResolve 가 pool 을 넘기는 것과 같은 이유다. */
+  const pool = K.infPool(S);
   for(const n of S.nodes){
     if(n.dead){ v += W.dead; continue }                   // 뽑은 자리 — 되살아나지 않는다
     if(n.val<=0){ v += W.dorm; continue }                 // 재운 자리 — 2턴 뒤 돌아온다
@@ -3458,8 +3468,9 @@ function evalState(S){
     const rest = n.val - line;
     if(rest<=0) v += W.ready - rest*0.1;                  // 뽑을 수 있는 상태 = 거의 뽑은 것
     else v -= rest*W.rest;                                // 아직 남은 일
-    if(K.SYM[n.sym] && K.SYM[n.sym].atk) v -= n.val*R.ATK_K*W.atk;   // 이 자리는 계속 때린다
-    v -= K.growAmt(S,n)*W.grow;
+    const sy = K.SYM[n.sym];
+    if(sy && sy.atk) v -= n.val*R.ATK_K*W.atk;            // 이 자리는 계속 때린다
+    v -= K.growAmt(S,n,pool)*W.grow;
     if(!n.evolved && n.evoLeft<=1) v -= n.init*(R.EVO_HIT[n.sym]||0)*W.evo;
     if(n.shielded) v -= W.shield;
     if(C.rigTotal(n)>0) v += C.rigTotal(n)*W.rig;
@@ -3475,11 +3486,19 @@ function evalState(S){
 //@ AI.수 — 이번 턴에 둘 수 있는 수
 function moves(S){
   const out = [];
-  const live = K.alive(S).filter(n=>n.val>0);
-  /* 처치 — 광역 억제가 큰 것부터 */
-  for(const n of K.alive(S))
-    if(K.canKill(S,n) && S.energy>=R.KILL_COST && !S.rem)
-      out.push({t:'kill', i:S.nodes.indexOf(n), s:K.sweepAmt(n)});
+  /* S.nodes 를 한 번만 훑으면서 자리와 그 자리의 번호를 함께 쥔다 —
+     alive() 를 두 벌 만들고 자리마다 indexOf 로 번호를 다시 찾던 자리다.
+     차례는 그대로다: 처치가 먼저, 그 안에서는 명부 순서. 탐색 결과가 흔들리지 않는다. */
+  const live = [], ix = new Map();
+  const canKillNow = S.energy>=R.KILL_COST && !S.rem;
+  for(let i=0;i<S.nodes.length;i++){
+    const n = S.nodes[i];
+    if(n.dead) continue;
+    ix.set(n, i);
+    if(n.val>0) live.push(n);
+    /* 처치 — 광역 억제가 큰 것부터 */
+    if(canKillNow && K.canKill(S,n)) out.push({t:'kill', i, s:K.sweepAmt(n)});
+  }
   /* 카드 */
   const seen = {};
   for(const id of S.hand){
@@ -3493,10 +3512,10 @@ function moves(S){
       if(c.kw==='개방')  tg = live.filter(n=>n.rig>0);
       if(c.verb!=='진단') tg = tg.filter(n=>!K.immune(S,n));
       if(c.need && c.need.length<2) tg = tg.filter(n=>c.need(n));
-      for(const n of tg) out.push({t:'card', id, i:S.nodes.indexOf(n)});
+      for(const n of tg) out.push({t:'card', id, i:ix.get(n)});
       /* 안정화·완화는 막이 있는 자리에도 따로 */
       if(c.sub==='안정화'||c.sub==='완화')
-        for(const n of live) if(!tg.includes(n)) out.push({t:'card', id, i:S.nodes.indexOf(n)});
+        for(const n of live) if(!tg.includes(n)) out.push({t:'card', id, i:ix.get(n)});
     } else if(c.target==='hand'){
       /* 손패를 대상으로 잡는다 */
       const pool = C.handPicks(S,id), want = C.pickNeed(S,id);
@@ -4328,10 +4347,16 @@ function policyTip(k){
     + (dbuf.length ? dbuf.join(' · ') : '없다')
     + `<br><span class="d">오진이면 병 노드 수치 감소와 통증 완화가 붙지 않는다. 병기 시계 보정은 그대로 붙는다.</span>`;
   if(k==='편하게'){
-    body += `<br><br><b>대가</b><br>병을 놔두는 대신 환자가 받는 피해가 <b>50%</b> 늘어난다. 턴 피해와 진화 피해 둘 다에 걸린다.`
+    /* 세 수치를 글자로 박아 두면 덮어쓰기 칸에서 dmgUp · COMFORT_CUT 을 만진 순간
+       이 설명만 옛 값을 말한다 — 바로 위 dbuf 는 P.dmgUp 을 읽어 찍으므로 한 툴팁 안에서
+       두 숫자가 갈린다. 커널이 쓰는 값에서 그대로 뽑는다 (mindTipBody 와 같은 이유). */
+    const cut = R.COMFORT_CUT * 3;                       // 세 겹을 다 채웠을 때 빠지는 값
+    const floor = Math.max(0, (1 + P.dmgUp) - cut);
+    body += `<br><br><b>대가</b><br>병을 놔두는 대신 환자가 받는 피해가 <b>${pctOf(P.dmgUp)}</b> 늘어난다. 턴 피해와 진화 피해 둘 다에 걸린다.`
           + `<br><br><b>버프</b><br>턴 종료 시 <b>통증 비활성</b> · <b>호흡곤란 비활성</b> · <b>공황 아님</b> 중`
-          + ` 충족한 항목 하나마다 이번 턴 환자 피해가 <b>20%</b> 줄어든다.`
-          + `<br><span class="d">완화는 방침 배수에서 뺀다. 셋을 모두 채워도 1.5 − 0.6 = <b>0.9</b> 에서 멈춘다 — 벌을 깎을 뿐 뒤집지 못한다.</span>`;
+          + ` 충족한 항목 하나마다 이번 턴 환자 피해가 <b>${pctOf(R.COMFORT_CUT)}</b> 줄어든다.`
+          + `<br><span class="d">완화는 방침 배수에서 뺀다. 셋을 모두 채워도 ${numOf(1+P.dmgUp)} − ${numOf(cut)} = <b>${numOf(floor)}</b> 에서 멈춘다`
+          + `${floor<1?' — 벌을 깎을 뿐 뒤집지 못한다.':' — 여기서는 되레 피해가 줄어든다.'}</span>`;
   }
   return TT(k, body);
 }
@@ -4973,14 +4998,17 @@ function renderInto(h){
 
 /* 성장이 어디서 왔는가 — 이미 박힌 값과 지금 켜져 있는 값을 갈라 적는다 */
 function growWhy(S,n){
-  const infN = active(S).filter(f=>f!==n && f.sym==='감염');
+  let infN = 0, tgtN = -1;                 // 자기 자신은 대상 수에서 뺀다
+  for(const f of active(S)){
+    if(f!==n && f.sym==='감염') infN++;
+    if(f.role!=='disease') tgtN++;
+  }
   const share = infPool(S).get(n) || 0;
-  const tgtN  = active(S).filter(f=>f.role!=='disease').length - 1;
-  const own  = Math.max(0, n.grow - 0);
+  const own  = Math.max(0, n.grow);
   if(n.growHold>0) return `턴 종료 시 <b>+0</b><br><br>· 성장이 <b>${n.growHold}턴</b> 멈춰 있다.<br>&nbsp;&nbsp;<span class="d">멈춘 동안 감염이 나눠 주는 몫도 받지 않는다. 그 몫은 다른 자리로 넘어가지 않고 사라진다.</span>`;
   const L=[`턴 종료 시 <b>+${growAmt(S,n)}</b>`, ''];
   if(n.sym==='출혈') L.push(`· 출혈 자체 — 매 턴 <b>현재 수치의 ${Math.round(sp(n,'출혈')*100)}%</b> (+${Math.ceil(n.val*sp(n,'출혈'))})${n.evolved?' <span class="d">진화로 두 배가 됐다</span>':''}`);
-  if(share>0)     L.push(`· 감염이 나눠 준 몫 — <b>+${share}</b><br>&nbsp;&nbsp;<span class="d">감염 ${infN.length}자리가 만드는 총량을 자리 ${tgtN+1}개가 나눠 갖는다. 자리가 늘어도 판 전체 성장은 그대로고 한 자리 몫만 얇아진다.<br>감염을 끊으면 이 몫은 사라진다.</span>`);
+  if(share>0)     L.push(`· 감염이 나눠 준 몫 — <b>+${share}</b><br>&nbsp;&nbsp;<span class="d">감염 ${infN}자리가 만드는 총량을 자리 ${tgtN+1}개가 나눠 갖는다. 자리가 늘어도 판 전체 성장은 그대로고 한 자리 몫만 얇아진다.<br>감염을 끊으면 이 몫은 사라진다.</span>`);
   if(own>0)       L.push(`· 이 자리에 <b>이미 박힌</b> 성장률 +${own.toFixed(2)} (+${Math.ceil(n.init*own)})<br>&nbsp;&nbsp;<span class="d">가속 촉발이나 무장발현으로 한 번 붙은 값이다. 되돌릴 수 없다.</span>`);
   if(n.sym!=='출혈' && !share && !own) L.push('· 판 전체에 걸린 기본 성장률');
   L.push('', `<span class="d">수치 상한은 초기값의 ${R.VAL_CAP}배 = ${Math.floor(n.init*R.VAL_CAP)}.</span>`);
@@ -5072,7 +5100,7 @@ function stateHTML(){
     rows.push(`<div class="st"${tip(TT('통증 · 처치선',
       `살아 있는 통증 자리마다 처치선 몫이 곱연산으로 낮아진다. 배율 <b>×${pm.toFixed(3)}</b>.<br>`
       +`하한은 <b>${Math.round(R.PAIN_FLOOR*100)}%</b>이고 통증 몫에만 걸린다 — 약화는 그 위에 더해지므로 언제나 유효하다.<br><br>`
-      +`지금 처치선 = 초기값 × (${Math.round(ps*100)}% + 5%p × 약화)`))}>
+      +`지금 처치선 = 초기값 × (${Math.round(ps*100)}% + ${pctOf(R.WEAK_STACK)}p × 약화)`))}>
       <div class="stt"><span>처치선 몫</span><b>${Math.round(ps*100)}%</b></div>
       <div class="stnote">기본 ${Math.round(R.KILL_LINE*100)}% → ${Math.round(ps*100)}%${ps<=R.PAIN_FLOOR?' <span class="d">(하한)</span>':''}<br>통증이 판을 조이고 있다</div></div>`);
   }

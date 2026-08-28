@@ -279,14 +279,17 @@ function renderInto(h){
 
 /* 성장이 어디서 왔는가 — 이미 박힌 값과 지금 켜져 있는 값을 갈라 적는다 */
 function growWhy(S,n){
-  const infN = active(S).filter(f=>f!==n && f.sym==='감염');
+  let infN = 0, tgtN = -1;                 // 자기 자신은 대상 수에서 뺀다
+  for(const f of active(S)){
+    if(f!==n && f.sym==='감염') infN++;
+    if(f.role!=='disease') tgtN++;
+  }
   const share = infPool(S).get(n) || 0;
-  const tgtN  = active(S).filter(f=>f.role!=='disease').length - 1;
-  const own  = Math.max(0, n.grow - 0);
+  const own  = Math.max(0, n.grow);
   if(n.growHold>0) return `턴 종료 시 <b>+0</b><br><br>· 성장이 <b>${n.growHold}턴</b> 멈춰 있다.<br>&nbsp;&nbsp;<span class="d">멈춘 동안 감염이 나눠 주는 몫도 받지 않는다. 그 몫은 다른 자리로 넘어가지 않고 사라진다.</span>`;
   const L=[`턴 종료 시 <b>+${growAmt(S,n)}</b>`, ''];
   if(n.sym==='출혈') L.push(`· 출혈 자체 — 매 턴 <b>현재 수치의 ${Math.round(sp(n,'출혈')*100)}%</b> (+${Math.ceil(n.val*sp(n,'출혈'))})${n.evolved?' <span class="d">진화로 두 배가 됐다</span>':''}`);
-  if(share>0)     L.push(`· 감염이 나눠 준 몫 — <b>+${share}</b><br>&nbsp;&nbsp;<span class="d">감염 ${infN.length}자리가 만드는 총량을 자리 ${tgtN+1}개가 나눠 갖는다. 자리가 늘어도 판 전체 성장은 그대로고 한 자리 몫만 얇아진다.<br>감염을 끊으면 이 몫은 사라진다.</span>`);
+  if(share>0)     L.push(`· 감염이 나눠 준 몫 — <b>+${share}</b><br>&nbsp;&nbsp;<span class="d">감염 ${infN}자리가 만드는 총량을 자리 ${tgtN+1}개가 나눠 갖는다. 자리가 늘어도 판 전체 성장은 그대로고 한 자리 몫만 얇아진다.<br>감염을 끊으면 이 몫은 사라진다.</span>`);
   if(own>0)       L.push(`· 이 자리에 <b>이미 박힌</b> 성장률 +${own.toFixed(2)} (+${Math.ceil(n.init*own)})<br>&nbsp;&nbsp;<span class="d">가속 촉발이나 무장발현으로 한 번 붙은 값이다. 되돌릴 수 없다.</span>`);
   if(n.sym!=='출혈' && !share && !own) L.push('· 판 전체에 걸린 기본 성장률');
   L.push('', `<span class="d">수치 상한은 초기값의 ${R.VAL_CAP}배 = ${Math.floor(n.init*R.VAL_CAP)}.</span>`);
@@ -378,7 +381,7 @@ function stateHTML(){
     rows.push(`<div class="st"${tip(TT('통증 · 처치선',
       `살아 있는 통증 자리마다 처치선 몫이 곱연산으로 낮아진다. 배율 <b>×${pm.toFixed(3)}</b>.<br>`
       +`하한은 <b>${Math.round(R.PAIN_FLOOR*100)}%</b>이고 통증 몫에만 걸린다 — 약화는 그 위에 더해지므로 언제나 유효하다.<br><br>`
-      +`지금 처치선 = 초기값 × (${Math.round(ps*100)}% + 5%p × 약화)`))}>
+      +`지금 처치선 = 초기값 × (${Math.round(ps*100)}% + ${pctOf(R.WEAK_STACK)}p × 약화)`))}>
       <div class="stt"><span>처치선 몫</span><b>${Math.round(ps*100)}%</b></div>
       <div class="stnote">기본 ${Math.round(R.KILL_LINE*100)}% → ${Math.round(ps*100)}%${ps<=R.PAIN_FLOOR?' <span class="d">(하한)</span>':''}<br>통증이 판을 조이고 있다</div></div>`);
   }

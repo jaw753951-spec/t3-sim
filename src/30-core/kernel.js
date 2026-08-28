@@ -62,11 +62,14 @@ const active = S => S.nodes.filter(n=>!n.dead && n.val>0);
 
 /* 통증 배율 — 살아 있는 통증 자리마다 곱한다. 하한은 여기가 아니라 처치선에서 건다 */
 function painMul(S){
-  const ps = active(S).filter(n=>n.sym==='통증' && !n.muted);
-  if(!ps.length) return 1;
+  /* killLine → reaction → canKill 이 이것을 판마다 수십 번 부른다.
+     중간 배열을 만들지 않고 S.nodes 를 한 번만 훑는다 — 곱할 것이 없으면 1 그대로다. */
   let m = 1;
-  if(R.PAIN_STACK) for(const n of ps) m *= sp(n,'통증');     // 곱연산으로 겹친다
-  else m = sp(ps[0],'통증');                                 // 겹치지 않으면 가장 앞의 하나
+  for(const n of S.nodes){
+    if(n.dead || n.val<=0 || n.sym!=='통증' || n.muted) continue;
+    if(!R.PAIN_STACK) return sp(n,'통증');                   // 겹치지 않으면 가장 앞의 하나
+    m *= sp(n,'통증');                                       // 곱연산으로 겹친다
+  }
   return m;
 }
 
@@ -131,9 +134,11 @@ function suppress(S,n,amt,opt={}){
      opt.sweep 는 '판이 스스로 일으킨 억제'라는 표시다 — 처치 광역 억제와 설치물 자동 억제.
      카드가 일으킨 억제는 광역이든 단일이든 전부 센다 (그물·개방 포함). */
   if(!opt.sweep){
-    S.hitThisTurn[S.nodes.indexOf(n)] = (S.hitThisTurn[S.nodes.indexOf(n)]||0)+1;
+    const i = S.nodes.indexOf(n);
+    const hits = (S.hitThisTurn[i]||0)+1;
+    S.hitThisTurn[i] = hits;
     /* v25 — 3회부터, 그리고 불안까지만. 억제로는 공황에 못 간다 */
-    if(S.hitThisTurn[S.nodes.indexOf(n)]===R.HIT_ANX && S.mind==='평정') mind(S,+1);
+    if(hits===R.HIT_ANX && S.mind==='평정') mind(S,+1);
   }
   if(before>0 && n.val===0){ n.dormT = R.DORMANT; mind(S,-1); }  // 휴면 도달 = 호전
   return before-n.val;
@@ -286,7 +291,8 @@ function mind(S,d){
 //@ 커널.처치 — 처치 · 광역 억제 보상 · 반응 발동
 function canKill(S,n){
   if(n.dead) return false;
-  if(active(S).some(x=>x.sym==='통증'&&x.evolved) && n.sym!=='통증') return false; // 통증 진화
+  // 통증 진화 — 통증 아닌 자리는 끊지 못한다. 판마다 부르는 자리라 배열을 만들지 않는다
+  if(n.sym!=='통증' && S.nodes.some(x=>!x.dead && x.val>0 && x.sym==='통증' && x.evolved)) return false;
   return reaction(S,n)!==null;
 }
 
@@ -335,7 +341,7 @@ function killNow(S,n){
   S.rush = Math.min(R.RUSH_MAX, S.rush + R.RUSH_PER);   // 참조 카드가 없어도 쌓인다. 계기판만 가린다
   mind(S,-1);                                     // 처치 성공 = 호전
   // ① 광역 억제 먼저 — 다른 노드가 처치선 아래로 내려가 연쇄가 열린다
-  const before = alive(S).slice();
+  const before = alive(S);          // alive 가 이미 새 배열을 낸다 — 한 벌 더 뜨지 않는다
   for(const m of before) if(m!==n) suppress(S,m,amt,{sweep:true});
   // ② 반응 발동. 전이로 새로 생긴 노드는 ①을 못 받는다
   if(r!=='none') fireReactions(S,n,r);
@@ -384,8 +390,9 @@ function fireReactions(S,src,grade){
    자리마다 따로 얹던 v22 까지는 노드 넷이면 판 전체 성장이 네 배였다. */
 function infPool(S){
   const pool = new Map();
+  /* 감염이 없는 판이 대부분이다. 그때는 배열을 하나도 만들지 않고 나간다 */
+  if(!S.nodes.some(n=>!n.dead && n.val>0 && n.sym==='감염')) return pool;
   const infs = active(S).filter(f=>f.sym==='감염');
-  if(!infs.length) return pool;
   const tgtAll = active(S).filter(n=>n.role!=='disease');
   for(const f of infs){
     const tgt = tgtAll.filter(n=>n!==f);

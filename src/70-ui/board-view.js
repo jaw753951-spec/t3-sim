@@ -20,21 +20,31 @@
    난수가 앞으로 감긴 채 남아 판 전체가 어긋난다. */
 //@ 화면.예고 — §9.10 다음 턴에 무슨 일이 나는가
 function forecast(){
-  if(!S) return {dmg:0, evo:[], mind:null};
+  if(!S) return {dmg:0, evo:[], mind:null, ev:[]};
   const T = clone(S);
   const hp0 = T.hp, mind0 = T.mind;
   const was = T.nodes.map(n=>n.evolved);
   const rng0 = (S.rng && S.rng.state) ? S.rng.state() : null;
   T.rng = S.rng || T.rng;
+  /* 사건을 받아 둔다 — 무대의 의도 칩이 이것을 읽는다.
+     칩을 지금 판에서 따로 계산하면 스토리에서 합이 안 맞는다: 실제 턴 종료는 병이
+     먼저 움직이고 그 뒤에 때리므로, 자리 값이 이미 달라져 있다. 총계와 칩이
+     같은 한 번의 정산에서 나와야 둘이 안 갈린다. */
+  T.ev = [];
   try{
     if((T.act===1 || T.act===3) && T.nodes[0]) storyPhase(T, T.nodes[0]);
     turnResolve(T);
   }
-  catch(e){ return {dmg:0, evo:[], mind:null} }
+  catch(e){ return {dmg:0, evo:[], mind:null, ev:[]} }
   finally{ if(rng0!==null && S.rng && S.rng.set) S.rng.set(rng0) }
+  /* 자리를 번호로 바꿔 내보낸다 — 클론의 노드 객체는 이 밖에서 쓸 것이 못 된다.
+     클론은 차례를 지키므로 T.nodes[i] 가 곧 S.nodes[i] 다 (박자가 새로 깐 자리는
+     뒤에 붙으므로 번호가 밀리지 않는다) */
+  const evOut = T.ev.map(e => e.n ? {...e, i:T.nodes.indexOf(e.n), n:null} : e);
   return {dmg: Math.max(0, hp0-T.hp),
           evo: T.nodes.map((n,i)=>(n.evolved&&!was[i])?n.sym:null).filter(Boolean),
-          mind: T.mind!==mind0 ? T.mind : null};
+          mind: T.mind!==mind0 ? T.mind : null,
+          ev: evOut};
 }
 
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다

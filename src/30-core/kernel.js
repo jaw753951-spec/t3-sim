@@ -396,7 +396,7 @@ function fireReactions(S,src,grade){
       if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
                         ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       if(L.k==='점화'){ if(SYM[tgt.sym].atk){ ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade});
-                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk') } }
+                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk', tgt) } }
     } else {
       if(tgt) continue;                            // 이미 있으면 생성하지 않는다
       const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
@@ -430,6 +430,7 @@ function infPool(S){
     if(!tgt.length) continue;
     const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?R.EVO_X2:1));
     if(total<=0) continue;
+    ev(S,{t:'inf', n:f, total});      // 이 감염 자리가 판 전체에 얹는 총량 (무대의 「판 +N」)
     const each = Math.floor(total/tgt.length);
     const rest = total - each*tgt.length;
     const order = tgt.slice().sort((a,b)=>b.val-a.val || a.sym.localeCompare(b.sym));
@@ -472,14 +473,18 @@ function policyDmg(S){
 /* noDeath 판은 체력이 0이 되지 않는다 — 문구 그대로 바닥을 1로 깐다.
    v21.2 까지는 사망 판정만 건너뛰고 값은 계속 내려가서 스토리 자동 진행이
    체력 −1985 같은 숫자를 찍었다. 화면과 예고가 전부 무의미해졌다. */
-function hurtPatient(S, amt, why){
+/* src = 이 피해를 낸 자리. 턴 공격처럼 여러 자리가 함께 낸 것은 비워 둔다
+   (그쪽은 자리별 원값을 t:'atk' 로 따로 적어 두고 무대가 총계를 나눠 갖는다).
+   진화 즉발과 점화는 자리 하나가 낸 것이라 여기서 바로 붙는다 —
+   붙여 두지 않으면 무대의 의도 칩이 그 몫을 통째로 놓친다. */
+function hurtPatient(S, amt, why, src){
   if(amt<=0) return;
   const floor = (S.board && S.board.noDeath) ? 1 : -Infinity;
   const before = S.hp;
   S.hp = Math.max(floor, S.hp - amt);
   const real = before - S.hp;                    // 바닥에 걸리면 실제로 깎인 만큼만 센다
   if(real<=0) return;
-  ev(S,{t:'hp', amt:real, why: why||'atk'});
+  ev(S,{t:'hp', amt:real, why: why||'atk', n: src||null});
   S.lostThisTurn = (S.lostThisTurn||0) + real;
   if(!S.bigHitFired && S.lostThisTurn >= S.hpMax*R.MIND_BIGHIT){ S.bigHitFired=true; mind(S,+1) }
 }
@@ -528,13 +533,20 @@ function turnResolve(S){
   // 5 공격 — 관해 중에는 때리지 않는다
   let dmg = 0;
   if(!S.rem) for(const n of active(S))
-    if(n.role!=='disease' && !born(n) && SYM[n.sym].atk) dmg += Math.ceil(n.val*R.ATK_K);
+    if(n.role!=='disease' && !born(n) && SYM[n.sym].atk){
+      const raw = Math.ceil(n.val*R.ATK_K);
+      dmg += raw;
+      /* 자리마다의 원값 — 방침 배수가 붙기 전의 수다. 무대의 의도 칩이 이것을 읽어
+         「이 자리를 끊으면 얼마가 준다」를 말한다. 배수는 합에 한 번만 붙으므로
+         칩은 이 원값들로 총계를 나눠 갖는다 (무대.의도칩) */
+      ev(S,{t:'atk', n, raw});
+    }
   const cuts = comfortCuts(S);
   /* 완화는 방침 배수에서 뺀다 (합연산).
      곱연산이면 두 겹만 채워도 배수가 1 아래로 떨어져 도피 방침이 되레 피해를 줄여 준다.
      합연산은 셋을 다 채워도 1.5 − 0.6 = 0.9 에서 멈춘다 — 벌을 깎을 뿐 뒤집지 못한다. */
   if(dmg>0) dmg = Math.ceil(dmg * Math.max(0, policyDmg(S) - R.COMFORT_CUT*cuts.length));
-  hurtPatient(S, dmg);
+  hurtPatient(S, dmg, 'turn');      // 점화의 'atk' 와 가른다 — 칩이 턴 공격만 나눠 갖는다
   // 6 진화 — 피해가 먼저, 그 뒤에 진화로 인한 수치 증가
   for(const n of active(S)){
     if(n.role==='disease' || n.evolved || born(n)) continue;
@@ -542,7 +554,7 @@ function turnResolve(S){
     if(n.evoLeft>0) continue;
     n.evolved = true;
     ev(S,{t:'evolve', n});
-    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo');   // 진화 '시점' 수치의 50%
+    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo', n);   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
     if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;

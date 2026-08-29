@@ -1857,7 +1857,7 @@ function fireReactions(S,src,grade){
       if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
                         ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       if(L.k==='점화'){ if(SYM[tgt.sym].atk){ ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade});
-                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk') } }
+                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk', tgt) } }
     } else {
       if(tgt) continue;                            // 이미 있으면 생성하지 않는다
       const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
@@ -1883,6 +1883,7 @@ function infPool(S){
     if(!tgt.length) continue;
     const total = Math.ceil(f.val * sp(f,'감염') * (f.evolved?R.EVO_X2:1));
     if(total<=0) continue;
+    ev(S,{t:'inf', n:f, total});      // 이 감염 자리가 판 전체에 얹는 총량 (무대의 「판 +N」)
     const each = Math.floor(total/tgt.length);
     const rest = total - each*tgt.length;
     const order = tgt.slice().sort((a,b)=>b.val-a.val || a.sym.localeCompare(b.sym));
@@ -1919,14 +1920,14 @@ function policyDmg(S){
   return 1 + ((P && P.dmgUp) || 0);
 }
 
-function hurtPatient(S, amt, why){
+function hurtPatient(S, amt, why, src){
   if(amt<=0) return;
   const floor = (S.board && S.board.noDeath) ? 1 : -Infinity;
   const before = S.hp;
   S.hp = Math.max(floor, S.hp - amt);
   const real = before - S.hp;                    // 바닥에 걸리면 실제로 깎인 만큼만 센다
   if(real<=0) return;
-  ev(S,{t:'hp', amt:real, why: why||'atk'});
+  ev(S,{t:'hp', amt:real, why: why||'atk', n: src||null});
   S.lostThisTurn = (S.lostThisTurn||0) + real;
   if(!S.bigHitFired && S.lostThisTurn >= S.hpMax*R.MIND_BIGHIT){ S.bigHitFired=true; mind(S,+1) }
 }
@@ -1950,17 +1951,21 @@ function turnResolve(S){
   }
   let dmg = 0;
   if(!S.rem) for(const n of active(S))
-    if(n.role!=='disease' && !born(n) && SYM[n.sym].atk) dmg += Math.ceil(n.val*R.ATK_K);
+    if(n.role!=='disease' && !born(n) && SYM[n.sym].atk){
+      const raw = Math.ceil(n.val*R.ATK_K);
+      dmg += raw;
+      ev(S,{t:'atk', n, raw});
+    }
   const cuts = comfortCuts(S);
   if(dmg>0) dmg = Math.ceil(dmg * Math.max(0, policyDmg(S) - R.COMFORT_CUT*cuts.length));
-  hurtPatient(S, dmg);
+  hurtPatient(S, dmg, 'turn');      // 점화의 'atk' 와 가른다 — 칩이 턴 공격만 나눠 갖는다
   for(const n of active(S)){
     if(n.role==='disease' || n.evolved || born(n)) continue;
     n.evoLeft--;
     if(n.evoLeft>0) continue;
     n.evolved = true;
     ev(S,{t:'evolve', n});
-    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo');   // 진화 '시점' 수치의 50%
+    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo', n);   // 진화 '시점' 수치의 50%
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
     if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
@@ -3838,21 +3843,24 @@ function cardHTML(id, o={}){
 
 //@ 화면.예고 — §9.10 다음 턴에 무슨 일이 나는가
 function forecast(){
-  if(!S) return {dmg:0, evo:[], mind:null};
+  if(!S) return {dmg:0, evo:[], mind:null, ev:[]};
   const T = clone(S);
   const hp0 = T.hp, mind0 = T.mind;
   const was = T.nodes.map(n=>n.evolved);
   const rng0 = (S.rng && S.rng.state) ? S.rng.state() : null;
   T.rng = S.rng || T.rng;
+  T.ev = [];
   try{
     if((T.act===1 || T.act===3) && T.nodes[0]) storyPhase(T, T.nodes[0]);
     turnResolve(T);
   }
-  catch(e){ return {dmg:0, evo:[], mind:null} }
+  catch(e){ return {dmg:0, evo:[], mind:null, ev:[]} }
   finally{ if(rng0!==null && S.rng && S.rng.set) S.rng.set(rng0) }
+  const evOut = T.ev.map(e => e.n ? {...e, i:T.nodes.indexOf(e.n), n:null} : e);
   return {dmg: Math.max(0, hp0-T.hp),
           evo: T.nodes.map((n,i)=>(n.evolved&&!was[i])?n.sym:null).filter(Boolean),
-          mind: T.mind!==mind0 ? T.mind : null};
+          mind: T.mind!==mind0 ? T.mind : null,
+          ev: evOut};
 }
 
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다
@@ -5502,6 +5510,54 @@ function setHTML(el, html){
 function stageEl(n){
   if(!n || !S) return null;
   return STAGE_ELS.get(S.nodes.indexOf(n)) || null;
+}
+
+//@ 무대.의도칩 — 자리마다 이번 턴에 무슨 일을 하는가
+function shareOut(total, raws){
+  const out = new Map();
+  const sum = raws.reduce((a,r)=>a+r.raw, 0);
+  if(!sum || !total) return out;
+  let left = total;
+  for(const r of raws){ const v = Math.floor(total*r.raw/sum); out.set(r.i, v); left -= v }
+  const order = raws.slice().sort((a,b)=>b.raw-a.raw || a.i-b.i);
+  for(let k=0; k<left && order.length; k++){
+    const i = order[k%order.length].i;
+    out.set(i, out.get(i)+1);
+  }
+  return out;
+}
+
+function intentMap(f){
+  const m = new Map();
+  const put = (i, cls, txt, why) => {
+    if(i==null || i<0) return;
+    (m.get(i) || m.set(i, []).get(i)).push({cls, txt, why});
+  };
+  const evs = f.ev || [];
+  const raws = evs.filter(e=>e.t==='atk' && e.i>=0).map(e=>({i:e.i, raw:e.raw}));
+  const hit  = evs.filter(e=>e.t==='hp' && e.why==='turn').reduce((a,e)=>a+e.amt, 0);
+  for(const [i,v] of shareOut(hit, raws)) if(v>0) put(i, 'hp', `체력 −${v}`, '공격');
+  for(const e of evs){
+    if(e.t!=='hp' || e.why==='turn' || e.i==null || e.i<0 || !(e.amt>0)) continue;
+    put(e.i, 'hp', `체력 −${e.amt}`, e.why==='evo' ? '진화' : '점화');
+  }
+  for(const e of evs){
+    if(e.t==='grow'  && e.amt>0) put(e.i, 'gr', `성장 +${e.amt}`, '성장');
+    if(e.t==='inf'   && e.total>0) put(e.i, 'gr', `판 +${e.total}`, '감염');
+    if(e.t==='evolve') put(e.i, 'ev', '진화한다', '진화');
+    if(e.t==='revive') put(e.i, 'gr', '깨어난다', '휴면');
+  }
+  return m;
+}
+
+function standingChips(S, n){
+  const out = [];
+  if(n.muted || n.val<=0 || n.dead) return out;
+  if(n.sym==='탈수')     out.push({cls:'br', txt:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
+  if(n.sym==='통증')     out.push({cls:'br', txt:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
+  if(n.sym==='호흡곤란'){ const c = sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
+                         out.push({cls:'br', txt:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+  return out;
 }
 
 function stgArt(n){

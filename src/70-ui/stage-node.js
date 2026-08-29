@@ -48,6 +48,72 @@ function stageEl(n){
   return STAGE_ELS.get(S.nodes.indexOf(n)) || null;
 }
 
+/* ── 의도 칩 ── 이 자리가 이번 턴 끝에 무엇을 하는가 ─────────
+   값을 여기서 계산하지 않는다. forecast() 가 클론 위에서 진짜 turnResolve 를 돌리고
+   커널이 적어 둔 사건 줄을 그대로 읽는다. 손으로 다시 쓰면 방침 배수 · 완화 ·
+   감염 배분 · 성장 정지 · 이번 턴에 태어난 자리를 하나씩 다 빠뜨리게 된다.
+
+   방침 배수를 자리마다 곱하면 안 된다 — 커널은 '합에 한 번만' 올린다.
+     dmg = ceil(Σ raw × (배수 − 완화))
+   그래서 총계를 원값 비율로 나눠 갖는다. 배분은 내림이고 나머지는 원값이 큰 자리부터 —
+   infPool 이 감염 총량을 나누는 것과 같은 손이다. 규약을 두 벌로 만들지 않는다.
+   이렇게 해야 칩 합이 「턴 끝 −N」과 한 자리도 안 틀린다. */
+//@ 무대.의도칩 — 자리마다 이번 턴에 무슨 일을 하는가
+function shareOut(total, raws){
+  const out = new Map();
+  const sum = raws.reduce((a,r)=>a+r.raw, 0);
+  if(!sum || !total) return out;
+  let left = total;
+  for(const r of raws){ const v = Math.floor(total*r.raw/sum); out.set(r.i, v); left -= v }
+  const order = raws.slice().sort((a,b)=>b.raw-a.raw || a.i-b.i);
+  for(let k=0; k<left && order.length; k++){
+    const i = order[k%order.length].i;
+    out.set(i, out.get(i)+1);
+  }
+  return out;
+}
+
+/* 예고 하나에서 자리 번호 → 칩 목록을 만든다 */
+function intentMap(f){
+  const m = new Map();
+  const put = (i, cls, txt, why) => {
+    if(i==null || i<0) return;
+    (m.get(i) || m.set(i, []).get(i)).push({cls, txt, why});
+  };
+  const evs = f.ev || [];
+  /* 턴 공격 — 자리별 원값으로 총계를 나눠 갖는다 */
+  const raws = evs.filter(e=>e.t==='atk' && e.i>=0).map(e=>({i:e.i, raw:e.raw}));
+  const hit  = evs.filter(e=>e.t==='hp' && e.why==='turn').reduce((a,e)=>a+e.amt, 0);
+  for(const [i,v] of shareOut(hit, raws)) if(v>0) put(i, 'hp', `체력 −${v}`, '공격');
+  /* 자리 하나가 낸 피해 — 진화 즉발과 점화. 커널이 출처를 붙여 준다.
+     이쪽은 커널이 자리마다 따로 올림하므로 나눠 갖지 않고 그대로 적는다 */
+  for(const e of evs){
+    if(e.t!=='hp' || e.why==='turn' || e.i==null || e.i<0 || !(e.amt>0)) continue;
+    put(e.i, 'hp', `체력 −${e.amt}`, e.why==='evo' ? '진화' : '점화');
+  }
+  /* 성장 · 감염이 판에 얹는 총량 · 진화 */
+  for(const e of evs){
+    if(e.t==='grow'  && e.amt>0) put(e.i, 'gr', `성장 +${e.amt}`, '성장');
+    if(e.t==='inf'   && e.total>0) put(e.i, 'gr', `판 +${e.total}`, '감염');
+    if(e.t==='evolve') put(e.i, 'ev', '진화한다', '진화');
+    if(e.t==='revive') put(e.i, 'gr', '깨어난다', '휴면');
+  }
+  return m;
+}
+
+/* 자리가 판에 늘 걸어 두고 있는 것 — 턴 끝 사건이 아니라 상시 효과라 사건으로 안 온다.
+   전부 그 자리의 손잡이(sp)를 그대로 읽는다. 목업은 −2 · −6 · −1 로 박아 뒀는데
+   탈수는 빼기가 아니라 나누기고, 통증은 처치선에 곱연산이다. */
+function standingChips(S, n){
+  const out = [];
+  if(n.muted || n.val<=0 || n.dead) return out;
+  if(n.sym==='탈수')     out.push({cls:'br', txt:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
+  if(n.sym==='통증')     out.push({cls:'br', txt:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
+  if(n.sym==='호흡곤란'){ const c = sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
+                         out.push({cls:'br', txt:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+  return out;
+}
+
 /* ── 문자판 그림 ── 증상마다 다르게, 수치에 비례해서 ──────── */
 function stgArt(n){
   const p = Math.min(1, n.val / Math.max(1, n.init));

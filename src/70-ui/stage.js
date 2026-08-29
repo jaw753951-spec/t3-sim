@@ -192,21 +192,22 @@ function stagePatient(){
 //@ 무대.의사자원 — 기세 · 관해도. 켜진 것만 뜬다
 function stageDoc(){
   const out = [];
+  /* 눈금 밑에 글을 깔지 않는다 — 늘 떠 있을 값이 아니라 물어볼 값이다.
+     지금 상태(관해 몇 턴째 · 유지비가 모자란가)는 툴팁 끝에 붙여 준다 */
   if(S.rushArmed){
-    out.push(`<div class="grp"${tip(KWTIP['기세'])}>
+    out.push(`<div class="grp"${tip(KWTIP['기세'] + `<br><br>지금 <b>${S.rush}</b> / ${R.RUSH_MAX}`)}>
       <div class="mrow"><span>기세</span><span class="mv">${S.rush} / ${R.RUSH_MAX}</span></div>
-      <div class="meter">${Array.from({length:R.RUSH_MAX},(_,i)=>`<i class="${i<S.rush?'on':''}"></i>`).join('')}</div>
-      <div class="mnote">처치 한 번에 +${R.RUSH_PER} · 쓰는 값은 카드가 정한다</div></div>`);
+      <div class="meter">${Array.from({length:R.RUSH_MAX},(_,i)=>`<i class="${i<S.rush?'on':''}"></i>`).join('')}</div></div>`);
   }
   if(S.rem || S.remOpened){
     const g = S.remGauge, up = R.REM_UPKEEP;
-    out.push(`<div class="grp"${tip(KWTIP['관해도'])}>
+    const now = S.rem
+      ? `관해 <b>${S.remTurns}턴째</b> · 다음 턴 유지비 ${up}${g<up?' — <b>모자란다. 끝난다</b>':''}`
+      : '관해가 끝났다';
+    out.push(`<div class="grp"${tip(KWTIP['관해도'] + '<br><br>' + now)}>
       <div class="mrow"><span>관해도</span><span class="mv">${g} / ${R.REM_MAX}</span></div>
       <div class="meter rm">${Array.from({length:R.REM_MAX},(_,i)=>
-        `<i class="${i<g-up?'on':i<g?'drain':''}"></i>`).join('')}</div>
-      <div class="mnote">${S.rem
-        ? `관해 ${S.remTurns}턴째 · 다음 턴 유지비 ${up}${g<up?' — 모자란다':''}`
-        : '관해가 끝났다'}</div></div>`);
+        `<i class="${i<g-up?'on':i<g?'drain':''}"></i>`).join('')}</div></div>`);
   }
   const el = $('sg_doc');
   setHTML(el, out.length ? `<div class="lab">의사</div>${out.join('')}` : '');

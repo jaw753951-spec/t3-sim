@@ -145,25 +145,103 @@ function stgArt(n){
   return art;
 }
 
-/* ── 바깥에 매다는 계측기 ── 노드 밖으로 나가므로 자리 수가 많으면 접는다 ── */
-function attArt(n, small){
-  if(small) return '';
-  const p = Math.min(1, n.val / Math.max(1, n.init));
-  let out = '';
-  if(n.sym==='발열')
-    out += `<div class="thermoX"><div class="tube"><div class="merc" style="height:${p*100|0}%"></div></div><div class="bulb"></div></div>`;
-  if(n.sym==='탈수')
-    out += `<div class="ivX"><div class="ivhook"></div><div class="ivbody"><div class="water" style="height:${(1-p)*100|0}%"></div></div><div class="ivhose"></div></div>`;
-  /* 설치물 — 자리 옆에 세운 작은 통. 빌려온 물건은 색이 다르다 */
-  const rig = (n.rig||0), lent = (n.rigLent||0);
-  if(rig || lent){
-    const cap = n.rigCap || Math.max(R.RIG_CAP_MIN, rig);
-    out += `<div class="rigX"><div class="rigbody"><div class="rigfill" style="height:${Math.min(100, rig/Math.max(1,cap)*100)|0}%"></div>`
-         + (lent?`<div class="riglent" style="height:${Math.min(100, lent/Math.max(1,cap)*100)|0}%"></div>`:'')
-         + `</div><div class="rignum">${rig+lent}</div></div>`;
+/* ── 배지 넷 ── 계기 밖 대각선에 앉는다 ─────────────────────
+   모양이 서로 달라서 곁눈으로도 안 헷갈린다. 전에는 온도계 · 수액 · 설치통을
+   증상마다 다른 자리에 매달았는데, 자리가 늘면 가로 폭을 먹어 줄이 넘쳤다.
+
+     좌하  시약관   진단 — 요구가 3이든 40이든 관 크기는 그대로고 눈금만 촘촘해진다
+     좌상  방패     보호막 — 남은 안정화만큼 아래에서 차오른다
+     우상  파이     진화 시계 — 진단 1회차 전에는 파이 대신 물음표다
+     우하  상자     설치물 — 칸이 부품, 아래 숫자가 턴 끝에 깎는 값
+
+   좌표계는 계기보다 넓다 (.atts 가 inset:-19%). 200 안에서 계기는 반지름 73 이고
+   배지는 88 에 앉으므로 테 밖으로 나온다. */
+//@ 무대.배지 — 진단 · 보호막 · 진화 · 설치물
+function badgeSVG(S, n){
+  const C=100, RB=104, rad=a=>a*Math.PI/180;   // 계기 테(≈77) 밖에 앉는다
+  const P=(a,r)=>[C+Math.cos(rad(a))*r, C+Math.sin(rad(a))*r];
+  const imm = immune(S,n);
+  let s='';
+
+  /* 좌하 — 진단 시약관 */
+  if(n.role!=='disease' || !imm || true){
+    const [gx,gy]=P(143,RB), tw=15, th=36, tx=gx-tw/2, ty=gy-13;
+    const need=Math.max(1,n.diagNeed||R.DIAG_NEED), cur=Math.min(n.diagAcc||0,need);
+    const f=cur/need, ih=th-3.4, left=Math.max(0,Math.ceil(need-cur));
+    s += `<g${tip(KWTIP['재진'] + `<br><br>이 자리 — <b>${n.diagRound}회차</b> 완료 · `
+          + `다음 회차 요구 <b>${need}</b> · 쌓은 값 ${n.diagAcc||0}`)}>`
+      + `<rect x="${tx}" y="${ty}" width="${tw}" height="${th}" rx="2" fill="#14181C" stroke="#4DD4C8" stroke-width="1.6"/>`
+      + `<rect x="${tx+1.7}" y="${ty+th-1.7-ih*f}" width="${tw-3.4}" height="${ih*f}" fill="#4DD4C8" opacity=".85"/>`;
+    const step = need<=10 ? 1 : Math.ceil(need/8);
+    for(let k=step;k<need;k+=step){ const y=ty+th-1.7-ih*(k/need);
+      s += `<line x1="${tx+tw}" y1="${y}" x2="${tx+tw+4}" y2="${y}" stroke="#4DD4C8" stroke-width="1.2" opacity=".8"/>` }
+    s += `<text x="${gx}" y="${gy+34}" text-anchor="middle" font-size="13" font-weight="800"`
+      +  ` font-family="ui-monospace,monospace" fill="#4DD4C8">${left}</text>`
+      +  (n.diagRound>0?`<text x="${gx}" y="${ty-4}" text-anchor="middle" font-size="12" font-weight="800"`
+      +  ` font-family="ui-monospace,monospace" fill="#4DD4C8">${'I'.repeat(Math.min(4,n.diagRound))}${n.diagRound>4?'+':''}</text>`:'')
+      +  `</g>`;
   }
-  return out;
+
+  /* 좌상 — 보호막 방패. 남은 칸만큼 아래에서 찬다 */
+  if(n.shielded){
+    const [bx,by]=P(-141,RB), left=Math.max(0, R.SHIELD_MAX-Math.floor(n.stabAcc));
+    const f=left/Math.max(1,R.SHIELD_MAX), id='sgcl'+S.nodes.indexOf(n);
+    s += `<g transform="translate(${bx-16},${by-17})"${tip(TT('보호막',
+          `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.`
+          + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
+      + `<clipPath id="${id}"><rect x="0" y="${34-34*f}" width="32" height="${34*f}"/></clipPath>`
+      + `<path d="M16 1 1 6.8V18.4C1 25.7 8 31 16 33.5 24 31 31 25.7 31 18.4V6.8Z" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`
+      + `<path d="M16 1 1 6.8V18.4C1 25.7 8 31 16 33.5 24 31 31 25.7 31 18.4V6.8Z" fill="#7AA8B2" clip-path="url(#${id})" opacity=".85"/>`
+      + `<text x="16" y="22" text-anchor="middle" font-size="13" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="${f>.55?'#14181C':'#7AA8B2'}">${left}</text></g>`;
+  }
+
+  /* 우상 — 진화 파이. 병 노드는 병기라 여기 안 쓴다 (.evc 가 맡는다) */
+  if(n.role!=='disease'){
+    const [ex,ey]=P(-39,RB);
+    if(n.evolved){
+      s += `<g${tip(TT('진화함', EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):''))}>`
+        +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="#C9A44A" stroke-width="1.8"/>`
+        +  `<text x="${ex}" y="${ey+6}" text-anchor="middle" font-size="17" fill="#C9A44A">✦</text></g>`;
+    } else if(n.revealed){
+      const max=Math.max(1, n.evo||1), p=Math.max(0, Math.min(1, (max-n.evoLeft)/max));
+      const col = n.evoLeft<=1 ? '#98302A' : '#E8E2D2';
+      const a=-90+360*p, [px,py]=P2(ex,ey,a,17);
+      s += `<g${tip(TT('진화까지', `남은 턴 <b>${n.evoLeft}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}`
+            + `<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다.`
+            + `<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.`))}>`
+        +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="${col}" stroke-width="1.8"/>`
+        +  (p>0?`<path d="M${ex} ${ey} L${ex} ${ey-17} A17 17 0 ${p>.5?1:0} 1 ${px} ${py} Z" fill="${col}" opacity=".25"/>`:'')
+        +  `<text x="${ex}" y="${ey+5.5}" text-anchor="middle" font-size="15" font-weight="800"`
+        +  ` font-family="ui-monospace,monospace" fill="${col}">${n.evoLeft}</text></g>`;
+    } else {
+      s += `<g${tip(TT('진화까지','아직 모른다. 문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.'))}>`
+        +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="#8d8377" stroke-width="1.6" stroke-dasharray="4 4"/>`
+        +  `<text x="${ex}" y="${ey+6}" text-anchor="middle" font-size="16" font-weight="800"`
+        +  ` font-family="var(--sans)" fill="#8d8377">?</text></g>`;
+    }
+  }
+
+  /* 우하 — 설치물 상자. 빌려온 물건은 빗금 칸으로 가른다 */
+  const rig=(n.rig||0), lent=(n.rigLent||0);
+  if(rig||lent){
+    const [ix,iy]=P(39,RB), w=44, h=34, cap=n.rigCap||Math.max(R.RIG_CAP_MIN,rig);
+    const slots=Math.max(1, Math.min(6, cap||1)), on=Math.round(rig/Math.max(1,cap)*slots);
+    s += `<g transform="translate(${ix-w/2},${iy-h/2})"${tip(TT('설치물',
+          `매 턴 종료 시 이 자리를 <b>${rig+lent}</b> 억제한다. 보호막을 무시한다.`
+          + (rig?`<br>상한 ${cap}`:'') + (lent?`<br>빌려온 물건 ${lent} — 남의 손을 타지 않는다`:'')
+          + (rig?`<br><br>개방하면 <b>−${rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`:'')))}>`
+      + `<rect x="0" y="0" width="${w}" height="${h}" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`
+      + `<rect x="7" y="-4" width="30" height="5" fill="#7AA8B2"/>`
+      + Array.from({length:slots},(_,i)=>`<rect x="${5+i*(34/slots)}" y="7" width="${28/slots}" height="8"`
+          + ` fill="${i<on?'#7AA8B2':'none'}" stroke="#7AA8B2" stroke-width="1"/>`).join('')
+      + `<text x="${w/2}" y="29" text-anchor="middle" font-size="13" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="#E4867A">−${rig+lent}</text></g>`;
+  }
+  return s;
 }
+/* 파이 조각의 끝점 — 배지 안에서만 쓴다 */
+function P2(cx,cy,a,r){ const t=a*Math.PI/180; return [cx+Math.cos(t)*r, cy+Math.sin(t)*r] }
 
 /* ── 다이얼 ── 눈금 · 구간 · 바늘 · 처치선 · 약화 · 설치 ──── */
 function dialSVG(S, n){
@@ -265,15 +343,16 @@ function stageLayout(){
   const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
   const row  = alive(S).filter(n=>n!==dis);
   const CN   = row.length || 1;
-  const SZ   = Math.min(dis ? 168 : 232, (W*0.92)/CN - 26);
-  const cy   = dis ? H*0.26 : H*0.40;
+  const SZ   = Math.min(dis ? 176 : 244, (W*0.92)/CN - 26);
+  const cy   = dis ? H*0.25 : H*0.40;
   row.forEach((n,i)=>{
     n.px = W*0.04 + (W*0.92)*(i+0.5)/CN;
     n.py = cy;
     n.sz = SZ;
   });
   /* 병 노드는 이름표와 칩이 아래로 더 나가므로 손패 줄에 안 닿게 더 올려 앉힌다 */
-  if(dis){ dis.px = W/2; dis.py = H*0.66; dis.sz = Math.min(264, W*0.24) }
+  /* 병 노드는 판의 주인공이라 부수 증상보다 확실히 크게 앉힌다 */
+  if(dis){ dis.px = W/2; dis.py = H*0.655; dis.sz = Math.min(330, W*0.30) }
   return SZ;
 }
 
@@ -301,17 +380,20 @@ function stageSync(){
       el = document.createElement('div');
       el.className = 'gz';
       el.innerHTML =
-        '<div class="bezel"></div><svg class="dring" viewBox="0 0 200 200"></svg>'
+        '<div class="bezel"></div>'
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
-      + '<div class="evc"></div><div class="atts"></div>'
+      + '<div class="evc"></div><svg class="atts" viewBox="0 0 200 200"></svg>'
       + '<div class="info"><span class="nm2"></span><span class="hr2"></span><span class="num"></span></div>'
       + '<div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
     }
+    /* 자리마다 제 크기를 쓴다 — 병 노드는 줄의 부수 증상보다 크게 앉는다.
+       줄 크기(SZ)를 그대로 쓰면 stageLayout 이 병 노드에 따로 매긴 값이 버려진다 */
+    const sz = n.sz || SZ;
     el.style.left = n.px+'px'; el.style.top = n.py+'px';
-    el.style.width = SZ+'px'; el.style.height = SZ+'px';
+    el.style.width = sz+'px'; el.style.height = sz+'px';
 
     const r = reaction(S, n), imm = immune(S, n);
     el.classList.toggle('dorm',  n.dormT>0 || n.val===0);
@@ -330,8 +412,7 @@ function stageSync(){
        것이 그리기 비용의 절반이었다 — 문자열이 같으면 손대지 않는다 */
     setHTML(el.querySelector('.stg'),   stgArt(n));
     setHTML(el.querySelector('.dial'),  dialSVG(S, n));
-    setHTML(el.querySelector('.dring'), diagRing(n));
-    setHTML(el.querySelector('.atts'),  attArt(n, SZ < 180));
+    setHTML(el.querySelector('.atts'),  badgeSVG(S, n));
 
     /* 의도 칩 — 이번 턴 끝에 이 자리가 무엇을 하는가. 값은 커널이 냈다 (무대.의도칩).
        약화 · 지연은 이미 걸려 있는 것이라 아래 줄에 따로 붙인다 */
@@ -349,9 +430,10 @@ function stageSync(){
       `${n.val}<s>│</s><u>${imm ? '—' : killLine(S,n)}</u>`;
 
     /* 오른쪽 위 뱃지 — 증상은 진화 시계, 병 노드는 병기 */
+    /* 우상 뱃지는 병 노드의 병기 전용이다 — 증상의 진화 시계는 배지(파이)가 맡는다 */
     const ev = el.querySelector('.evc');
     if(n.role==='disease'){ ev.textContent = n.stage; ev.className = 'evc stg2' }
-    else { ev.textContent = n.evolved ? '✦' : (n.revealed ? n.evoLeft : '?'); ev.className = 'evc' }
+    else { ev.textContent = ''; ev.className = 'evc off' }
 
     if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
   });

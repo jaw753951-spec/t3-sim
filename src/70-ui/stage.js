@@ -84,95 +84,132 @@ function stageRender(){
   if(STAGE_CARD && !S.hand.includes(STAGE_CARD)){ STAGE_MODE = null; STAGE_CARD = null }
   tipReset();
   stageSync();
-  stageHud();
-  stageKarte();
+  stageChart();
   stagePatient();
+  stageDoc();
   stageActbar();
   stagePanel();
   stageHand();
   pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
-/* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
-function stageHud(){
-  const day = $('sg_day'), qs = $('sg_qs'), qt = $('sg_qtxt'),
-        bud = $('sg_budget'), act = $('sg_act');
-  if(MODE==='sess' && SESS){
-    const list = sessList(), doneN = SESS.results.filter(r=>(r.round??0)===SESS.round).length;
-    day.textContent = SESS.def.name;
-    qs.innerHTML = list.map((id,i)=>
-      `<i class="${i<doneN?'done':(i===SESS.idx?'now':'')}"></i>`).join('');
-    qt.textContent = `대기 ${Math.max(0, list.length-SESS.idx)}`;
-    bud.innerHTML = `${Math.max(0,SESS.budget)}<i>턴 남음</i>`;
-    act.style.display = SESS.def.visit ? '' : 'none';
-    if(SESS.def.visit) act.textContent = `평판 ${SESS.rep>0?'+':''}${SESS.rep}`;
-  } else if(MODE==='story'){
-    day.textContent = (BOSS[BOARD.boss]||{}).name || '스토리';
-    qs.innerHTML = '';
-    qt.textContent = S.act===1 ? `증거 ${S.evid}/${SR.EVID_TOTAL}`
-                   : S.policy ? `${S.correct?'정진단':'오진'}` : '';
-    bud.innerHTML = '';
-    act.style.display = '';
-    act.textContent = `${S.act}막${S.policy?' · '+S.policy:''}`;
-  } else {
-    day.textContent = BOARD.script ? BOARD.script.name.split(' · ')[0] : `레벨 ${BOARD.level}`;
-    qs.innerHTML = ''; qt.textContent = '단판';
-    bud.innerHTML = ''; act.style.display = 'none';
-  }
-}
-
-/* 카르테 — 이 사람에 대해 지금까지 알아낸 것만 적는다 */
-function stageKarte(){
+/* ── 우측 차트 ── 이 사람에 대해 지금까지 알아낸 것만 적는다 ──
+   전에는 머리띠(세션·막)와 카르테 두 칸으로 나뉘어 있었다. 한 칸으로 합쳤다.
+   값은 그대로다 — 무엇을 감추는가도 그대로다 (문진 전에는 체력 태그가 「미상」). */
+//@ 무대.차트 — 턴 · 사람 · 정신 · 남은 턴 · 문진
+function stageChart(){
   const p = BOARD.script;
   const nameFull = p ? p.name : (BOARD.boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
   const bits = String(nameFull).split(' · ');
   const boss = !!BOARD.boss;
-  const who = bits.length>1 ? (boss ? bits[0] : bits.slice(1).join(' · ')) : bits[0];
+  const who  = bits.length>1 ? (boss ? bits[0] : bits.slice(1).join(' · ')) : bits[0];
   const what = bits.length>1 ? (boss ? bits.slice(1).join(' · ') : bits[0]) : '';
-  $('sg_kname').textContent = who;
-  $('sg_kmeta').textContent = (what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`);
 
   const hide = (MODE==='sess' && !S.tagsShown);
-  $('sg_ktags').innerHTML = hide
+  const tags = hide
     ? '<span class="ktag hid">체력 태그 미상</span>'
     : ((BOARD.tags||[]).length
         ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, `체력 <b>×${HP_TAG[t]}</b>`))}>${esc(t)} ×${HP_TAG[t]}</span>`).join('')
         : '<span class="ktag">특이 없음</span>');
 
-  $('sg_kchief').textContent = chiefOf();
+  /* 머리 — 턴과 사람. 막·증거는 여기 배지로 붙는다 (연출이 sg_act 를 잡는다) */
+  const badge = MODE==='story'
+    ? `<span id="sg_act">${S.act}막${S.policy?' · '+S.policy:''}${S.act===1?` · 증거 ${S.evid}/${SR.EVID_TOTAL}`:''}</span>`
+    : `<span id="sg_act"></span>`;
+  const rows = [];
+  rows.push(`<div class="sec"><div class="lab">턴 ${S.turn} ${badge}</div>
+    <div class="kname">${esc(who)}</div>
+    <div class="kmeta">${esc((what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`))}</div>
+    <div class="ktags">${tags}</div></div>`);
+
+  rows.push(`<div class="sec"><div class="lab">정신 · ${S.mind}</div>
+    <div class="body"${tip(TT('정신 · '+S.mind, mindTipBody(S)))}>${mindLine(S)}</div></div>`);
+
+  /* 외래는 오늘 남은 턴, 스토리는 지금 방침이 판에 새긴 것 */
+  if(MODE==='sess' && SESS){
+    rows.push(`<div class="sec"><div class="lab">오늘 남은 턴</div>
+      <div class="big">${Math.max(0,SESS.budget)}</div>
+      <div class="body d">다음 환자 ${Math.max(0, sessList().length-SESS.idx-1)}명</div></div>`);
+  } else if(MODE==='story' && S.act===3){
+    rows.push(`<div class="sec"><div class="lab">병 노드</div>
+      <div class="body"${tip(policyTip(S.policy))}>${winNote(S)}</div></div>`);
+  }
+
+  rows.push('<div class="sp"></div>');
 
   const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
-  $('sg_kask').innerHTML = asked.length
-    ? asked.map(id=>{ const q=QUIZ.find(x=>x.id===id); return q
-        ? `<span class="ai">${esc(q.q)}<em>${esc(q.opens)}</em></span>` : '' }).join('')
-    : `<span style="color:var(--mut)">${MODE==='sess'?'묻지 않았다':'—'}</span>`;
+  rows.push(`<div class="sec"><div class="lab">문진에서 얻은 것</div>`
+    + (asked.length
+        ? asked.map(id=>{ const q=QUIZ.find(x=>x.id===id); return q
+            ? `<div class="ai"><em>${esc(q.opens)}</em><span>${esc(q.q)}</span><span>✓</span></div>` : '' }).join('')
+        : `<div class="ai d"><span>${MODE==='sess'?'묻지 않았다':'—'}</span></div>`)
+    + `</div>`);
+
+  setHTML($('sg_chart'), rows.join(''));
 }
 
-/* 환자 — 체력 고리 · 흉상 · 정신 */
+/* 정신 한 줄 — 지금 무엇이 걸려 있는가. 값은 손잡이에서 읽는다 */
+function mindLine(S){
+  if(S.mind==='평정')    return `안정화가 ${numOf(R.MIND_CALM_STAB)}배로 들어간다.`;
+  if(S.mind==='공황')    return '처치를 눌러도 다음 턴 시작에 들어간다.';
+  if(S.mind==='의식불명') return `진단이 ${R.MIND_ANX_DIAG + R.MIND_KO_DIAG} 줄어든다.`;
+  return `억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}.`;
+}
+
+/* 환자 — 흉상 · 체력 막대 · 정신 */
 function stagePatient(){
   const f = forecast();
-  const hp = Math.max(0, S.hp), pct = hp/Math.max(1,S.hpMax);
-  const fore = Math.max(0, hp - f.dmg)/Math.max(1,S.hpMax);
-  const C = 2*Math.PI*100;
-  $('sg_ring').innerHTML =
-    `<circle cx="108" cy="108" r="100" fill="none" stroke="#14181C" stroke-width="13"/>`
-  + `<circle cx="108" cy="108" r="100" fill="none" stroke="#98302A" stroke-width="13"
-       stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 108 108)"/>`
-  + `<circle cx="108" cy="108" r="100" fill="none" stroke="#E8E2D2" stroke-width="13"
-       stroke-dasharray="${C}" stroke-dashoffset="${C*(1-fore)}" transform="rotate(-90 108 108)"/>`;
+  const hp = Math.max(0, S.hp), pct = hp/Math.max(1,S.hpMax)*100;
+  const gone = Math.min(hp, f.dmg)/Math.max(1,S.hpMax)*100;
 
   const bust = $('sg_bust');
   if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
 
   /* 설명은 작업대와 같은 것을 쓴다. 여기는 속성에 직접 다는 자리라 열쇠만 받는다 */
   const hpEl = $('sg_hp');
-  hpEl.innerHTML = `${(MODE==='sess'&&!S.tagsShown)?'?':hp}<i>${f.dmg?'−'+f.dmg:''}</i>`;
+  const mask = (MODE==='sess' && !S.tagsShown);
+  hpEl.innerHTML = `<b>${mask?'?':hp}</b><s>/ ${mask?'?':S.hpMax}</s>`
+                 + `<u>${f.dmg?`턴 끝 −${f.dmg}`:''}</u>`;
   hpEl.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
+
+  const bar = $('sg_hpbar');
+  bar.querySelector('.hf').style.width = pct+'%';
+  const hg = bar.querySelector('.hg');
+  hg.style.left = (pct-gone)+'%'; hg.style.width = gone+'%';
+  bar.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
 
   const m = $('sg_mind');
   m.textContent = S.mind;
   m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
-  m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
+}
+
+/* ── 의사 자원 ── 기세 · 관해도 ────────────────────────────────
+   둘 다 게이트가 있다. 목업은 늘 띄우지만 그러면 규칙이 거짓말을 한다.
+     기세    S.rushArmed — 「참조 카드가 없어도 쌓인다. 계기판만 가린다」.
+             쓸 카드가 가방에 없으면 숫자가 장식으로 올라갈 뿐이다.
+     관해도  S.rem || S.remOpened — 열어 본 적이 없으면 있는 줄도 몰라야 한다.
+   둘 다 꺼져 있으면 칸을 통째로 비운다 (CSS 가 :empty 면 테두리도 안 그린다). */
+//@ 무대.의사자원 — 기세 · 관해도. 켜진 것만 뜬다
+function stageDoc(){
+  const out = [];
+  if(S.rushArmed){
+    out.push(`<div class="grp"${tip(KWTIP['기세'])}>
+      <div class="mrow"><span>기세</span><span class="mv">${S.rush} / ${R.RUSH_MAX}</span></div>
+      <div class="meter">${Array.from({length:R.RUSH_MAX},(_,i)=>`<i class="${i<S.rush?'on':''}"></i>`).join('')}</div>
+      <div class="mnote">처치 한 번에 +${R.RUSH_PER} · 쓰는 값은 카드가 정한다</div></div>`);
+  }
+  if(S.rem || S.remOpened){
+    const g = S.remGauge, up = R.REM_UPKEEP;
+    out.push(`<div class="grp"${tip(KWTIP['관해도'])}>
+      <div class="mrow"><span>관해도</span><span class="mv">${g} / ${R.REM_MAX}</span></div>
+      <div class="meter rm">${Array.from({length:R.REM_MAX},(_,i)=>
+        `<i class="${i<g-up?'on':i<g?'drain':''}"></i>`).join('')}</div>
+      <div class="mnote">${S.rem
+        ? `관해 ${S.remTurns}턴째 · 다음 턴 유지비 ${up}${g<up?' — 모자란다':''}`
+        : '관해가 끝났다'}</div></div>`);
+  }
+  const el = $('sg_doc');
+  setHTML(el, out.length ? `<div class="lab">의사</div>${out.join('')}` : '');
 }
 
 /* 고른 자리 한 줄 — 지금 끊으면 무슨 일이 나는가 */
@@ -198,39 +235,40 @@ function stageActbar(){
   $('sg_av').innerHTML = v + '<br>' + nodeMarks(S, n);
 }
 
-/* 우측 계기 — 턴 · 코스트 · 파일. 아래칸 카르테는 stageKarte() 가 채운다 */
+/* 아래 줄의 손잡이 — 처치 · 코스트 · 덱 · 버림 · 정산 · 턴 종료.
+   전에는 우측 패널에 있던 것들이다. 하는 일은 그대로다 */
 function stagePanel(){
-  $('sg_turn').textContent = S.turn;
-  $('sg_spent').textContent = MODE==='sess' && SESS ? `${SESS.idx+1}/${sessList().length}명` : '';
   const en = Math.max(R.ENERGY, S.energy);
-  $('sg_energy').innerHTML = Array.from({length:en},(_,i)=>`<i class="${i<S.energy?'on':''}"></i>`).join('');
+  setHTML($('sg_energy'), Array.from({length:en},(_,i)=>`<i class="${i<S.energy?'on':''}"></i>`).join(''));
 
   /* 1막에는 끊을 것이 없다 — 그 자리를 「병명을 선언한다」가 쓴다 */
   const tb = $('sg_treat');
   if(MODE==='story' && S.act===1){
-    tb.className = 'btn' + (S.evid>=SR.EVID_AIM ? '' : ' off');
-    tb.firstChild.nodeValue = '병명을 선언한다';
+    tb.className = 'btn treat' + (S.evid>=SR.EVID_AIM ? '' : ' off');
+    tb.firstChild.nodeValue = '병명 선언';
     $('sg_treatc').textContent = `증거 ${S.evid}/${SR.EVID_TOTAL}`;
   } else {
     const n = alive(S)[SEL];
     const canT = n && !immune(S,n) && reaction(S,n)!==null && !verdictNow();
-    tb.className = 'btn' + (STAGE_MODE==='treat' ? ' on' : (canT||n ? '' : ' off'));
+    tb.className = 'btn treat' + (STAGE_MODE==='treat' ? ' on' : (canT||n ? '' : ' off'));
     tb.firstChild.nodeValue = '처치';
     $('sg_treatc').textContent = `${R.KILL_COST}코${S.mind==='공황'?' · 다음 턴':''}`;
   }
 
+  /* 조기 정산은 외래·왕진만 — 스토리에는 손을 뗄 자리가 없다 */
   const sb = $('sg_settle');
   const canS = MODE==='sess' && SESS && SESS.phase==='fight';
-  sb.className = 'btn' + (canS ? '' : ' off');
+  sb.style.display = (MODE==='sess') ? '' : 'none';
+  sb.className = 'btn early' + (canS ? '' : ' off');
   $('sg_settlec').textContent = canS ? outcome(S, BOARD.core) : '—';
 
   $('sg_pDeck').textContent = S.deck.length;
   $('sg_pDisc').textContent = S.discard.length;
-  $('sg_pHand').textContent = S.hand.length;
 
+  const done = verdictNow();
   const eb = $('sg_end');
-  eb.className = verdictNow() ? 'off' : '';
-  eb.textContent = verdictNow() ? `${verdictNow()} — 정산한다` : '턴 종료';
+  eb.className = 'btn endturn' + (done ? ' off' : '');
+  eb.textContent = done ? `${done} — 정산한다` : '턴 종료';
 }
 
 /* 손패 — 카드 한 장의 겉모습은 작업대와 같은 것을 쓴다 (cardHTML).

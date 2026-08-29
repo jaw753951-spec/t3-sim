@@ -1,59 +1,60 @@
 <!-- ══════════════════════════════════════════════════════════════════
      무대 — 전투 화면. 작업대 위에 통째로 덮는다.
      칸만 있고 글은 없다. 채우는 것은 70-ui/stage*.js 다.
+
+     네 구역이다 — 좌(환자 · 의사 자원) · 중앙(판) · 우(차트) · 아래(손패 줄).
+     연출이 붙잡는 이름은 그대로 둔다: #sg_pat(hurt · 뜨는 숫자) · #sg_mind ·
+     #sg_hand .card(dealt) · #sg_act(증거 게이지) · #sg_board(촉발 구슬).
      ══════════════════════════════════════════════════════════════ -->
 <div id="sg">
 <div id="sg_wrap"><div id="sg_stage"><div id="sg_screen">
   <div class="bg"></div>
-
-  <!-- 세션 · 막 머리띠 -->
-  <div class="shud plate" id="sg_hud">
-    <span class="dy" id="sg_day">—</span>
-    <span class="qs" id="sg_qs"></span>
-    <span class="q" id="sg_qtxt"></span>
-    <span class="actbadge" id="sg_act" style="display:none"></span>
-    <span class="b" id="sg_budget"></span>
-  </div>
   <button id="sg_exit" onclick="stageClose()">작업대로 (Esc)</button>
 
-  <!-- 판 -->
-  <div id="sg_board">
-    <svg id="sg_links" viewBox="0 0 1000 700" preserveAspectRatio="none"></svg>
-    <div id="sg_pat">
-      <svg class="ring" id="sg_ring" viewBox="0 0 216 216"></svg>
-      <div class="bust" id="sg_bust"></div><div class="flash"></div>
-      <div class="hp" id="sg_hp">—</div>
-      <div id="sg_mind">—</div>
-    </div>
-    <div class="plate" id="sg_bubble"><div class="who" id="sg_bwho">환자</div><div class="txt" id="sg_btxt"></div><div class="tail"></div></div>
-    <div class="plate" id="sg_actbar"><span class="n" id="sg_an"></span><span class="v" id="sg_av"></span></div>
+  <!-- 좌 — 환자 -->
+  <div id="sg_pat">
+    <div class="lab">환자</div>
+    <div class="bust" id="sg_bust"></div><div class="flash"></div>
+    <div class="hpnum" id="sg_hp">—</div>
+    <div class="hpbar" id="sg_hpbar"><div class="hf"></div><div class="hg"></div></div>
+    <div class="tlab"><span>체력</span><span id="sg_mind">—</span></div>
   </div>
 
-  <!-- 우측 계기 -->
-  <div class="right plate">
-    <div class="rtop">
-      <div class="trow"><span>턴</span><span class="n" id="sg_turn">1</span><span class="r" id="sg_spent"></span></div>
-      <div class="pips" id="sg_energy"></div>
-      <div class="btn" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
-      <div class="btn" id="sg_settle" onclick="stageSettleBtn()">결과 정산<span class="c" id="sg_settlec"></span></div>
-      <div class="piles">
-        <div class="pile go" onclick="pileToggle('deck')"><div class="n" id="sg_pDeck">0</div><div class="l">덱</div></div>
-        <div class="pile go" onclick="pileToggle('discard')"><div class="n" id="sg_pDisc">0</div><div class="l">버림</div></div>
-        <div class="pile"><div class="n" id="sg_pHand">0</div><div class="l">손패</div></div>
+  <!-- 좌 아래 — 의사 자원. 기세는 참조 카드가 있을 때, 관해도는 열린 뒤에만.
+       둘 다 꺼져 있으면 JS 가 이 칸을 통째로 비운다 -->
+  <div id="sg_doc"></div>
+
+  <!-- 중앙 — 판 -->
+  <div id="sg_board">
+    <svg id="sg_links" viewBox="0 0 1210 744" preserveAspectRatio="none"></svg>
+  </div>
+  <div class="plate" id="sg_bubble"><div class="who" id="sg_bwho">환자</div><div class="txt" id="sg_btxt"></div><div class="tail"></div></div>
+  <div class="plate" id="sg_actbar"><span class="n" id="sg_an"></span><span class="v" id="sg_av"></span></div>
+
+  <!-- 우 — 차트. 이 사람에 대해 지금까지 알아낸 것만 적는다 -->
+  <div id="sg_chart"></div>
+
+  <!-- 아래 — 손패 줄 -->
+  <div id="sg_handzone">
+    <div class="res">
+      <div class="tcol">
+        <div class="btn treat" id="sg_treat" onclick="stageTreatBtn()">처치<span class="c" id="sg_treatc"></span></div>
+        <div class="costlab">코스트</div>
+        <div class="pips" id="sg_energy"></div>
+      </div>
+      <div class="stack go" onclick="pileToggle('deck')"><i></i><i></i>
+        <div class="top"><b id="sg_pDeck">0</b><span>덱</span></div></div>
+    </div>
+    <div id="sg_hand"></div>
+    <div class="rres">
+      <div class="stack go" onclick="pileToggle('discard')"><i></i><i></i>
+        <div class="top"><b id="sg_pDisc">0</b><span>버림</span></div></div>
+      <div class="btncol">
+        <div class="btn early" id="sg_settle" onclick="stageSettleBtn()">조기 정산<span class="c" id="sg_settlec"></span></div>
+        <div class="btn endturn" id="sg_end" onclick="stageEndBtn()">턴 종료</div>
       </div>
     </div>
-    <!-- 카르테 — 이 사람에 대해 알아낸 것 -->
-    <div class="rbot">
-      <div class="kname" id="sg_kname">—</div>
-      <div class="kmeta" id="sg_kmeta"></div>
-      <div class="ktags" id="sg_ktags"></div>
-      <div class="kfield"><b>호소 증상</b><span id="sg_kchief">—</span></div>
-      <div class="kfield"><b>문진</b><div id="sg_kask"></div></div>
-    </div>
   </div>
-
-  <div id="sg_hand"></div>
-  <div id="sg_end" onclick="stageEndBtn()">턴 종료</div>
   <div id="sg_toast"></div>
 
   <!-- 대기 명단 -->

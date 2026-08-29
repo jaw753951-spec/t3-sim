@@ -44,80 +44,90 @@ body.sgon{overflow:hidden}
   padding:8px 14px;font:700 12px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
 #sg_exit:hover{background:var(--steel);border-color:var(--brass)}
 
-/* ── 세션 HUD ─────────────────────────────────────────────── */
-#sg .shud{position:absolute;left:1.4%;top:1.6%;width:34%;z-index:30;padding:10px 14px;
-  display:flex;align-items:center;gap:16px}
-#sg .shud .dy{font:800 15px/1 var(--mono);color:var(--ink3)}
-#sg .shud .q{font:700 11px/1 var(--sans);letter-spacing:.12em;color:var(--ink2)}
-#sg .shud .b{margin-left:auto;font:800 20px/1 var(--mono);color:var(--ink3)}
-#sg .shud .b i{font-style:normal;font:700 11px var(--sans);color:var(--ink2);margin-left:5px}
-#sg .qs{display:flex;gap:4px}
-#sg .qs i{width:13px;height:13px;border:2px solid var(--steel);display:block}
-#sg .qs i.done{background:var(--steel)}
-#sg .qs i.now{background:var(--t3);border-color:var(--t3)}
-#sg .actbadge{font:800 12px/1 var(--sans);letter-spacing:.1em;color:var(--hanjiW);
-  background:var(--steelD);border:2px solid var(--brass);padding:5px 10px}
+/* ── 네 구역 ───────────────────────────────────────────────────
+   좌(환자 · 의사 자원) · 중앙(판) · 우(차트) · 아래(손패 줄).
+   무대는 1920×1080 을 통째로 transform 으로 줄이므로 여기서는 px 로 적는다 —
+   % 로 적으면 자리마다 기준이 달라져 계기판과 배선이 어긋난다. */
 
-/* ── 카르테 ── 우측 패널 아래칸(.rbot) 안에 산다 ───────────── */
-#sg .kname{font:800 23px/1.25 var(--sans);color:var(--ink3)}
-#sg .kmeta{font:14px/1.5 var(--sans);color:var(--ink2);margin-top:3px}
-#sg .ktags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
-#sg .ktag{font:700 12.5px/1 var(--sans);border:2px solid var(--line);padding:5px 8px;color:var(--ink2)}
-#sg .ktag.hid{border-style:dashed;color:var(--mut)}
-#sg .kfield{font:14.5px/1.55 var(--sans);padding:8px 0;border-top:1px solid rgba(0,0,0,.14)}
-#sg .kfield b{display:block;font:700 11.5px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:5px}
-#sg .ai{display:block;font:600 14px/1.45 var(--sans);color:var(--ink3);
-  border-left:3px solid var(--t3);padding:3px 0 3px 8px;margin-top:5px}
-#sg .ai em{display:block;font-style:normal;font:12.5px/1.35 var(--sans);color:var(--t3);margin-top:2px}
-
-/* ── 판 ───────────────────────────────────────────────────── */
-#sg_board{position:absolute;left:1.4%;top:8%;width:78.8%;height:65%;z-index:15}
-#sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
-#sg_board.dark .gz:not(.evoing),#sg_board.dark #sg_pat{filter:brightness(.42) saturate(.6);transition:filter .4s}
-
-#sg_pat{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);width:196px;height:196px;z-index:16;
-  border-radius:50%}  /* 전역 게이지 연출(FX.pulse)이 둥글게 뛴다 */
-#sg_pat .ring{position:absolute;inset:-10px;overflow:visible}
-#sg_pat .bust{position:absolute;inset:0;border-radius:50%;overflow:hidden;
-  background:radial-gradient(circle at 42% 30%,#6a625a,#33302b 72%);
-  border:4px solid var(--steelD);box-shadow:inset 0 0 0 3px var(--steelL),0 6px 18px rgba(0,0,0,.55)}
+/* 좌 — 환자 */
+#sg_pat{position:absolute;left:40px;top:32px;width:280px;z-index:16}
+#sg_pat .lab{font:700 11px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:9px}
+#sg_pat .bust{width:280px;height:296px;background:var(--paper2);border:2px solid var(--line);
+  overflow:hidden;position:relative}
 #sg_pat .bust svg{position:absolute;inset:0;width:100%;height:100%}
-/* 작업대 style.css 의 .hp 는 체력 막대 채움이라 top:0/bottom:0 으로 늘어난다.
-   같은 이름이 여기서는 뱃지다 — 늘어나는 성질부터 되돌린다 */
-#sg_pat .hp{position:absolute;left:50%;top:auto;right:auto;bottom:-6px;width:auto;height:auto;
-  transform:translateX(-50%);z-index:3;
-  font:800 17px/1 var(--mono);color:var(--hanjiW);background:var(--steelD);
-  border:2px solid var(--steelL);padding:5px 11px;white-space:nowrap}
-#sg_pat .hp i{font-style:normal;font-size:12px;color:#E4867A;margin-left:6px}
+#sg_pat .flash{position:absolute;left:0;top:20px;width:280px;height:296px;
+  background:rgba(158,43,43,.5);opacity:0;pointer-events:none}
 #sg_pat.hurt .bust{transform:translateY(7px);transition:transform .32s}
-#sg_pat .flash{position:absolute;inset:-10px;border-radius:50%;background:rgba(158,43,43,.5);
-  opacity:0;pointer-events:none;z-index:4}
 #sg_pat.hurt .flash{animation:flh .48s ease}
-@keyframes flh{0%{opacity:.55}100%{opacity:0}}
+#sg_pat .hpnum{display:flex;align-items:baseline;gap:8px;margin-top:15px;
+  font:800 40px/1 var(--mono);color:var(--ink3)}
+#sg_pat .hpnum s{text-decoration:none;font:13px var(--sans);color:var(--ink2)}
+#sg_pat .hpnum u{text-decoration:none;margin-left:auto;font:800 18px/1 var(--sans);color:var(--red)}
+#sg_pat .hpbar{position:relative;height:26px;margin-top:9px;background:var(--paper2);
+  border:2px solid var(--steelD)}
+#sg_pat .hpbar .hf{position:absolute;left:0;top:0;bottom:0;background:var(--steelD);transition:width .35s}
+#sg_pat .hpbar .hg{position:absolute;top:0;bottom:0;
+  background:repeating-linear-gradient(45deg,var(--red) 0 4px,rgba(152,48,42,.35) 4px 8px)}
+#sg_pat .tlab{display:flex;justify-content:space-between;margin-top:6px;
+  font:700 11px/1 var(--sans);letter-spacing:.08em;color:var(--ink2)}
+#sg_mind{color:var(--ink3)}
+#sg_mind.bad{color:var(--red)} #sg_mind.ko{color:var(--anno)}
 
-#sg_mind{position:absolute;left:106%;top:50%;background:var(--steelD);border:2px solid var(--t3);
-  color:#cfe0da;padding:5px 10px;font:700 11.5px/1 var(--sans);letter-spacing:.1em;white-space:nowrap;z-index:6}
-#sg_mind.bad{border-color:var(--red);color:#E4B6AC}
-#sg_mind.ko{border-color:var(--anno);color:#E8D2AC}
+/* 좌 아래 — 의사 자원. 켤 것이 없으면 JS 가 비우고, 비면 테두리도 안 뜬다 */
+#sg_doc{position:absolute;left:40px;top:588px;width:280px;z-index:16}
+#sg_doc:not(:empty){border:2px solid var(--line);background:var(--paper2);padding:13px 15px}
+#sg_doc .lab{font:700 11px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:11px}
+#sg_doc .mrow{display:flex;align-items:baseline;gap:8px;font:700 15px/1 var(--sans);color:var(--ink3)}
+#sg_doc .mrow .mv{margin-left:auto;font:700 13px/1 var(--mono);color:var(--ink2)}
+#sg_doc .meter{display:flex;gap:4px;margin:7px 0 0}
+#sg_doc .meter i{flex:1;height:15px;border:2px solid var(--red)}
+#sg_doc .meter i.on{background:var(--red)}
+#sg_doc .meter.rm i{border-color:var(--steel)} #sg_doc .meter.rm i.on{background:var(--steel)}
+#sg_doc .meter.rm i.drain{background:repeating-linear-gradient(45deg,var(--steel) 0 3px,transparent 3px 6px)}
+#sg_doc .mnote{font:11.5px/1.45 var(--sans);color:var(--ink2);margin-top:7px}
+#sg_doc .grp+.grp{margin-top:15px}
 
-#sg_bubble{position:absolute;left:50%;top:2%;transform:translateX(-50%);z-index:40;
-  max-width:420px;padding:10px 14px;opacity:0;pointer-events:none;transition:opacity .3s}
+/* 중앙 — 판 */
+#sg_board{position:absolute;left:340px;top:32px;width:1210px;height:744px;z-index:15}
+#sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
+#sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
+
+#sg_bubble{position:absolute;left:945px;top:44px;transform:translateX(-50%);z-index:40;
+  width:330px;padding:11px 14px;opacity:0;transition:opacity .3s;pointer-events:none}
 #sg_bubble.show{opacity:1}
 #sg_bubble .who{font:700 9px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:5px}
 #sg_bubble .txt{font:600 14px/1.5 var(--sans);color:var(--ink3)}
 #sg_bubble .tail{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);
-  width:0;height:0;border:11px solid transparent;border-top-color:var(--steelD)}
+  border:7px solid transparent;border-top-color:var(--steelD)}
 
-/* 고른 자리에 대한 한 줄 — 지금 끊으면 무슨 일이 나는가 */
-/* 고른 자리 한 줄 — 자리 이름표와 손패 사이 좁은 틈에 낀다.
-   내리면 카드가 덮고 올리면 이름표를 가리므로 높이부터 줄여 놓는다 */
-#sg_actbar{position:absolute;left:50%;bottom:4.5%;transform:translateX(-50%);z-index:35;
-  padding:6px 14px;display:none;align-items:baseline;gap:12px;max-width:86%}
+#sg_actbar{position:absolute;left:945px;bottom:296px;transform:translateX(-50%);z-index:35;
+  display:none;gap:12px;align-items:baseline;padding:9px 15px;max-width:1100px}
 #sg_actbar.on{display:flex}
 #sg_actbar .n{font:800 14px/1 var(--sans);color:var(--ink3);white-space:nowrap}
 #sg_actbar .v{font:12px/1.35 var(--sans);color:var(--ink2)}
 #sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
+/* 우 — 차트 */
+#sg_chart{position:absolute;left:1580px;top:32px;width:300px;height:744px;z-index:20;
+  border:2px solid var(--line);background:var(--paper);padding:20px 18px;
+  display:flex;flex-direction:column;gap:15px;text-align:right;overflow:hidden}
+#sg_chart .sec{border-top:1px solid rgba(0,0,0,.14);padding-top:14px}
+#sg_chart .sec:first-child{border-top:0;padding-top:0}
+#sg_chart .lab{font:700 11px/1 var(--sans);letter-spacing:.14em;color:var(--ink2)}
+#sg_chart .kname{font:800 27px/1.15 var(--sans);color:var(--ink3);margin-top:6px}
+#sg_chart .kmeta{font:12.5px/1.5 var(--sans);color:var(--ink2);margin-top:7px}
+#sg_chart .big{font:800 38px/1 var(--mono);color:var(--ink3);margin-top:7px}
+#sg_chart .body{font:14px/1.55 var(--sans);color:var(--ink3);margin-top:8px}
+#sg_chart .ktags{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+#sg_chart .ktag{font:700 12px/1 var(--sans);border:1px solid var(--line);padding:4px 8px;color:var(--ink2)}
+#sg_chart .ktag.hid{border-style:dashed;color:var(--mut)}
+#sg_chart .ai{display:flex;gap:9px;align-items:baseline;justify-content:flex-end;
+  font:14px/1.5 var(--sans);color:var(--ink3);padding:4px 0}
+#sg_chart .ai em{font-style:normal;font:12px var(--sans);color:var(--t3)}
+#sg_chart .sp{flex:1}
+#sg_act{font:700 12px/1 var(--sans);letter-spacing:.1em;color:var(--t3)}
+
+/* ── 계기판 ─────────────────────────────────────────────── */
 /* ── 계기판 ───────────────────────────────────────────────── */
 #sg .gz{position:absolute;z-index:14;transform:translate(-50%,-50%);cursor:pointer;transition:filter .3s}
 #sg .gz .bezel{position:absolute;inset:0;border-radius:50%;
@@ -217,49 +227,71 @@ body.sgon{overflow:hidden}
 #sg .rigX .rignum{position:absolute;left:0;right:0;bottom:0;text-align:center;
   font:800 11px/1 var(--mono);color:#bfe0e6}
 
-/* ── 우측 패널 ────────────────────────────────────────────── */
-#sg .right{position:absolute;right:1.4%;top:8.5%;width:16.5%;height:73%;z-index:20;
-  padding:12px 13px;display:flex;flex-direction:column}
-#sg .rtop{flex:0 0 auto}
-#sg .trow{display:flex;align-items:baseline;gap:9px;font:12px var(--mono);color:var(--ink2)}
-#sg .trow .n{font:800 22px/1 var(--mono);color:var(--ink3)}
-#sg .trow .r{margin-left:auto;font:11px var(--sans)}
-#sg .pips{display:flex;gap:4px;margin:9px 0}
-#sg .pips i{flex:1;height:11px;border:2px solid var(--steel);display:block}
-#sg .pips i.on{background:var(--steel)}
-#sg .btn{margin-top:7px;border:2px solid var(--steel);background:var(--paper2);padding:9px 11px;
-  font:700 13px/1 var(--sans);color:var(--ink3);cursor:pointer;display:flex;
-  align-items:baseline;justify-content:space-between}
-#sg .btn:hover{background:#fff}
-#sg .btn.on{background:var(--steel);color:var(--hanjiW)}
-#sg .btn.off{opacity:.45;cursor:default}
-#sg .btn .c{font:700 11px var(--mono);color:var(--ink2)}
-#sg .btn.on .c{color:var(--hanji)}
-#sg .piles{display:flex;gap:6px;margin-top:9px}
-#sg .pile{flex:1;border:2px solid var(--line);padding:5px 0;text-align:center}
-#sg .pile.go{cursor:pointer}
-#sg .pile.go:hover{border-color:var(--steel);background:rgba(255,255,255,.35)}
-#sg .pile .n{font:800 15px/1 var(--mono);color:var(--ink3)}
-#sg .pile .l{font:700 9px/1 var(--sans);letter-spacing:.1em;color:var(--ink2);margin-top:3px}
-#sg .rbot{margin-top:11px;padding-top:10px;border-top:3px solid var(--steel);
-  flex:1;min-height:0;overflow:auto}
 
-/* ── 손패 ─────────────────────────────────────────────────── */
-#sg_hand{position:absolute;left:1.4%;right:18.2%;bottom:2.2%;z-index:25;
-  display:flex;gap:10px;justify-content:center;align-items:flex-end;flex-wrap:wrap}
+/* 의도 칩 — 계기판 아래.
+   이름을 icp/imk 로 따로 둔 까닭: 작업대에도 .chip · .mk · .hp 가 있고, 그중
+   .hp 는 체력 막대라 position:absolute 를 물고 있다. 무대 규칙이 position 을
+   안 적으면 그 값이 그대로 먹어서 칩이 부모 왼쪽 끝으로 튄다 — 실제로 그랬다.
+   이름을 갈라 두고 position 도 못 박는다. */
+#sg .gz .chips{position:absolute;left:50%;top:calc(103% + 62px);transform:translateX(-50%);
+  width:210%;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
+#sg .gz .icr,#sg .gz .imr{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
+#sg .gz .icp,#sg .gz .imk{position:static;pointer-events:auto;font:700 12px/1 var(--sans);
+  padding:5px 8px;border:2px solid;background:var(--paper);white-space:nowrap}
+#sg .gz .icp.dmg{color:var(--red);border-color:var(--red)}
+#sg .gz .icp.grw{color:var(--ink3);border-color:var(--line)}
+#sg .gz .icp.evl{color:var(--anno);border-color:var(--anno)}
+#sg .gz .icp.std{color:var(--steel);border-color:var(--steel)}
+#sg .gz .imk{font-size:11px;color:var(--ink2);border-color:var(--line);border-width:1px;opacity:.9}
+
+/* ── 아래 — 손패 줄 ────────────────────────────────────────── */
+#sg_handzone{position:absolute;left:0;right:0;top:792px;bottom:0;z-index:25;
+  border-top:2px solid var(--line);background:rgba(20,24,28,.06)}
+#sg_hand{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;
+  display:flex;gap:11px;align-items:flex-end}
 /* 카드 한 장은 무대 옷을 입지 않는다 — 가방에서 보던 그 카드 그대로다.
    그리는 함수도 (cardHTML) 겉모습도 (style.css 의 .card) 하나뿐이고,
    카드가 제 색을 스스로 들고 다니므로 (--cd-*) 여기서 덧입힐 것이 없다. */
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 
-#sg_end{position:absolute;right:1.4%;bottom:2.2%;z-index:26;
-  background:var(--steelD);color:var(--hanjiW);border:3px solid var(--steelL);
-  padding:15px 24px;font:800 15px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
-#sg_end:hover{border-color:var(--brass)}
-#sg_end.off{opacity:.45;cursor:default}
+#sg .res{position:absolute;left:44px;bottom:26px;display:flex;align-items:flex-end;gap:20px}
+#sg .rres{position:absolute;right:44px;bottom:26px;display:flex;align-items:flex-end;gap:20px}
+#sg .costlab{font:700 11px/1 var(--sans);letter-spacing:.12em;color:var(--ink2);margin:12px 0 6px}
+#sg .pips{display:flex;gap:6px}
+#sg .pips i{width:28px;height:46px;border:2px solid var(--steel);display:block;background:var(--paper2)}
+#sg .pips i.on{background:var(--steel)}
+#sg .btn{border:2px solid var(--steel);background:var(--paper2);padding:9px 13px;
+  font:700 14px/1 var(--sans);color:var(--ink3);cursor:pointer;
+  display:flex;align-items:baseline;gap:10px;justify-content:space-between}
+#sg .btn:hover{background:#fff}
+#sg .btn.on{background:var(--steel);color:var(--hanjiW)}
+#sg .btn.off{opacity:.45;cursor:default}
+#sg .btn .c{font:700 11px var(--mono);color:var(--ink2)}
+#sg .btn.on .c{color:var(--hanji)}
+#sg .btn.treat{width:176px;white-space:nowrap;border-color:var(--red);color:var(--red);font-size:18px}
+#sg .btn.treat .c{color:var(--red)}
+#sg .btn.treat.off{border-color:var(--line);color:var(--mut)}
+#sg .btncol{display:flex;flex-direction:column;gap:9px}
+#sg .btn.endturn{background:var(--red);color:var(--hanjiW);border-color:var(--red);
+  padding:15px 30px;font:800 20px/1 var(--sans);letter-spacing:.08em;justify-content:center}
+#sg .btn.endturn:hover{background:#a83a33}
+#sg .btn.endturn.off{opacity:.45;cursor:default}
+#sg .btn.early{justify-content:center}
 
-#sg_toast{position:absolute;left:50%;bottom:22%;transform:translateX(-50%);z-index:70;
+/* 덱 · 버림 — 종이 뭉치로 세운다 */
+#sg .stack{position:relative;width:60px;height:82px;cursor:default}
+#sg .stack.go{cursor:pointer}
+#sg .stack i{position:absolute;inset:0;background:var(--paper2);border:2px solid var(--line)}
+#sg .stack i:nth-child(1){transform:translate(5px,5px)}
+#sg .stack i:nth-child(2){transform:translate(2.5px,2.5px)}
+#sg .stack .top{position:absolute;inset:0;background:var(--paper);border:2px solid var(--steelD);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+#sg .stack.go:hover .top{border-color:var(--brass)}
+#sg .stack .top b{font:800 24px/1 var(--mono);color:var(--ink3)}
+#sg .stack .top span{font:700 10px/1 var(--sans);letter-spacing:.12em;color:var(--ink2)}
+
+#sg_toast{position:absolute;left:50%;bottom:300px;transform:translateX(-50%);z-index:70;
   background:var(--steelD);color:var(--hanjiW);border:2px solid var(--brass);padding:10px 18px;
   font:700 13px/1 var(--sans);opacity:0;pointer-events:none;transition:opacity .25s}
 #sg_toast.on{opacity:1}

@@ -84,7 +84,7 @@ function intentMap(f){
   /* 턴 공격 — 자리별 원값으로 총계를 나눠 갖는다 */
   const raws = evs.filter(e=>e.t==='atk' && e.i>=0).map(e=>({i:e.i, raw:e.raw}));
   const hit  = evs.filter(e=>e.t==='hp' && e.why==='turn').reduce((a,e)=>a+e.amt, 0);
-  for(const [i,v] of shareOut(hit, raws)) if(v>0) put(i, 'hp', `체력 −${v}`, '공격');
+  for(const [i,v] of shareOut(hit, raws)) if(v>0) put(i, 'dmg', `체력 −${v}`, '공격');
   /* 자리 하나가 낸 피해 — 진화 즉발과 점화. 커널이 출처를 붙여 준다.
      이쪽은 커널이 자리마다 따로 올림하므로 나눠 갖지 않고 그대로 적는다 */
   for(const e of evs){
@@ -93,10 +93,10 @@ function intentMap(f){
   }
   /* 성장 · 감염이 판에 얹는 총량 · 진화 */
   for(const e of evs){
-    if(e.t==='grow'  && e.amt>0) put(e.i, 'gr', `성장 +${e.amt}`, '성장');
-    if(e.t==='inf'   && e.total>0) put(e.i, 'gr', `판 +${e.total}`, '감염');
-    if(e.t==='evolve') put(e.i, 'ev', '진화한다', '진화');
-    if(e.t==='revive') put(e.i, 'gr', '깨어난다', '휴면');
+    if(e.t==='grow'  && e.amt>0) put(e.i, 'grw', `성장 +${e.amt}`, '성장');
+    if(e.t==='inf'   && e.total>0) put(e.i, 'grw', `판 +${e.total}`, '감염');
+    if(e.t==='evolve') put(e.i, 'evl', '진화한다', '진화');
+    if(e.t==='revive') put(e.i, 'grw', '깨어난다', '휴면');
   }
   return m;
 }
@@ -107,10 +107,10 @@ function intentMap(f){
 function standingChips(S, n){
   const out = [];
   if(n.muted || n.val<=0 || n.dead) return out;
-  if(n.sym==='탈수')     out.push({cls:'br', txt:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
-  if(n.sym==='통증')     out.push({cls:'br', txt:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
+  if(n.sym==='탈수')     out.push({cls:'std', txt:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
+  if(n.sym==='통증')     out.push({cls:'std', txt:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
   if(n.sym==='호흡곤란'){ const c = sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
-                         out.push({cls:'br', txt:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+                         out.push({cls:'std', txt:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
   return out;
 }
 
@@ -259,15 +259,21 @@ function stageLayout(){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const live = alive(S), CN = live.length || 1;
-  const CX=W*.5, CY=H*.19, RX=W*.35, RY=H*.40, A0=203, A1=337;
-  const SZ = Math.min(252, W*.205) * (CN>5 ? 0.78 : CN>3 ? 0.9 : 1);
-  live.forEach((n,i)=>{
-    const a = CN===1 ? 270 : A0 + (A1-A0)*i/(CN-1);
-    n.px = CX + RX*Math.cos(a*Math.PI/180);
-    n.py = CY - RY*Math.sin(a*Math.PI/180);
+  /* 가로 한 줄. 전에는 호(arc)에 앉혔는데 자리가 늘면 위아래로 벌어져
+     배선이 계기판을 넘어 다녔다. 줄로 세우면 배선이 한 레인 위로만 지난다.
+     병 노드는 줄에 끼지 않고 아래 가운데에 크게 앉는다 — 부수 증상과 격이 다르다. */
+  const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
+  const row  = alive(S).filter(n=>n!==dis);
+  const CN   = row.length || 1;
+  const SZ   = Math.min(dis ? 168 : 232, (W*0.92)/CN - 26);
+  const cy   = dis ? H*0.26 : H*0.40;
+  row.forEach((n,i)=>{
+    n.px = W*0.04 + (W*0.92)*(i+0.5)/CN;
+    n.py = cy;
     n.sz = SZ;
   });
+  /* 병 노드는 이름표와 칩이 아래로 더 나가므로 손패 줄에 안 닿게 더 올려 앉힌다 */
+  if(dis){ dis.px = W/2; dis.py = H*0.66; dis.sz = Math.min(264, W*0.24) }
   return SZ;
 }
 
@@ -277,7 +283,8 @@ function stageSync(){
   if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
   const B = stageBoard(); if(!B || !S) return;
   const SZ = stageLayout();
-  const small = SZ < 180;
+  /* 예고는 판마다 한 번만 뽑는다 — 자리마다 부르면 클론을 자리 수만큼 뜬다 */
+  const IM = intentMap(forecast());
 
   /* 죽었거나 사라진 자리를 걷는다.
      단 「지금 사라지는 중」이라 표가 붙은 것은 연출이 끝낼 때까지 둔다 —
@@ -298,7 +305,8 @@ function stageSync(){
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
       + '<div class="evc"></div><div class="atts"></div>'
-      + '<div class="info"><span class="nm2"></span><span class="hr2"></span><span class="num"></span></div>';
+      + '<div class="info"><span class="nm2"></span><span class="hr2"></span><span class="num"></span></div>'
+      + '<div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
     }
@@ -323,7 +331,17 @@ function stageSync(){
     setHTML(el.querySelector('.stg'),   stgArt(n));
     setHTML(el.querySelector('.dial'),  dialSVG(S, n));
     setHTML(el.querySelector('.dring'), diagRing(n));
-    setHTML(el.querySelector('.atts'),  attArt(n, small));
+    setHTML(el.querySelector('.atts'),  attArt(n, SZ < 180));
+
+    /* 의도 칩 — 이번 턴 끝에 이 자리가 무엇을 하는가. 값은 커널이 냈다 (무대.의도칩).
+       약화 · 지연은 이미 걸려 있는 것이라 아래 줄에 따로 붙인다 */
+    const cs = [...(IM.get(ix) || []), ...standingChips(S, n)]
+      .map(c=>`<span class="icp ${c.cls}"${tip(KWTIP[c.why] || SYMTIP[c.why] || TT(c.why, ''))}>${c.txt}</span>`);
+    const mk = [];
+    if(n.weak)    mk.push(`<span class="imk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`);
+    if(n.delayed) mk.push(`<span class="imk"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`);
+    setHTML(el.querySelector('.chips'),
+      (cs.length?`<div class="icr">${cs.join('')}</div>`:'') + (mk.length?`<div class="imr">${mk.join('')}</div>`:''));
 
     const nm = n.role==='disease' ? '병 노드' : n.sym;
     el.querySelector('.nm2').textContent = nm + (n.evolved ? ' ✦' : '');
@@ -351,25 +369,30 @@ function stageLinks(){
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
                  ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
 
-  let out = '<defs>' + ['#C8B79A','#B8776F','#4DD4C8'].map((c,i)=>
-    `<marker id="sgah${i}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">`
-    + `<path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`).join('') + '</defs>';
-
+  let out = '';
+  let lane = 0;
   for(const l of lines){
-    if(l.enh && !shown) continue;                       // 아직 안 드러난 강화형 배선
+    /* 아직 안 드러난 강화형 배선은 **한 줄도 안 그린다**.
+       점선으로라도 그리면 어느 자리끼리 걸렸는지가 새어 나간다 —
+       작업대가 「? → ?」 로 양 끝을 감추는 것과 같은 잣대다.
+       드러나는 길은 진단 1회차나 문진 「어쩌다 다치셨어요」다. */
+    if(l.enh && !shown) continue;
     const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
-    if(!A || !Bn || A.px===undefined || Bn.px===undefined) continue;
-    const x1=A.px/W*1000, y1=A.py/H*700, x2=Bn.px/W*1000, y2=Bn.py/H*700;
-    const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy); if(!L) continue;
-    const ux=dx/L, uy=dy/L, Rr=A.sz/W*1000*.52;
-    const sx=x1+ux*Rr, sy=y1+uy*Rr, ex=x2-ux*(Rr+14), ey=y2-uy*(Rr+14);
-    const ci = (l.k==='발현'||l.k==='무장발현') ? 0 : (l.k==='경화' ? 2 : 1);
-    const c = ['#C8B79A','#B8776F','#4DD4C8'][ci], w = l.k==='경화' ? 9 : 5;
-    const dash = ci===1 ? ' stroke-dasharray="9 7"' : (l.enh ? ' stroke-dasharray="3 6"' : '');
-    /* 곧게 긋고 계기판 뒤로 보낸다 (CSS 가 자리를 위에 올린다) — 배선은
-       기계 뒤로 지나가는 것이 맞고, 부풀리면 오히려 가운데 자리를 덮는다 */
-    out += `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="#14181C" stroke-width="${w+6}" stroke-linecap="round"${dash}/>`
-         + `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${dash} marker-end="url(#sgah${ci})"/>`;
+    if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
+    const sx=A.px/W*1210, ex=Bn.px/W*1210;
+    const top=(A.py - A.sz*0.56)/H*744, ly=34 + lane*26; lane++;
+    const mx=(sx+ex)/2;
+    /* 전이는 새 자리를 낳고 촉발은 있는 자리를 건드린다 — 색으로 가른다 */
+    const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
+    const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
+    out += `<g>`
+      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="7" stroke-linejoin="round"/>`
+      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="${c}" stroke-width="3"${dash} stroke-linejoin="round"/>`
+      + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
+      + `<circle cx="${mx}" cy="${ly}" r="13" fill="#14181C" stroke="${c}" stroke-width="2"/>`
+      + `<text x="${mx}" y="${ly+4.5}" text-anchor="middle" font-family="var(--sans)" font-size="11"`
+      + ` font-weight="700" fill="${c}">${l.k[0]}</text>`
+      + `</g>`;
   }
   setHTML($('sg_links'), out);
 }

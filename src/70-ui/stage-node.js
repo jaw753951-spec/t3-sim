@@ -156,17 +156,34 @@ function stgArt(n){
      우상  파이     진화 시계 — 진단 1회차 전에는 파이 대신 물음표다
      우하  상자     설치물 — 칸이 부품, 아래 숫자가 턴 끝에 깎는 값
 
-   좌표계는 계기보다 넓다 (.atts 가 inset:-19%). 200 안에서 계기는 반지름 73 이고
-   배지는 88 에 앉으므로 테 밖으로 나온다. */
+   ── 좌표계 ──
+   배지는 자리가 커져도 화면에서 같은 크기여야 한다. 병 노드(330px)는 부수
+   증상(176px)의 1.9배라, 눈금을 200 으로 못 박아 두면 배지도 1.9배로 커지고
+   테에서 127px 밖까지 밀려나 계기와 따로 노는 물건이 된다 — 실제로 그랬다.
+   3/5 에서 병 노드를 키운 순간 생긴 일이다.
+
+   그래서 눈금을 자리 크기에 맞춰 늘인다. .atts 는 계기보다 30% 넓으므로
+   (inset:-30%) 폭이 sz×1.6 px 다. 176px 자리에서의 눈금(1단위 = 1.408px)을
+   기준으로 삼으면 viewBox = sz×1.6/1.408 = sz×1.136 이고, 그러면 배지 안의
+   치수(관 15×36 · 방패 32×34 · 원 r17 · 글자 13)가 전부 화면에서 고정된다.
+   테는 중심에서 sz/2 px = sz/2.816 단위, 배지는 그보다 41.2 단위(=58px) 밖.
+
+   viewBox 는 stageSync 가 .atts 에 박는다 — 여기서 낸 V 와 갈리면 배지가
+   엉뚱한 데 앉으므로 같은 식을 두 곳에 적지 않고 attsBox() 하나만 쓴다. */
 //@ 무대.배지 — 진단 · 보호막 · 진화 · 설치물
-function badgeSVG(S, n){
-  const C=100, RB=104, rad=a=>a*Math.PI/180;   // 계기 테(≈77) 밖에 앉는다
+const attsBox = sz => sz*1.136;
+/* 크기는 부르는 쪽(stageSync)이 넘긴다. 여기서 n.sz 를 다시 읽으면 폴백이 갈려
+   (저쪽은 n.sz||SZ, 이쪽은 n.sz||176) viewBox 와 배지 좌표가 다른 값에서 나온다 */
+function badgeSVG(S, n, sz){
+  const V = attsBox(sz);
+  const C = V/2, RB = sz/2.816 + 41.2, rad=a=>a*Math.PI/180;
   const P=(a,r)=>[C+Math.cos(rad(a))*r, C+Math.sin(rad(a))*r];
-  const imm = immune(S,n);
   let s='';
 
-  /* 좌하 — 진단 시약관 */
-  if(n.role!=='disease' || !imm || true){
+  /* 좌하 — 진단 시약관. 자리를 안 가린다 — 1막의 병 노드는 억제도 처치도 안 받지만
+     진단과 재진은 통하므로, 무적인 그 자리야말로 이 관이 유일하게 할 말이 있다.
+     한때 병 노드를 빼려고 조건을 달았다가 늘 참인 채로 남아 있었다 */
+  {
     const [gx,gy]=P(143,RB), tw=15, th=36, tx=gx-tw/2, ty=gy-13;
     const need=Math.max(1,n.diagNeed||R.DIAG_NEED), cur=Math.min(n.diagAcc||0,need);
     const f=cur/need, ih=th-3.4, left=Math.max(0,Math.ceil(need-cur));
@@ -475,7 +492,11 @@ function stageSync(){
        것이 그리기 비용의 절반이었다 — 문자열이 같으면 손대지 않는다 */
     setHTML(el.querySelector('.stg'),   stgArt(n));
     setHTML(el.querySelector('.dial'),  dialSVG(S, n));
-    setHTML(el.querySelector('.atts'),  badgeSVG(S, n));
+    /* 눈금은 자리 크기를 따른다 (무대.배지의 좌표계). 값이 같으면 손대지
+       않는다 — 속성을 다시 박으면 브라우저가 SVG 배치를 다시 잰다 */
+    const atts = el.querySelector('.atts'), vb = `0 0 ${attsBox(sz)} ${attsBox(sz)}`;
+    if(atts.getAttribute('viewBox') !== vb) atts.setAttribute('viewBox', vb);
+    setHTML(atts, badgeSVG(S, n, sz));
 
     /* 의도 칩 — 이번 턴 끝에 이 자리가 무엇을 하는가. 값은 커널이 냈다 (무대.의도칩).
        약화 · 지연은 이미 걸려 있는 것이라 아래 줄에 따로 붙인다 */

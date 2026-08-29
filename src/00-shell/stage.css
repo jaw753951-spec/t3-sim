@@ -39,7 +39,9 @@ body.sgon{overflow:hidden}
 #sg button{width:auto;margin:0;text-align:center;letter-spacing:0}
 
 /* ── 나가기 ── */
-#sg_exit{position:absolute;right:1.4%;top:1.6%;z-index:60;
+/* 「작업대로」는 왼쪽 위다. 오른쪽 위에 두었더니 차트(1580~1880 · 32~)와
+   17~49 구간에서 겹쳤다 — 되돌아가는 손잡이라 왼쪽 위가 제자리이기도 하다 */
+#sg_exit{position:absolute;left:40px;top:22px;z-index:60;
   background:var(--steelD);color:var(--hanjiW);border:2px solid var(--steelL);
   padding:8px 14px;font:700 12px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
 #sg_exit:hover{background:var(--steel);border-color:var(--brass)}
@@ -50,12 +52,12 @@ body.sgon{overflow:hidden}
    % 로 적으면 자리마다 기준이 달라져 계기판과 배선이 어긋난다. */
 
 /* 좌 — 환자 */
-#sg_pat{position:absolute;left:40px;top:32px;width:280px;z-index:16}
+#sg_pat{position:absolute;left:40px;top:74px;width:280px;z-index:16}
 #sg_pat .lab{font:700 14px/1 var(--sans);letter-spacing:.18em;color:var(--ink3);margin-bottom:10px}
 #sg_pat .bust{width:280px;height:296px;background:var(--paper2);border:2px solid var(--line);
   overflow:hidden;position:relative}
 #sg_pat .bust svg{position:absolute;inset:0;width:100%;height:100%}
-#sg_pat .flash{position:absolute;left:0;top:20px;width:280px;height:296px;
+#sg_pat .flash{position:absolute;left:0;top:24px;width:280px;height:296px;
   background:rgba(158,43,43,.5);opacity:0;pointer-events:none}
 #sg_pat.hurt .bust{transform:translateY(7px);transition:transform .32s}
 #sg_pat.hurt .flash{animation:flh .48s ease}
@@ -63,7 +65,7 @@ body.sgon{overflow:hidden}
   font:800 52px/1 var(--mono);color:var(--ink3);text-shadow:0 2px 0 rgba(255,255,255,.5)}
 #sg_pat .hpnum s{text-decoration:none;font:700 17px var(--sans);color:var(--ink2)}
 /* 「턴 끝 −N」은 줄을 따로 쓴다 — 큰 숫자 옆에 붙이면 서로 갉아먹는다 */
-#sg_pat .hpnum u{text-decoration:none;flex:0 0 100%;margin-top:7px;
+#sg_pat .hpnum u{text-decoration:none;flex:0 0 100%;margin-top:7px;text-shadow:none;
   font:800 20px/1 var(--sans);color:var(--red);letter-spacing:.02em}
 #sg_pat .hpbar{position:relative;height:34px;margin-top:11px;background:var(--paper2);
   border:3px solid var(--steelD)}
@@ -76,7 +78,7 @@ body.sgon{overflow:hidden}
 #sg_mind.bad{color:var(--red)} #sg_mind.ko{color:var(--anno)}
 
 /* 좌 아래 — 의사 자원. 켤 것이 없으면 JS 가 비우고, 비면 테두리도 안 뜬다 */
-#sg_doc{position:absolute;left:40px;top:588px;width:280px;z-index:16}
+#sg_doc{position:absolute;left:40px;bottom:342px;width:280px;z-index:16}
 #sg_doc:not(:empty){border:2px solid var(--line);background:var(--paper2);padding:13px 15px}
 #sg_doc .lab{font:700 11px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:11px}
 #sg_doc .mrow{display:flex;align-items:baseline;gap:8px;font:700 15px/1 var(--sans);color:var(--ink3)}
@@ -90,7 +92,12 @@ body.sgon{overflow:hidden}
 #sg_doc .grp+.grp{margin-top:15px}
 
 /* 중앙 — 판 */
-#sg_board{position:absolute;left:340px;top:32px;width:1210px;height:744px;z-index:15}
+/* 높이 728 은 손패 줄에서 거꾸로 잡은 값이다 — 카드 한 장이 293px 이고
+   줄이 760 에서 시작하므로 판은 그 위에서 끝나야 한다. 744 였을 때 카드가
+   줄 위로 27px 삐져나와 판을 덮었다.
+   #sg_links 의 viewBox 는 744 로 두고 preserveAspectRatio="none" 로 늘린다 —
+   stageLinks 가 py/H*744 로 옮기므로 H 가 얼마든 자리는 맞는다 */
+#sg_board{position:absolute;left:340px;top:32px;width:1210px;height:728px;z-index:15}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
@@ -110,7 +117,7 @@ body.sgon{overflow:hidden}
 #sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
 /* 우 — 차트 */
-#sg_chart{position:absolute;left:1580px;top:32px;width:300px;height:744px;z-index:20;
+#sg_chart{position:absolute;left:1580px;top:32px;width:300px;height:728px;z-index:20;
   border:2px solid var(--line);background:var(--paper);padding:20px 18px;
   display:flex;flex-direction:column;gap:15px;text-align:right;overflow:hidden}
 #sg_chart .sec{border-top:1px solid rgba(0,0,0,.14);padding-top:14px}
@@ -126,7 +133,14 @@ body.sgon{overflow:hidden}
 #sg_chart .ai{display:flex;gap:9px;align-items:baseline;justify-content:flex-end;
   font:14px/1.5 var(--sans);color:var(--ink3);padding:4px 0}
 #sg_chart .ai em{font-style:normal;font:12px var(--sans);color:var(--t3)}
-#sg_chart .sp{flex:1}
+/* 채움쇠를 두어 「문진에서 얻은 것」을 바닥으로 밀던 자리다. 걷었다 —
+   차트에 적을 것이 적은 판(단판 · 스토리)에서는 한 줄만 바닥에 외따로
+   떨어지고 가운데가 400px 비어 더 흉했다. 위에서부터 흘리고 남는 종이는
+   아래에 둔다.
+   되살릴 거면 이름을 .sp 로 하지 않는다 — 연출의 #sg .sp{position:absolute}
+   와 특이도가 같아서 뒤에 적힌 연출 쪽이 이기고 flex:1 이 죽는다. .hp 때와
+   같은 함정이다: #sg 로 가두는 것은 바깥 규칙만 막지, 안에서 이름이 겹치는
+   것은 못 막는다. */
 #sg_act{font:700 12px/1 var(--sans);letter-spacing:.1em;color:var(--t3)}
 
 /* ── 계기판 ─────────────────────────────────────────────── */
@@ -245,9 +259,9 @@ body.sgon{overflow:hidden}
 #sg .gz .imk{font-size:11px;color:var(--ink2);border-color:var(--line);border-width:1px;opacity:.9}
 
 /* ── 아래 — 손패 줄 ────────────────────────────────────────── */
-#sg_handzone{position:absolute;left:0;right:0;top:792px;bottom:0;z-index:25;
+#sg_handzone{position:absolute;left:0;right:0;top:760px;bottom:0;z-index:25;
   border-top:2px solid var(--line);background:rgba(20,24,28,.06)}
-#sg_hand{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;
+#sg_hand{position:absolute;left:50%;transform:translateX(-50%);bottom:20px;
   display:flex;gap:11px;align-items:flex-end}
 /* 카드 한 장은 무대 옷을 입지 않는다 — 가방에서 보던 그 카드 그대로다.
    그리는 함수도 (cardHTML) 겉모습도 (style.css 의 .card) 하나뿐이고,
@@ -255,8 +269,8 @@ body.sgon{overflow:hidden}
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 
-#sg .res{position:absolute;left:44px;bottom:26px;display:flex;align-items:flex-end;gap:20px}
-#sg .rres{position:absolute;right:44px;bottom:26px;display:flex;align-items:flex-end;gap:20px}
+#sg .res{position:absolute;left:44px;bottom:20px;display:flex;align-items:flex-end;gap:20px}
+#sg .rres{position:absolute;right:44px;bottom:20px;display:flex;align-items:flex-end;gap:20px}
 #sg .costlab{font:700 13px/1 var(--sans);letter-spacing:.12em;color:var(--ink2);margin:13px 0 7px}
 #sg .pips{display:flex;gap:7px}
 #sg .pips i{width:38px;height:60px;border:3px solid var(--steel);display:block;background:var(--paper2)}

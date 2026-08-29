@@ -357,17 +357,17 @@ body.sgon{overflow:hidden}
 
 #sg button{width:auto;margin:0;text-align:center;letter-spacing:0}
 
-#sg_exit{position:absolute;right:1.4%;top:1.6%;z-index:60;
+#sg_exit{position:absolute;left:40px;top:22px;z-index:60;
   background:var(--steelD);color:var(--hanjiW);border:2px solid var(--steelL);
   padding:8px 14px;font:700 12px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
 #sg_exit:hover{background:var(--steel);border-color:var(--brass)}
 
-#sg_pat{position:absolute;left:40px;top:32px;width:280px;z-index:16}
+#sg_pat{position:absolute;left:40px;top:74px;width:280px;z-index:16}
 #sg_pat .lab{font:700 14px/1 var(--sans);letter-spacing:.18em;color:var(--ink3);margin-bottom:10px}
 #sg_pat .bust{width:280px;height:296px;background:var(--paper2);border:2px solid var(--line);
   overflow:hidden;position:relative}
 #sg_pat .bust svg{position:absolute;inset:0;width:100%;height:100%}
-#sg_pat .flash{position:absolute;left:0;top:20px;width:280px;height:296px;
+#sg_pat .flash{position:absolute;left:0;top:24px;width:280px;height:296px;
   background:rgba(158,43,43,.5);opacity:0;pointer-events:none}
 #sg_pat.hurt .bust{transform:translateY(7px);transition:transform .32s}
 #sg_pat.hurt .flash{animation:flh .48s ease}
@@ -375,7 +375,7 @@ body.sgon{overflow:hidden}
   font:800 52px/1 var(--mono);color:var(--ink3);text-shadow:0 2px 0 rgba(255,255,255,.5)}
 #sg_pat .hpnum s{text-decoration:none;font:700 17px var(--sans);color:var(--ink2)}
 
-#sg_pat .hpnum u{text-decoration:none;flex:0 0 100%;margin-top:7px;
+#sg_pat .hpnum u{text-decoration:none;flex:0 0 100%;margin-top:7px;text-shadow:none;
   font:800 20px/1 var(--sans);color:var(--red);letter-spacing:.02em}
 #sg_pat .hpbar{position:relative;height:34px;margin-top:11px;background:var(--paper2);
   border:3px solid var(--steelD)}
@@ -387,7 +387,7 @@ body.sgon{overflow:hidden}
 #sg_mind{color:var(--ink3)}
 #sg_mind.bad{color:var(--red)} #sg_mind.ko{color:var(--anno)}
 
-#sg_doc{position:absolute;left:40px;top:588px;width:280px;z-index:16}
+#sg_doc{position:absolute;left:40px;bottom:342px;width:280px;z-index:16}
 #sg_doc:not(:empty){border:2px solid var(--line);background:var(--paper2);padding:13px 15px}
 #sg_doc .lab{font:700 11px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:11px}
 #sg_doc .mrow{display:flex;align-items:baseline;gap:8px;font:700 15px/1 var(--sans);color:var(--ink3)}
@@ -400,7 +400,7 @@ body.sgon{overflow:hidden}
 #sg_doc .mnote{font:11.5px/1.45 var(--sans);color:var(--ink2);margin-top:7px}
 #sg_doc .grp+.grp{margin-top:15px}
 
-#sg_board{position:absolute;left:340px;top:32px;width:1210px;height:744px;z-index:15}
+#sg_board{position:absolute;left:340px;top:32px;width:1210px;height:728px;z-index:15}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
@@ -419,7 +419,7 @@ body.sgon{overflow:hidden}
 #sg_actbar .v{font:12px/1.35 var(--sans);color:var(--ink2)}
 #sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
-#sg_chart{position:absolute;left:1580px;top:32px;width:300px;height:744px;z-index:20;
+#sg_chart{position:absolute;left:1580px;top:32px;width:300px;height:728px;z-index:20;
   border:2px solid var(--line);background:var(--paper);padding:20px 18px;
   display:flex;flex-direction:column;gap:15px;text-align:right;overflow:hidden}
 #sg_chart .sec{border-top:1px solid rgba(0,0,0,.14);padding-top:14px}
@@ -435,7 +435,7 @@ body.sgon{overflow:hidden}
 #sg_chart .ai{display:flex;gap:9px;align-items:baseline;justify-content:flex-end;
   font:14px/1.5 var(--sans);color:var(--ink3);padding:4px 0}
 #sg_chart .ai em{font-style:normal;font:12px var(--sans);color:var(--t3)}
-#sg_chart .sp{flex:1}
+
 #sg_act{font:700 12px/1 var(--sans);letter-spacing:.1em;color:var(--t3)}
 
 #sg .gz{position:absolute;z-index:14;transform:translate(-50%,-50%);cursor:pointer;transition:filter .3s}
@@ -539,16 +539,16 @@ body.sgon{overflow:hidden}
 #sg .gz .icp.std{color:var(--steel);border-color:var(--steel)}
 #sg .gz .imk{font-size:11px;color:var(--ink2);border-color:var(--line);border-width:1px;opacity:.9}
 
-#sg_handzone{position:absolute;left:0;right:0;top:792px;bottom:0;z-index:25;
+#sg_handzone{position:absolute;left:0;right:0;top:760px;bottom:0;z-index:25;
   border-top:2px solid var(--line);background:rgba(20,24,28,.06)}
-#sg_hand{position:absolute;left:50%;transform:translateX(-50%);bottom:22px;
+#sg_hand{position:absolute;left:50%;transform:translateX(-50%);bottom:20px;
   display:flex;gap:11px;align-items:flex-end}
 
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 
-#sg .res{position:absolute;left:44px;bottom:26px;display:flex;align-items:flex-end;gap:20px}
-#sg .rres{position:absolute;right:44px;bottom:26px;display:flex;align-items:flex-end;gap:20px}
+#sg .res{position:absolute;left:44px;bottom:20px;display:flex;align-items:flex-end;gap:20px}
+#sg .rres{position:absolute;right:44px;bottom:20px;display:flex;align-items:flex-end;gap:20px}
 #sg .costlab{font:700 13px/1 var(--sans);letter-spacing:.12em;color:var(--ink2);margin:13px 0 7px}
 #sg .pips{display:flex;gap:7px}
 #sg .pips i{width:38px;height:60px;border:3px solid var(--steel);display:block;background:var(--paper2)}
@@ -5461,7 +5461,7 @@ const FXE = {
     await fxWait(360);
   },
   async gauge(id, text, up){
-    const g = $(id); if(!g) return;
+    const g = (typeof id === 'string') ? $(id) : id; if(!g) return;
     FX.pulse(g, up ? 'var(--t3b)' : 'var(--anno)');
     if(text) FX.float(g, text, up?'up':'dn');
     await fxWait(360);
@@ -5605,13 +5605,14 @@ function stgArt(n){
 }
 
 //@ 무대.배지 — 진단 · 보호막 · 진화 · 설치물
-function badgeSVG(S, n){
-  const C=100, RB=104, rad=a=>a*Math.PI/180;   // 계기 테(≈77) 밖에 앉는다
+const attsBox = sz => sz*1.136;
+function badgeSVG(S, n, sz){
+  const V = attsBox(sz);
+  const C = V/2, RB = sz/2.816 + 41.2, rad=a=>a*Math.PI/180;
   const P=(a,r)=>[C+Math.cos(rad(a))*r, C+Math.sin(rad(a))*r];
-  const imm = immune(S,n);
   let s='';
 
-  if(n.role!=='disease' || !imm || true){
+  {
     const [gx,gy]=P(143,RB), tw=15, th=36, tx=gx-tw/2, ty=gy-13;
     const need=Math.max(1,n.diagNeed||R.DIAG_NEED), cur=Math.min(n.diagAcc||0,need);
     const f=cur/need, ih=th-3.4, left=Math.max(0,Math.ceil(need-cur));
@@ -5855,7 +5856,9 @@ function stageSync(){
 
     setHTML(el.querySelector('.stg'),   stgArt(n));
     setHTML(el.querySelector('.dial'),  dialSVG(S, n));
-    setHTML(el.querySelector('.atts'),  badgeSVG(S, n));
+    const atts = el.querySelector('.atts'), vb = `0 0 ${attsBox(sz)} ${attsBox(sz)}`;
+    if(atts.getAttribute('viewBox') !== vb) atts.setAttribute('viewBox', vb);
+    setHTML(atts, badgeSVG(S, n, sz));
 
     const cs = [...(IM.get(ix) || []), ...standingChips(S, n)]
       .map(c=>`<span class="icp ${c.cls}"${tip(KWTIP[c.why] || SYMTIP[c.why] || TT(c.why, ''))}>${c.txt}</span>`);
@@ -6010,8 +6013,6 @@ function stageChart(){
     rows.push(`<div class="sec"><div class="lab">병 노드</div>
       <div class="body"${tip(policyTip(S.policy))}>${winNote(S)}</div></div>`);
   }
-
-  rows.push('<div class="sp"></div>');
 
   const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
   rows.push(`<div class="sec"><div class="lab">문진에서 얻은 것</div>`
@@ -6330,10 +6331,11 @@ function fxPlanLog(log, before, plan){
     sayEmit(worse?'mind':'mindUp', {key:cur.mind});
   }
 
-  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>before.rush));
-  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush));
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
   if(cur.stage !== before.stage){
-    fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
+    const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
+    fxq(()=>FXE.gauge((dz && stageEl(dz)) || 'sg_chart', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
   if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));

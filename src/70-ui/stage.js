@@ -135,8 +135,6 @@ function stageChart(){
       <div class="body"${tip(policyTip(S.policy))}>${winNote(S)}</div></div>`);
   }
 
-  rows.push('<div class="sp"></div>');
-
   const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
   rows.push(`<div class="sec"><div class="lab">문진에서 얻은 것</div>`
     + (asked.length
@@ -503,10 +501,15 @@ function fxPlanLog(log, before, plan){
   }
 
   /* 전역 게이지 — 사건이 여러 번 왔어도 결과 한 번만 알린다 */
-  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>before.rush));
-  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
+  /* 숫자는 그 값이 실제로 적혀 있는 칸 위에 뜬다. 넷 다 sg_pat 을 가리키고
+     있었는데, 그때는 sg_pat 이 위쪽 머리띠라 기세 · 관해 · 병기가 다 거기
+     있었다. 네 구역으로 가르면서 기세 · 관해는 의사 패널로, 병기는 병 노드
+     계기의 배지로 옮겨 갔다 — 가리키는 곳도 같이 옮긴다 */
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush));
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
   if(cur.stage !== before.stage){
-    fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
+    const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
+    fxq(()=>FXE.gauge((dz && stageEl(dz)) || 'sg_chart', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
   if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));

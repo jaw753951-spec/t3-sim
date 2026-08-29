@@ -258,7 +258,9 @@ const FXE = {
   },
   /* 전역 게이지 — 기세 · 관해 · 병기 */
   async gauge(id, text, up){
-    const g = $(id); if(!g) return;
+    /* 칸 이름으로도, 그 칸으로도 부를 수 있다 — 병기는 병 노드 계기 위에 떠야
+       하는데 그 계기에는 id 가 없다 (자리 번호로 세는 물건이다) */
+    const g = (typeof id === 'string') ? $(id) : id; if(!g) return;
     FX.pulse(g, up ? 'var(--t3b)' : 'var(--anno)');
     if(text) FX.float(g, text, up?'up':'dn');
     await fxWait(360);

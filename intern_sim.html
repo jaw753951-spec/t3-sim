@@ -458,15 +458,6 @@ body.sgon{overflow:hidden}
   background:linear-gradient(133deg,rgba(255,255,255,.44) 5%,rgba(255,255,255,.06) 32% 60%,rgba(255,255,255,.2) 88%)}
 #sg .gz.noshield .glass{opacity:0}
 
-#sg .gz .info{position:absolute;top:103%;left:50%;transform:translateX(-50%);z-index:8;
-  background:var(--steelD);border:2px solid var(--steelL);padding:5px 12px 6px;
-  min-width:118px;text-align:center;white-space:nowrap}
-#sg .gz .info .nm2{display:block;font:800 18px/1.1 var(--sans);color:var(--hanjiW);letter-spacing:.04em}
-#sg .gz .info .hr2{display:block;height:1px;background:#5e5648;margin:5px 0 4px}
-#sg .gz .info .num{display:block;font:800 20px/1 var(--mono);color:var(--hanjiW)}
-#sg .gz .info .num s{text-decoration:none;color:#b0a894;margin:0 4px}
-#sg .gz .info .num u{text-decoration:none;color:#E4867A}
-
 #sg .gz .atts{position:absolute;inset:-30%;z-index:7;overflow:visible;pointer-events:none}
 #sg .gz .atts g{pointer-events:auto;cursor:pointer}
 
@@ -488,7 +479,6 @@ body.sgon{overflow:hidden}
 
 #sg .gz.dis .bezel{background:conic-gradient(from 215deg,#141414,#3a3a3c 18%,#1c1c1e 45%,#2e2e30 70%,#141414)}
 #sg .gz.dis .face{background:radial-gradient(circle at 40% 32%,#b9ac93,#8e8272 70%,#5f574a)}
-#sg .gz.dis .info{border-color:#6a6a68}
 #sg .gz.imm .bezel{box-shadow:0 0 0 3px #6a6a68,0 6px 15px rgba(0,0,0,.65)}
 #sg .gz.imm .face{filter:grayscale(.6) brightness(.86)}
 
@@ -538,7 +528,7 @@ body.sgon{overflow:hidden}
 #sg .rigX .rignum{position:absolute;left:0;right:0;bottom:0;text-align:center;
   font:800 11px/1 var(--mono);color:#bfe0e6}
 
-#sg .gz .chips{position:absolute;left:50%;top:calc(103% + 62px);transform:translateX(-50%);
+#sg .gz .chips{position:absolute;left:50%;top:102%;transform:translateX(-50%);
   width:210%;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
 #sg .gz .icr,#sg .gz .imr{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
 #sg .gz .icp,#sg .gz .imk{position:static;pointer-events:auto;font:700 12px/1 var(--sans);
@@ -5756,6 +5746,32 @@ function dialSVG(S, n){
   s += `<polygon points="${tx},${ty} ${c+px*w0},${piv+py*w0} ${lx+px*w0*0.8},${ly+py*w0*0.8} `
      + `${lx-px*w0*0.8},${ly-py*w0*0.8} ${c-px*w0},${piv-py*w0}" fill="#1f1815"/>`;
   s += `<circle cx="${c}" cy="${piv}" r="7" fill="#1f1815"/>`;
+
+  const ix = S.nodes.indexOf(n);
+  const isCore = !(MODE==='sess' && !S.coreShown) && !!BOARD && n.sym===BOARD.core;
+
+  const cur = String(n.val), kl2 = imm ? '—' : String(killLine(S,n));
+  const pw = cur.length*14.4 + 20 + kl2.length*10.2 + 12, phw = pw/2;
+  s += `<rect x="${(c-phw).toFixed(1)}" y="133" width="${pw.toFixed(1)}" height="24" rx="2"`
+     + ` fill="#f0e6d2" opacity=".93" stroke="rgba(58,53,48,.3)" stroke-width="1"/>`
+     + `<text x="${c}" y="153" text-anchor="middle" font-family="ui-monospace,monospace">`
+     + `<tspan font-size="24" font-weight="800" fill="#2A2622">${cur}</tspan>`
+     + `<tspan font-size="14" fill="rgba(58,53,48,.42)"> │ </tspan>`
+     + `<tspan font-size="17" font-weight="800" fill="#98302A">${kl2}</tspan></text>`;
+
+  {
+    const rn = 88, HA = 32, rad = d => Math.PI*d/180;
+    const nm = (n.role==='disease' ? '병 노드' : n.sym) + (n.evolved ? ' ✦' : '');
+    const ls = isCore ? 4.5 : 3;
+    const fs = Math.max(13, Math.min(isCore ? 24 : 20, 2*rad(HA)*rn/nm.length - ls));
+    const [ax0,ay0] = [c+rn*Math.cos(rad(145)), c+rn*Math.sin(rad(145))];
+    const [ax1,ay1] = [c+rn*Math.cos(rad(35)),  c+rn*Math.sin(rad(35))];
+    s += `<defs><path id="sgnm${ix}" d="M${ax0.toFixed(1)} ${ay0.toFixed(1)} `
+       + `A${rn} ${rn} 0 0 0 ${ax1.toFixed(1)} ${ay1.toFixed(1)}"/></defs>`
+       + `<text font-family="var(--sans)" font-size="${fs.toFixed(1)}" font-weight="800"`
+       + ` letter-spacing="${ls}" fill="${isCore?'#98302A':'rgba(58,53,48,.62)'}">`
+       + `<textPath href="#sgnm${ix}" startOffset="50%" text-anchor="middle">${esc(nm)}</textPath></text>`;
+  }
   return s;
 }
 
@@ -5816,7 +5832,6 @@ function stageSync(){
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
       + '<div class="evc"></div><svg class="atts" viewBox="0 0 200 200"></svg>'
-      + '<div class="info"><span class="nm2"></span><span class="hr2"></span><span class="num"></span></div>'
       + '<div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
@@ -5849,11 +5864,6 @@ function stageSync(){
     if(n.delayed) mk.push(`<span class="imk"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`);
     setHTML(el.querySelector('.chips'),
       (cs.length?`<div class="icr">${cs.join('')}</div>`:'') + (mk.length?`<div class="imr">${mk.join('')}</div>`:''));
-
-    const nm = n.role==='disease' ? '병 노드' : n.sym;
-    el.querySelector('.nm2').textContent = nm + (n.evolved ? ' ✦' : '');
-    el.querySelector('.num').innerHTML =
-      `${n.val}<s>│</s><u>${imm ? '—' : killLine(S,n)}</u>`;
 
     const ev = el.querySelector('.evc');
     if(n.role==='disease'){ ev.textContent = n.stage; ev.className = 'evc stg2' }
@@ -6392,7 +6402,7 @@ function stageOvHideAll(){
 }
 function stageOvShow(id){
   stageOvHideAll();
-  if(STAGE_ON && S) stageHud();
+  if(STAGE_ON && S) stageRender();
   const e=$(id); if(e) e.classList.add('on');
 }
 

@@ -17,6 +17,8 @@
      유리      보호막. 두께 두 가지 (경감 30% · 50%)
      서리      성장 정지 · 지연
      문자판 그림  증상마다 다른 얼룩 · 안개 · 균열
+     아래 호   증상 이름. 핵심 증상은 주묵으로 한 치수 크다 (외래에서는 문진 뒤)
+     수치판    지금 수치 │ 처치선. 문자판에 파낸 창이다
 
    자리를 무엇으로 세는가 — S.nodes 의 자리 번호다. 증상 이름이 아니다.
    판에 같은 이름이 둘 날 수 있고, 이름은 병 노드에서 병명으로 바뀐다.
@@ -311,6 +313,68 @@ function dialSVG(S, n){
   s += `<polygon points="${tx},${ty} ${c+px*w0},${piv+py*w0} ${lx+px*w0*0.8},${ly+py*w0*0.8} `
      + `${lx-px*w0*0.8},${ly-py*w0*0.8} ${c-px*w0},${piv-py*w0}" fill="#1f1815"/>`;
   s += `<circle cx="${c}" cy="${piv}" r="7" fill="#1f1815"/>`;
+
+  /* ── 이름 ── 아래 호를 따라 새긴다 ────────────────────────
+     전에는 계기 밑에 검은 이름표 상자(.info)가 따로 달려 있었다. 상자가 62px 를
+     먹어서 의도 칩이 그만큼 더 내려갔고, 자리가 여섯이면 상자끼리 붙었다.
+     얼굴 안으로 들이면 줄이 그만큼 촘촘해진다 — 눈금이 비워 둔 아래 110°가
+     원래 계기의 명찰 자리다.
+
+     핵심 증상은 주묵으로 한 치수 커진다. 그런데 「무엇이 핵심인가」는 외래에서
+     문진 「어떻게 아프십니까」가 파는 물건이다. 그래서 체력 태그와 같은 잣대로
+     가린다 (MODE==='sess' && !S.coreShown) — 안 그러면 계기가 문진을 공짜로
+     흘리고, 그 칸을 사는 이유가 없어진다. 스토리는 병 노드가 곧 핵심(core:'병')
+     이라 감출 것이 없고, 단판은 문진 자체가 없다. */
+  const ix = S.nodes.indexOf(n);
+  const isCore = !(MODE==='sess' && !S.coreShown) && !!BOARD && n.sym===BOARD.core;
+
+  /* ── 수치판 ── 문자판에 파낸 창. 지금 수치 │ 처치선 ────────
+     바늘보다 뒤에 깔지 않는다. 바늘 꼬리는 수치가 절반쯤일 때 y≈142 까지
+     내려오므로 뒤에 두면 숫자를 가로지른다. 창이 꼬리 끝을 조금 덮는 편이
+     읽기도 낫고 계기답다. 창 위쪽(y=133)은 바늘 축(126+7)에 딱 붙인다.
+     처치선이 주묵인 것은 다이얼의 붉은 눈금과 같은 값을 말하기 때문이다 —
+     색이 갈리면 둘이 다른 것처럼 보인다. */
+  const cur = String(n.val), kl2 = imm ? '—' : String(killLine(S,n));
+  const pw = cur.length*14.4 + 20 + kl2.length*10.2 + 12, phw = pw/2;
+  s += `<rect x="${(c-phw).toFixed(1)}" y="133" width="${pw.toFixed(1)}" height="24" rx="2"`
+     + ` fill="#f0e6d2" opacity=".93" stroke="rgba(58,53,48,.3)" stroke-width="1"/>`
+     + `<text x="${c}" y="153" text-anchor="middle" font-family="ui-monospace,monospace">`
+     + `<tspan font-size="24" font-weight="800" fill="#2A2622">${cur}</tspan>`
+     + `<tspan font-size="14" fill="rgba(58,53,48,.42)"> │ </tspan>`
+     + `<tspan font-size="17" font-weight="800" fill="#98302A">${kl2}</tspan></text>`;
+
+  /* ── 이름 ── 아래 호를 따라 새긴다 ────────────────────────
+     전에는 계기 밑에 검은 이름표 상자(.info)가 따로 달려 있었다. 상자가 62px 를
+     먹어서 의도 칩이 그만큼 더 내려갔고, 자리가 여섯이면 상자끼리 붙었다.
+     얼굴 안으로 들이면 줄이 그만큼 촘촘해진다 — 눈금이 비워 둔 아래 110°가
+     원래 계기의 명찰 자리다.
+
+     핵심 증상은 주묵으로 한 치수 커진다. 그런데 「무엇이 핵심인가」는 외래에서
+     문진 「어떻게 아프십니까」가 파는 물건이다. 그래서 체력 태그와 같은 잣대로
+     가린다 (MODE==='sess' && !S.coreShown) — 안 그러면 계기가 문진을 공짜로
+     흘리고, 그 칸을 사는 이유가 없어진다. 스토리는 병 노드가 곧 핵심(core:'병')
+     이라 감출 것이 없고, 단판은 문진 자체가 없다.
+
+     호를 88 에 두고 글이 쓸 수 있는 폭을 아래 ±32° 로 못 박은 뒤, 이름이 길면
+     글자를 줄여서 그 안에 넣는다. 크기를 고정해 두면 「호흡곤란」 네 글자가
+     양옆으로 기어올라 수치판을 뚫는다 — 실제로 그렇게 겹쳤다. 창 모서리는
+     중심에서 74 · 50° 라 이 창 밖이고, 글의 안쪽 가장자리(88−0.75×글자)는
+     58° 에서도 창 아래로 지나간다. 셋 중 하나만 건드려도 다시 겹친다. */
+  {
+    const rn = 88, HA = 32, rad = d => Math.PI*d/180;
+    const nm = (n.role==='disease' ? '병 노드' : n.sym) + (n.evolved ? ' ✦' : '');
+    const ls = isCore ? 4.5 : 3;
+    const fs = Math.max(13, Math.min(isCore ? 24 : 20, 2*rad(HA)*rn/nm.length - ls));
+    const [ax0,ay0] = [c+rn*Math.cos(rad(145)), c+rn*Math.sin(rad(145))];
+    const [ax1,ay1] = [c+rn*Math.cos(rad(35)),  c+rn*Math.sin(rad(35))];
+    /* 145° → 35° 를 sweep 0 으로 그으면 아래(90°)를 지난다. 글은 이 선 위에
+       똑바로 선다 — 방향을 뒤집으면 글자가 거꾸로 매달린다 */
+    s += `<defs><path id="sgnm${ix}" d="M${ax0.toFixed(1)} ${ay0.toFixed(1)} `
+       + `A${rn} ${rn} 0 0 0 ${ax1.toFixed(1)} ${ay1.toFixed(1)}"/></defs>`
+       + `<text font-family="var(--sans)" font-size="${fs.toFixed(1)}" font-weight="800"`
+       + ` letter-spacing="${ls}" fill="${isCore?'#98302A':'rgba(58,53,48,.62)'}">`
+       + `<textPath href="#sgnm${ix}" startOffset="50%" text-anchor="middle">${esc(nm)}</textPath></text>`;
+  }
   return s;
 }
 
@@ -384,7 +448,6 @@ function stageSync(){
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
       + '<div class="evc"></div><svg class="atts" viewBox="0 0 200 200"></svg>'
-      + '<div class="info"><span class="nm2"></span><span class="hr2"></span><span class="num"></span></div>'
       + '<div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
@@ -423,11 +486,6 @@ function stageSync(){
     if(n.delayed) mk.push(`<span class="imk"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`);
     setHTML(el.querySelector('.chips'),
       (cs.length?`<div class="icr">${cs.join('')}</div>`:'') + (mk.length?`<div class="imr">${mk.join('')}</div>`:''));
-
-    const nm = n.role==='disease' ? '병 노드' : n.sym;
-    el.querySelector('.nm2').textContent = nm + (n.evolved ? ' ✦' : '');
-    el.querySelector('.num').innerHTML =
-      `${n.val}<s>│</s><u>${imm ? '—' : killLine(S,n)}</u>`;
 
     /* 오른쪽 위 뱃지 — 증상은 진화 시계, 병 노드는 병기 */
     /* 우상 뱃지는 병 노드의 병기 전용이다 — 증상의 진화 시계는 배지(파이)가 맡는다 */

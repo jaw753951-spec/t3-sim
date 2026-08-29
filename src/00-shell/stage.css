@@ -151,14 +151,8 @@ body.sgon{overflow:hidden}
   background:linear-gradient(133deg,rgba(255,255,255,.44) 5%,rgba(255,255,255,.06) 32% 60%,rgba(255,255,255,.2) 88%)}
 #sg .gz.noshield .glass{opacity:0}
 
-#sg .gz .info{position:absolute;top:103%;left:50%;transform:translateX(-50%);z-index:8;
-  background:var(--steelD);border:2px solid var(--steelL);padding:5px 12px 6px;
-  min-width:118px;text-align:center;white-space:nowrap}
-#sg .gz .info .nm2{display:block;font:800 18px/1.1 var(--sans);color:var(--hanjiW);letter-spacing:.04em}
-#sg .gz .info .hr2{display:block;height:1px;background:#5e5648;margin:5px 0 4px}
-#sg .gz .info .num{display:block;font:800 20px/1 var(--mono);color:var(--hanjiW)}
-#sg .gz .info .num s{text-decoration:none;color:#b0a894;margin:0 4px}
-#sg .gz .info .num u{text-decoration:none;color:#E4867A}
+/* 이름표 상자(.info)는 없앴다 — 이름과 수치는 계기 얼굴에 새긴다(dialSVG).
+   상자가 계기 아래 62px 를 먹어서 의도 칩이 그만큼 밀려 내려갔다 */
 
 /* 배지 넷 — 계기보다 넓은 좌표계를 써서 테 밖으로 나간다 */
 #sg .gz .atts{position:absolute;inset:-30%;z-index:7;overflow:visible;pointer-events:none}
@@ -182,7 +176,6 @@ body.sgon{overflow:hidden}
 /* 병 노드 — 황동이 아니라 검은 무쇠다 */
 #sg .gz.dis .bezel{background:conic-gradient(from 215deg,#141414,#3a3a3c 18%,#1c1c1e 45%,#2e2e30 70%,#141414)}
 #sg .gz.dis .face{background:radial-gradient(circle at 40% 32%,#b9ac93,#8e8272 70%,#5f574a)}
-#sg .gz.dis .info{border-color:#6a6a68}
 #sg .gz.imm .bezel{box-shadow:0 0 0 3px #6a6a68,0 6px 15px rgba(0,0,0,.65)}
 #sg .gz.imm .face{filter:grayscale(.6) brightness(.86)}
 
@@ -240,7 +233,7 @@ body.sgon{overflow:hidden}
    .hp 는 체력 막대라 position:absolute 를 물고 있다. 무대 규칙이 position 을
    안 적으면 그 값이 그대로 먹어서 칩이 부모 왼쪽 끝으로 튄다 — 실제로 그랬다.
    이름을 갈라 두고 position 도 못 박는다. */
-#sg .gz .chips{position:absolute;left:50%;top:calc(103% + 62px);transform:translateX(-50%);
+#sg .gz .chips{position:absolute;left:50%;top:102%;transform:translateX(-50%);
   width:210%;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
 #sg .gz .icr,#sg .gz .imr{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
 #sg .gz .icp,#sg .gz .imk{position:static;pointer-events:auto;font:700 12px/1 var(--sans);

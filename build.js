@@ -85,20 +85,36 @@ const CUT_BEFORE = {
 
 const HEADER = `/* ${'═'.repeat(72)}
    INTERN 전투 시뮬레이터 — build.js 가 src/ 에서 이어 붙인 결과물이다.
-   이 파일을 직접 고치지 않는다. 고칠 곳은 src/ 아래, 아래 목록의 층이다.
-
-     10-config  수치     R · SR · 증상표 · 레벨표 · 저울   숫자만 있다
-     20-data    데이터   카드 · 덱 · 환자 대본 · 보스       내용물
-     30-core    로직     커널 · 생성기 · 카드 · 세션 · 스토리  화면을 모른다
-     40-ai      자동     빔 탐색(기본) · v18 휴리스틱(대조)
-     50-wire    배선     K · L · C · P · D · H
-     60-text    문안     키워드 · 박자 · 덮어쓰기 칸 설명문   사람이 읽는 글
-     70-ui      화면     전역 · 툴팁 · 카드 · 판 · 손 · 모드
-     80-tools   도구     덮어쓰기 · 배치 · 환자 만들기       밸런싱용
-     90-boot    부팅
-
-   각 층이 무엇을 맡는지는 docs/구조.md 에 있다.
+   이 파일을 직접 고치지 않는다. 고칠 곳은 src/ 아래이고, 층 설명은 docs/구조.md 에 있다.
    ${'═'.repeat(72)} */`;
+
+/* ── 지우개 ── 사람이 읽는 글은 src/ 에 있고 이 파일은 실행되기만 한다.
+   판마다 src/ 의 주석을 고쳐도 결과물이 안 흔들리는 부수 효과도 있다.
+
+   //@ 표지는 남긴다. 둘 다 부품이다:
+     · 자름 앵커 넷 — sim_check.js 와 story_probe.js 가 여기를 잘라 화면 없이 돌린다.
+       지우면 「앵커 '//@ 자름.커널시작' 가 없다」로 검사기가 통째로 죽는다.
+     · 파일 표지 — 결과물의 줄 번호를 src 파일로 되짚는 유일한 끈이다
+       (브라우저 오류는 이 파일의 줄 번호로 뜬다).
+
+   줄이 통째로 주석인 것만 걷는다. 꼬리 주석(`const x = 1;  // 설명`)은 놔둔다 —
+   그것까지 걷으려면 문자열·정규식 안인지 가려야 하는데, 얻는 몇 KB 에 비해
+   조용히 깨질 위험이 크다. src/ 안에 '템플릿 문자열 안에서 줄이 // 나 /* 로 시작하는'
+   자리가 하나도 없음을 확인했으므로 줄 단위는 안전하다. */
+function stripJS(js){
+  const out = []; let inB = false;
+  for (const L of js.split('\n')) {
+    const t = L.trim();
+    if (inB) { if (t.includes('*/')) inB = false; continue }
+    if (t.startsWith('//@')) { out.push(L); continue }
+    if (t.startsWith('/*')) { if (!t.includes('*/')) inB = true; continue }
+    if (t.startsWith('//')) continue;
+    out.push(L);
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+const stripCSS  = c => c.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\n{3,}/g, '\n\n');
+const stripHTML = h => h.replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n');
 
 const read = f => fs.readFileSync(path.join(__dirname, f), 'utf8').replace(/\n+$/, '');
 
@@ -131,17 +147,17 @@ for (const f of ORDER) {
   chunks.push(read(f));
   if (CUT_AFTER[f]) chunks.push(CUT_AFTER[f]);
 }
-const js = chunks.join('\n\n') + '\n';
+const js = stripJS(chunks.join('\n\n')) + '\n';
 
 /* 껍데기 조각. 작업대와 무대를 따로 적고 여기서 이어 붙인다 */
 const CSS  = ['src/00-shell/style.css', 'src/00-shell/stage.css'];
 const BODY = ['src/00-shell/body.html', 'src/00-shell/stage.html'];
 
 const html = [
-  stamp(read('src/00-shell/head.html')),
-  CSS.map(read).join('\n'),
+  stripHTML(stamp(read('src/00-shell/head.html'))),
+  stripCSS(CSS.map(read).join('\n')),
   '</style></head><body>',
-  BODY.map(f=>stamp(read(f))).join('\n'),
+  stripHTML(BODY.map(f=>stamp(read(f))).join('\n')),
   '<script>',
   js + '</script></body></html>',
 ].join('\n');

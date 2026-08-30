@@ -87,7 +87,6 @@ function stageRender(){
   stageChart();
   stagePatient();
   stageDoc();
-  stageActbar();
   stagePanel();
   stageHand();
   pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
@@ -228,28 +227,12 @@ function stageDoc(){
   setHTML(el, out.length ? `<div class="lab">의사</div>${out.join('')}` : '');
 }
 
-/* 고른 자리 한 줄 — 지금 끊으면 무슨 일이 나는가 */
-function stageActbar(){
-  const bar = $('sg_actbar');
-  const n = alive(S)[SEL];
-  if(!n){ bar.classList.remove('on'); return }
-  bar.classList.add('on');
-  $('sg_an').textContent = n.role==='disease' ? '병 노드' : n.sym;
-  const r = reaction(S,n), imm = immune(S,n);
-  let v;
-  if(imm) v = '1막의 병은 무적이다 — <u>진단</u>만 통한다';
-  else if(r===null) v = `처치선까지 <u>${n.val - killLine(S,n)}</u> 남았다`;
-  else if(r==='none') v = '휴면 — 보상 없음 · 연결선도 터지지 않는다';
-  else {
-    const fires = basicLines(alive(S).filter(x=>x.role!=='disease').map(x=>x.sym))
-      .concat((BOARD.enh||[]).filter(()=>alive(S).some(x=>x.revealed)))
-      .filter(l=>l.a===n.sym).map(l=>`${l.b} ${l.k}`);
-    v = `${r==='strong'?'강반응':'약반응'} · 전체 −${sweepAmt(n)}`
-      + (fires.length?` · <u>${fires.join(' / ')}</u>`:'')
-      + (r==='strong'?' · <u>정신이 무너진다</u>':'');
-  }
-  $('sg_av').innerHTML = v + '<br>' + nodeMarks(S, n);
-}
+/* 자리를 누르면 뜨던 줄(sg_actbar)은 걷었다 (되짚기 5).
+   「처치선까지 N 남았다」는 계기 얼굴의 수치판이 늘 말하고, 표식(약화 · 지연 ·
+   성장 정지 · 반응 강등 · 잠잠 · 만성 · 1막 무적)은 계기 아래 딱지로 내려갔다
+   (stage-node.js 의 standingMarks). 눌러야만 보이던 것을 늘 보이게 바꾼 것이라
+   글자 수는 줄고 읽히는 것은 늘었다.
+   되살릴 거면 nodeMarks 를 그대로 쓸 수 있다 — 작업대가 아직 쓴다. */
 
 /* 아래 줄의 손잡이 — 처치 · 코스트 · 덱 · 버림 · 정산 · 턴 종료.
    전에는 우측 패널에 있던 것들이다. 하는 일은 그대로다 */

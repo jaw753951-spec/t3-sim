@@ -75,30 +75,64 @@ function shareOut(total, raws){
   return out;
 }
 
+/* ── 아이콘 한 벌 ── 20×20, 선으로만 그린다 ────────────────────
+   글자를 그림으로 바꾸는 자리에만 쓴다. 색은 안 박는다 — currentColor 라
+   칩이 제 색(주묵 · 무쇠 · 먹)을 그대로 물려준다. 색을 박으면 「이 칩이
+   나쁜 것인가 좋은 것인가」를 두 곳에서 정하게 된다.
+
+   글자를 아주 없애지는 않는다. 숫자는 남는다 — 「몇」이 이 판의 값이고,
+   없앤 것은 그 앞의 이름표(체력 · 성장 · 안정화)다. 이름은 툴팁이 말한다. */
+//@ 무대.아이콘 — 칩과 딱지가 쓰는 그림 한 벌
+const ICO = {
+  hit:   'M10 17S3 12.6 3 8.2C3 5.6 5 4 7 4c1.6 0 2.6 1 3 1.8C10.4 5 11.4 4 13 4c2 0 4 1.6 4 4.2 0 4.4-7 8.8-7 8.8z',
+  grow:  'M10 17V4M5 9l5-5 5 5',
+  evo:   'M10 2.5l1.9 5.6 5.6 1.9-5.6 1.9L10 17.5l-1.9-5.6L2.5 10l5.6-1.9z',
+  wake:  'M3.5 14.5a6.5 6.5 0 0 1 13 0M10 2.5V5M4.6 5.1l1.8 1.8M15.4 5.1l-1.8 1.8',
+  stab:  'M10 3s4.8 5.4 4.8 8.3a4.8 4.8 0 0 1-9.6 0C5.2 8.4 10 3 10 3zM4 16.5 16 3.5',
+  line:  'M3 7.5h14M10 9.5V17M6.8 13.8 10 17l3.2-3.2',
+  draw:  'M5.5 3h9v14h-9zM7.8 10h4.4',
+  weak:  'M10 16.5 3.8 5.5h12.4z',
+  delay: 'M5 3h10M5 17h10M5.4 3.4 10 10l4.6-6.6M5.4 16.6 10 10l4.6 6.6',
+  frost: 'M10 2.5v15M3.5 6.2l13 7.6M16.5 6.2l-13 7.6',
+  demote:'M3 6h14M6.4 10.4l7.2 6.2M13.6 10.4l-7.2 6.2',
+  mute:  'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM5 5l10 10',
+  imm:   'M10 2.6 3.8 5.8v4.7c0 3.5 2.7 5.8 6.2 6.9 3.5-1.1 6.2-3.4 6.2-6.9V5.8z',
+  chron: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM10 5.8v4.6l3.1 2.1',
+};
+const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
+
+/* 칩 하나 · 딱지 하나. 툴팁이 이름을 말하므로 칸에는 그림과 숫자만 남는다 */
+const chipHTML = c => `<span class="icp ${c.cls}"${tip(TT(c.lab, KWTIP[c.why]||SYMTIP[c.why]||''))}>`
+  + ico(c.ic) + (c.txt?`<b>${c.txt}</b>`:'') + '</span>';
+const markHTML = m => `<span class="imk"${tip(m.tip)}>` + ico(m.ic) + (m.txt?`<b>${m.txt}</b>`:'') + '</span>';
+
 /* 예고 하나에서 자리 번호 → 칩 목록을 만든다 */
 function intentMap(f){
   const m = new Map();
-  const put = (i, cls, txt, why) => {
+  const put = (i, cls, ic, txt, lab, why) => {
     if(i==null || i<0) return;
-    (m.get(i) || m.set(i, []).get(i)).push({cls, txt, why});
+    (m.get(i) || m.set(i, []).get(i)).push({cls, ic, txt, lab, why});
   };
   const evs = f.ev || [];
   /* 턴 공격 — 자리별 원값으로 총계를 나눠 갖는다 */
   const raws = evs.filter(e=>e.t==='atk' && e.i>=0).map(e=>({i:e.i, raw:e.raw}));
   const hit  = evs.filter(e=>e.t==='hp' && e.why==='turn').reduce((a,e)=>a+e.amt, 0);
-  for(const [i,v] of shareOut(hit, raws)) if(v>0) put(i, 'dmg', `체력 −${v}`, '공격');
+  for(const [i,v] of shareOut(hit, raws)) if(v>0) put(i, 'dmg', 'hit', `−${v}`, `체력 −${v}`, '공격');
   /* 자리 하나가 낸 피해 — 진화 즉발과 점화. 커널이 출처를 붙여 준다.
      이쪽은 커널이 자리마다 따로 올림하므로 나눠 갖지 않고 그대로 적는다 */
   for(const e of evs){
     if(e.t!=='hp' || e.why==='turn' || e.i==null || e.i<0 || !(e.amt>0)) continue;
-    put(e.i, 'hp', `체력 −${e.amt}`, e.why==='evo' ? '진화' : '점화');
+    put(e.i, 'dmg', 'hit', `−${e.amt}`, `체력 −${e.amt}`, e.why==='evo' ? '진화' : '점화');
   }
-  /* 성장 · 감염이 판에 얹는 총량 · 진화 */
+  /* 성장 · 진화 · 휴면에서 깨어남.
+     감염의 「판 +N」은 걷었다. 감염이 얹는 총량은 받는 자리들의 「성장 +N」에
+     이미 한 번 세어져 있어서, 그 칩을 같이 띄우면 같은 값을 두 번 읽게 된다.
+     감염이 무엇을 하고 있는지는 숫자가 아니라 배선(stageLinks 의 퍼짐 선)이
+     말한다 — 「누구에게」가 이 칩으로는 어차피 안 보였다 */
   for(const e of evs){
-    if(e.t==='grow'  && e.amt>0) put(e.i, 'grw', `성장 +${e.amt}`, '성장');
-    if(e.t==='inf'   && e.total>0) put(e.i, 'grw', `판 +${e.total}`, '감염');
-    if(e.t==='evolve') put(e.i, 'evl', '진화한다', '진화');
-    if(e.t==='revive') put(e.i, 'grw', '깨어난다', '휴면');
+    if(e.t==='grow'  && e.amt>0) put(e.i, 'grw', 'grow', `+${e.amt}`, `성장 +${e.amt}`, '성장');
+    if(e.t==='evolve') put(e.i, 'evl', 'evo', '', '이번 턴 진화한다', '진화');
+    if(e.t==='revive') put(e.i, 'grw', 'wake', '', '휴면에서 깨어난다', '휴면');
   }
   return m;
 }
@@ -109,10 +143,34 @@ function intentMap(f){
 function standingChips(S, n){
   const out = [];
   if(n.muted || n.val<=0 || n.dead) return out;
-  if(n.sym==='탈수')     out.push({cls:'std', txt:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
-  if(n.sym==='통증')     out.push({cls:'std', txt:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
+  if(n.sym==='탈수')     out.push({cls:'std', ic:'stab', txt:`÷${numOf(sp(n,'탈수'))}`,
+                                  lab:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
+  if(n.sym==='통증')     out.push({cls:'std', ic:'line', txt:`×${numOf(sp(n,'통증'))}`,
+                                  lab:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
   if(n.sym==='호흡곤란'){ const c = sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
-                         out.push({cls:'std', txt:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+                         out.push({cls:'std', ic:'draw', txt:`−${numOf(c)}`,
+                                   lab:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+  return out;
+}
+
+/* ── 딱지 ── 이 자리에 이미 걸려 있는 것 ────────────────────
+   칩(이번 턴에 무엇을 하는가)과 줄을 갈라 아래에 붙인다. 전에는 「약화 2」
+   「지연 1」만 글자로 있었고, 나머지(성장 정지 · 반응 강등 · 잠잠 · 만성 ·
+   1막 무적)는 자리를 눌러야 뜨는 줄(sg_actbar)에만 있었다. 그 줄을 걷었으므로
+   전부 여기로 내려온다 — 그림 하나에 툴팁, 셀 것이 있으면 숫자만.
+   글은 전부 이미 있는 것을 쓴다 (KWTIP · TT) — 두 벌로 적지 않는다. */
+function standingMarks(S, n){
+  const out = [];
+  if(immune(S,n)) out.push({ic:'imm', tip:TT('1막 · 무적',
+    '병명을 밝히기 전까지 병 노드는 억제 · 안정화 · 처치를 전부 받지 않는다.<br>이 자리에 통하는 것은 <b>진단</b>과 <b>재진</b>뿐이다.')});
+  if(n.weak)      out.push({ic:'weak',  txt:n.weak,     tip:KWTIP['약화']});
+  if(n.delayed)   out.push({ic:'delay', txt:n.delayed,  tip:KWTIP['지연']});
+  if(n.growHold>0)out.push({ic:'frost', txt:n.growHold, tip:TT('성장 정지',
+    `이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`)});
+  if(n.demoted)   out.push({ic:'demote', tip:TT('반응 강등',
+    '진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.')});
+  if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
+  if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 자리는 이번 턴 아무것도 하지 않는다.')});
   return out;
 }
 
@@ -433,10 +491,10 @@ function stageLayout(){
   const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
   const row  = alive(S).filter(n=>n!==dis);
   const CN   = row.length || 1;
-  const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.92)/CN - 96));
+  const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.97)/CN - 96));
   const cy   = dis ? H*0.68 : H*0.46;
   row.forEach((n,i)=>{
-    n.px = W*0.04 + (W*0.92)*(i+0.5)/CN;
+    n.px = W*0.015 + (W*0.97)*(i+0.5)/CN;
     n.py = cy;
     n.sz = SZ;
   });
@@ -509,11 +567,8 @@ function stageSync(){
 
     /* 의도 칩 — 이번 턴 끝에 이 자리가 무엇을 하는가. 값은 커널이 냈다 (무대.의도칩).
        약화 · 지연은 이미 걸려 있는 것이라 아래 줄에 따로 붙인다 */
-    const cs = [...(IM.get(ix) || []), ...standingChips(S, n)]
-      .map(c=>`<span class="icp ${c.cls}"${tip(KWTIP[c.why] || SYMTIP[c.why] || TT(c.why, ''))}>${c.txt}</span>`);
-    const mk = [];
-    if(n.weak)    mk.push(`<span class="imk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`);
-    if(n.delayed) mk.push(`<span class="imk"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`);
+    const cs = [...(IM.get(ix) || []), ...standingChips(S, n)].map(chipHTML);
+    const mk = standingMarks(S, n).map(markHTML);
     setHTML(el.querySelector('.chips'),
       (cs.length?`<div class="icr">${cs.join('')}</div>`:'') + (mk.length?`<div class="imr">${mk.join('')}</div>`:''));
 
@@ -543,6 +598,30 @@ function stageLinks(){
                  ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
 
   let out = '';
+
+  /* 감염이 지금 누구를 먹이고 있는가 (4). 「판 +N」 칩을 걷은 자리를 이 선이
+     대신한다 — 숫자는 받는 자리의 「성장 +N」에 이미 들어 있고, 이 선이
+     말하는 것은 「누구에게」다.
+     받는 자리를 여기서 고르지 않는다. infPool 이 낸 Map 의 열쇠가 곧 받는
+     자리다 — 손으로 고르면 감염 둘일 때 · 성장 정지일 때 · 병 노드일 때를
+     하나씩 다 빠뜨린다. 커널이 이미 아는 것을 다시 묻지 않는다. */
+  const pool = infPool(S);
+  if(pool.size){
+    for(const f of alive(S)){
+      if(f.sym!=='감염' || f.val<=0 || f.muted) continue;
+      const fx0=f.px/W*1210, fy0=f.py/H*744;
+      for(const [n] of pool){
+        if(n===f || n.dead || n.px===undefined) continue;
+        const tx=n.px/W*1210, ty=n.py/H*744;
+        /* 아래로 휜다. 자리들이 한 줄에 서 있어 제어점을 가운데에 두면
+           직선이 되고, 그러면 흐르는 선이 아니라 붙박이 난간으로 읽힌다 */
+        const my=(fy0+ty)/2 + 52;
+        out += `<path class="spread" d="M${fx0} ${fy0} Q${(fx0+tx)/2} ${my} ${tx} ${ty}"`
+             + ` fill="none" stroke="rgba(150,178,170,.75)" stroke-width="2.4" stroke-linecap="round"/>`;
+      }
+    }
+  }
+
   let lane = 0;
   for(const l of lines){
     /* 아직 안 드러난 강화형 배선은 **한 줄도 안 그린다**.
@@ -558,7 +637,11 @@ function stageLinks(){
     /* 전이는 새 자리를 낳고 촉발은 있는 자리를 건드린다 — 색으로 가른다 */
     const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
     const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
-    out += `<g>`
+    /* 메달에 설명을 단다 (6). 글은 작업대가 쓰는 LINKTIP 그대로다 —
+       배선 규칙을 두 벌로 적으면 한쪽이 곧 거짓말을 한다 */
+    const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
+      + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
+    out += `<g class="wirem"${tip(lt)}>`
       + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="7" stroke-linejoin="round"/>`
       + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="${c}" stroke-width="3"${dash} stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`

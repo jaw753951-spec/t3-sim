@@ -109,7 +109,12 @@ body.sgon{overflow:hidden}
    #sg_links 의 viewBox 는 1210×744 로 두고 preserveAspectRatio="none" 로 늘린다 —
    stageLinks 가 px/W*1210 · py/H*744 로 옮기므로 판이 얼마든 자리는 맞는다 */
 #sg_board{position:absolute;left:360px;top:32px;width:1512px;height:788px;z-index:15}
+/* 배선 자체는 손이 안 닿지만 메달에는 설명이 붙는다 — 그 자리만 되살린다 */
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
+#sg_links .wirem{pointer-events:auto;cursor:help}
+/* 감염이 지금 먹이고 있는 자리로 흐르는 선. 도는 점선이라 「지금 일어나는 중」으로 읽힌다 */
+#sg_links .spread{stroke-dasharray:3 10;animation:spd 1.5s linear infinite}
+@keyframes spd{to{stroke-dashoffset:-26}}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
 #sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;
@@ -120,12 +125,6 @@ body.sgon{overflow:hidden}
 #sg_bubble .tail{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);
   border:7px solid transparent;border-top-color:var(--steelD)}
 
-#sg_actbar{position:absolute;left:1120px;bottom:296px;transform:translateX(-50%);z-index:35;
-  display:none;gap:12px;align-items:baseline;padding:9px 15px;max-width:1100px}
-#sg_actbar.on{display:flex}
-#sg_actbar .n{font:800 14px/1 var(--sans);color:var(--ink3);white-space:nowrap}
-#sg_actbar .v{font:12px/1.35 var(--sans);color:var(--ink2)}
-#sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
 /* 우 — 차트 */
 /* 차트는 늘 볼 것이 아니라 물어볼 것이다. 등뼈만 내놓고 숨어 있다가 마우스를
@@ -275,13 +274,23 @@ body.sgon{overflow:hidden}
 #sg .gz .chips{position:absolute;left:50%;top:102%;transform:translateX(-50%);
   width:210%;display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none}
 #sg .gz .icr,#sg .gz .imr{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
-#sg .gz .icp,#sg .gz .imk{position:static;pointer-events:auto;font:700 12px/1 var(--sans);
-  padding:5px 8px;border:2px solid;background:var(--paper);white-space:nowrap}
+#sg .gz .icp,#sg .gz .imk{position:static;pointer-events:auto;display:flex;align-items:center;gap:4px;
+  padding:4px 7px;border:2px solid;background:var(--paper);white-space:nowrap}
+/* 그림은 칩의 색을 물려받는다 — 여기서 색을 박으면 좋고 나쁨을 두 곳에서 정한다 */
+#sg .gz .ic{width:17px;height:17px;flex:0 0 17px;display:block;
+  fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#sg .gz .icp b{font:800 14px/1 var(--mono)}
 #sg .gz .icp.dmg{color:var(--red);border-color:var(--red)}
+#sg .gz .icp.dmg .ic{fill:currentColor;stroke:none}
 #sg .gz .icp.grw{color:var(--ink3);border-color:var(--line)}
 #sg .gz .icp.evl{color:var(--anno);border-color:var(--anno)}
+#sg .gz .icp.evl .ic{fill:currentColor;stroke:none}
 #sg .gz .icp.std{color:var(--steel);border-color:var(--steel)}
-#sg .gz .imk{font-size:11px;color:var(--ink2);border-color:var(--line);border-width:1px;opacity:.9}
+/* 딱지는 이미 걸려 있는 것이라 한 단계 물러선다 — 그림만, 셀 것이 있으면 숫자만 */
+#sg .gz .imk{color:var(--ink2);border-color:var(--line);border-width:1px;opacity:.92;
+  padding:3px 6px;gap:3px}
+#sg .gz .imk .ic{width:15px;height:15px;flex:0 0 15px;stroke-width:1.8}
+#sg .gz .imk b{font:800 12px/1 var(--mono)}
 
 /* ── 아래 — 손패 줄 ────────────────────────────────────────── */
 /* 줄을 0.8배로 줄여 판에 60px 를 돌려준다. 카드 겉모습(style.css 의 .card)은

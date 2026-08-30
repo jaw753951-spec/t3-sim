@@ -97,13 +97,22 @@ function stageRender(){
    전에는 머리띠(세션·막)와 카르테 두 칸으로 나뉘어 있었다. 한 칸으로 합쳤다.
    값은 그대로다 — 무엇을 감추는가도 그대로다 (문진 전에는 체력 태그가 「미상」). */
 //@ 무대.차트 — 턴 · 사람 · 정신 · 남은 턴 · 문진
+/* 이름 한 벌 — 차트 머리와 환자칸이 같은 것을 쓴다. 대본은 「병 · 사람」 순이고
+   보스는 「사람 · 병」 순이라, 두 곳에서 따로 자르면 한쪽이 병명을 이름 자리에
+   올린다. 자르는 손은 여기 하나만 둔다 */
+//@ 무대.이름 — 이 사람을 뭐라 부르는가
+function patientName(){
+  const p = BOARD.script, boss = !!BOARD.boss;
+  const full = p ? p.name : (boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
+  const bits = String(full).split(' · ');
+  if(bits.length<2) return {who: bits[0], what: ''};
+  return boss ? {who: bits[0], what: bits.slice(1).join(' · ')}
+              : {who: bits.slice(1).join(' · '), what: bits[0]};
+}
+
 function stageChart(){
   const p = BOARD.script;
-  const nameFull = p ? p.name : (BOARD.boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
-  const bits = String(nameFull).split(' · ');
-  const boss = !!BOARD.boss;
-  const who  = bits.length>1 ? (boss ? bits[0] : bits.slice(1).join(' · ')) : bits[0];
-  const what = bits.length>1 ? (boss ? bits.slice(1).join(' · ') : bits[0]) : '';
+  const {who, what} = patientName();
 
   const hide = (MODE==='sess' && !S.tagsShown);
   const tags = hide
@@ -163,6 +172,9 @@ function stagePatient(){
   const bust = $('sg_bust');
   if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
 
+  /* 이름은 차트와 같은 것을 쓴다 (무대.이름) */
+  $('sg_pwho').textContent = patientName().who;
+
   /* 설명은 작업대와 같은 것을 쓴다. 여기는 속성에 직접 다는 자리라 열쇠만 받는다 */
   const hpEl = $('sg_hp');
   const mask = (MODE==='sess' && !S.tagsShown);
@@ -177,9 +189,14 @@ function stagePatient(){
   bar.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
 
   const m = $('sg_mind');
-  m.textContent = S.mind;
-  m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
+  m.textContent = '정신 · ' + S.mind;
+  m.className = 'mn ' + (S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad'));
+  m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
 }
+
+/* 차트를 붙박이로 둔다 — 마우스를 올려야만 나오면 카드를 내는 동안 못 본다 */
+//@ 무대.차트고정 — 등뼈를 누르면 열어 둔다
+function chartPin(){ $('sg').classList.toggle('chartpin') }
 
 /* ── 의사 자원 ── 기세 · 관해도 ────────────────────────────────
    둘 다 게이트가 있다. 목업은 늘 띄우지만 그러면 규칙이 거짓말을 한다.

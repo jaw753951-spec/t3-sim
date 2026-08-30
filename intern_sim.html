@@ -346,10 +346,10 @@ body.sgon{overflow:hidden}
 #sg_screen{position:absolute;inset:0;overflow:hidden}
 
 #sg .bg{position:absolute;inset:0;background:
-  radial-gradient(120% 80% at 50% 14%,rgba(255,240,205,.30),transparent 58%),
-  repeating-linear-gradient(96deg,#6A5442 0 34px,#614E3E 34px 68px)}
-#sg .bg::after{content:"";position:absolute;left:5%;right:5%;top:54%;bottom:0;
-  background:repeating-linear-gradient(90deg,#554131 0 60px,#4E3B2D 60px 120px)}
+  radial-gradient(125% 85% at 50% 10%,rgba(255,238,200,.17),transparent 62%),
+  linear-gradient(180deg,#5A4737 0%,#48382B 58%,#3A2C22 100%)}
+#sg .bg::after{content:"";position:absolute;left:0;right:0;top:56%;bottom:0;
+  background:linear-gradient(180deg,rgba(28,20,14,.20),rgba(28,20,14,.42))}
 
 #sg .plate{border:11px solid var(--steelD);box-shadow:inset 0 0 0 3px var(--steelL);background:var(--paper)}
 #sg .ph{font:700 10px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:8px}
@@ -362,32 +362,35 @@ body.sgon{overflow:hidden}
   padding:8px 14px;font:700 12px/1 var(--sans);letter-spacing:.1em;cursor:pointer}
 #sg_exit:hover{background:var(--steel);border-color:var(--brass)}
 
-#sg_pat{position:absolute;left:40px;top:74px;width:280px;z-index:16}
-#sg_pat .lab{font:700 14px/1 var(--sans);letter-spacing:.18em;color:var(--ink3);margin-bottom:10px}
-#sg_pat .bust{width:280px;height:296px;background:var(--paper2);border:2px solid var(--line);
+#sg_pat{position:absolute;left:40px;top:74px;width:300px;z-index:16}
+#sg_pat .who{font:800 25px/1.15 var(--sans);color:var(--hanjiW);margin-bottom:11px;
+  text-shadow:0 2px 6px rgba(0,0,0,.6)}
+#sg_pat .bust{width:300px;height:186px;background:var(--paper2);border:2px solid var(--line);
   overflow:hidden;position:relative}
 #sg_pat .bust svg{position:absolute;inset:0;width:100%;height:100%}
-#sg_pat .flash{position:absolute;left:0;top:24px;width:280px;height:296px;
+#sg_pat .flash{position:absolute;left:0;top:47px;width:300px;height:186px;
   background:rgba(158,43,43,.5);opacity:0;pointer-events:none}
 #sg_pat.hurt .bust{transform:translateY(7px);transition:transform .32s}
 #sg_pat.hurt .flash{animation:flh .48s ease}
-#sg_pat .hpnum{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 9px;margin-top:16px;
-  font:800 52px/1 var(--mono);color:var(--ink3);text-shadow:0 2px 0 rgba(255,255,255,.5)}
-#sg_pat .hpnum s{text-decoration:none;font:700 17px var(--sans);color:var(--ink2)}
 
-#sg_pat .hpnum u{text-decoration:none;flex:0 0 100%;margin-top:7px;text-shadow:none;
-  font:800 20px/1 var(--sans);color:var(--red);letter-spacing:.02em}
-#sg_pat .hpbar{position:relative;height:34px;margin-top:11px;background:var(--paper2);
-  border:3px solid var(--steelD)}
-#sg_pat .hpbar .hf{position:absolute;left:0;top:0;bottom:0;background:var(--steelD);transition:width .35s}
+#sg_pat .hpbar{position:relative;height:58px;margin-top:13px;background:#241C17;
+  border:3px solid var(--steelD);box-shadow:inset 0 3px 8px rgba(0,0,0,.6)}
+#sg_pat .hpbar .hf{position:absolute;left:0;top:0;bottom:0;transition:width .35s;
+  background:linear-gradient(180deg,#C04A3C,#8E2A23)}
+
 #sg_pat .hpbar .hg{position:absolute;top:0;bottom:0;
-  background:repeating-linear-gradient(45deg,var(--red) 0 4px,rgba(152,48,42,.35) 4px 8px)}
-#sg_pat .tlab{display:flex;justify-content:space-between;margin-top:8px;
-  font:700 14px/1 var(--sans);letter-spacing:.08em;color:var(--ink2)}
-#sg_mind{color:var(--ink3)}
-#sg_mind.bad{color:var(--red)} #sg_mind.ko{color:var(--anno)}
+  background:repeating-linear-gradient(45deg,#F0B24A 0 5px,rgba(240,178,74,.3) 5px 10px)}
+#sg_pat .hpbar .hpnum{position:absolute;inset:0;z-index:3;display:flex;align-items:center;
+  gap:9px;padding:0 15px;font:800 34px/1 var(--mono);color:#fff;
+  text-shadow:0 2px 5px rgba(0,0,0,.85)}
+#sg_pat .hpbar .hpnum s{text-decoration:none;font:700 15px var(--sans);color:rgba(255,255,255,.72)}
+#sg_pat .hpbar .hpnum u{text-decoration:none;margin-left:auto;font:800 19px/1 var(--sans);
+  color:#FFD9A0;letter-spacing:.02em}
+#sg_pat .tlab{margin-top:10px;font:800 17px/1 var(--sans);letter-spacing:.06em}
+#sg_mind{color:var(--hanjiW);text-shadow:0 2px 5px rgba(0,0,0,.6)}
+#sg_mind.bad{color:#F0857A} #sg_mind.ko{color:#F0B24A}
 
-#sg_doc{position:absolute;left:40px;bottom:342px;width:280px;z-index:16}
+#sg_doc{position:absolute;left:40px;bottom:282px;width:300px;z-index:16}
 #sg_doc:not(:empty){border:2px solid var(--line);background:var(--paper2);padding:13px 15px}
 #sg_doc .lab{font:700 11px/1 var(--sans);letter-spacing:.16em;color:var(--ink2);margin-bottom:11px}
 #sg_doc .mrow{display:flex;align-items:baseline;gap:8px;font:700 15px/1 var(--sans);color:var(--ink3)}
@@ -400,11 +403,11 @@ body.sgon{overflow:hidden}
 #sg_doc .mnote{font:11.5px/1.45 var(--sans);color:var(--ink2);margin-top:7px}
 #sg_doc .grp+.grp{margin-top:15px}
 
-#sg_board{position:absolute;left:340px;top:32px;width:1210px;height:728px;z-index:15}
+#sg_board{position:absolute;left:360px;top:32px;width:1512px;height:788px;z-index:15}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
-#sg_bubble{position:absolute;left:945px;top:44px;transform:translateX(-50%);z-index:40;
+#sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;
   width:330px;padding:11px 14px;opacity:0;transition:opacity .3s;pointer-events:none}
 #sg_bubble.show{opacity:1}
 #sg_bubble .who{font:700 9px/1 var(--sans);letter-spacing:.14em;color:var(--ink2);margin-bottom:5px}
@@ -412,14 +415,24 @@ body.sgon{overflow:hidden}
 #sg_bubble .tail{position:absolute;left:50%;bottom:-13px;transform:translateX(-50%);
   border:7px solid transparent;border-top-color:var(--steelD)}
 
-#sg_actbar{position:absolute;left:945px;bottom:296px;transform:translateX(-50%);z-index:35;
+#sg_actbar{position:absolute;left:1120px;bottom:296px;transform:translateX(-50%);z-index:35;
   display:none;gap:12px;align-items:baseline;padding:9px 15px;max-width:1100px}
 #sg_actbar.on{display:flex}
 #sg_actbar .n{font:800 14px/1 var(--sans);color:var(--ink3);white-space:nowrap}
 #sg_actbar .v{font:12px/1.35 var(--sans);color:var(--ink2)}
 #sg_actbar .v u{text-decoration:none;color:var(--anno);font-weight:700}
 
-#sg_chart{position:absolute;left:1580px;top:32px;width:300px;height:728px;z-index:20;
+#sg_chartwrap{position:absolute;right:0;top:32px;width:344px;height:788px;z-index:20;
+  display:flex;transform:translateX(300px);transition:transform .26s cubic-bezier(.3,.9,.3,1)}
+#sg_chartwrap:hover,#sg.chartpin #sg_chartwrap{transform:none}
+#sg_chartwrap .spine{flex:0 0 44px;background:var(--steelD);border:2px solid var(--steelL);
+  border-right:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#sg_chartwrap .spine span{writing-mode:vertical-rl;font:800 14px/1 var(--sans);
+  letter-spacing:.42em;color:var(--hanjiW)}
+#sg_chartwrap .spine:hover{border-color:var(--brass)}
+#sg.chartpin #sg_chartwrap .spine{background:var(--brass)}
+#sg.chartpin #sg_chartwrap .spine span{color:#241a08}
+#sg_chart{flex:1;height:100%;
   border:2px solid var(--line);background:var(--paper);padding:20px 18px;
   display:flex;flex-direction:column;gap:15px;text-align:right;overflow:hidden}
 #sg_chart .sec{border-top:1px solid rgba(0,0,0,.14);padding-top:14px}
@@ -539,19 +552,19 @@ body.sgon{overflow:hidden}
 #sg .gz .icp.std{color:var(--steel);border-color:var(--steel)}
 #sg .gz .imk{font-size:11px;color:var(--ink2);border-color:var(--line);border-width:1px;opacity:.9}
 
-#sg_handzone{position:absolute;left:0;right:0;top:760px;bottom:0;z-index:25;
-  border-top:2px solid var(--line);background:rgba(20,24,28,.06)}
-#sg_hand{position:absolute;left:50%;transform:translateX(-50%);bottom:20px;
-  display:flex;gap:11px;align-items:flex-end}
+#sg_handzone{position:absolute;left:0;right:0;top:820px;bottom:0;z-index:25;
+  border-top:2px solid var(--line);background:rgba(20,24,28,.10)}
+#sg_hand{position:absolute;left:50%;bottom:16px;transform:translateX(-50%) scale(.8);
+  transform-origin:bottom center;display:flex;gap:11px;align-items:flex-end}
 
 #sg .empty{color:var(--hanjiW);font:12px var(--sans);padding:10px 14px;background:rgba(20,24,28,.8);
   border:2px solid var(--steelL)}
 
 #sg .res{position:absolute;left:44px;bottom:20px;display:flex;align-items:flex-end;gap:20px}
 #sg .rres{position:absolute;right:44px;bottom:20px;display:flex;align-items:flex-end;gap:20px}
-#sg .costlab{font:700 13px/1 var(--sans);letter-spacing:.12em;color:var(--ink2);margin:13px 0 7px}
+#sg .costlab{font:700 12px/1 var(--sans);letter-spacing:.12em;color:var(--ink2);margin:10px 0 6px}
 #sg .pips{display:flex;gap:7px}
-#sg .pips i{width:38px;height:60px;border:3px solid var(--steel);display:block;background:var(--paper2)}
+#sg .pips i{width:32px;height:50px;border:3px solid var(--steel);display:block;background:var(--paper2)}
 #sg .pips i.on{background:var(--steel)}
 #sg .btn{border:2px solid var(--steel);background:var(--paper2);padding:9px 13px;
   font:700 14px/1 var(--sans);color:var(--ink3);cursor:pointer;
@@ -561,17 +574,17 @@ body.sgon{overflow:hidden}
 #sg .btn.off{opacity:.45;cursor:default}
 #sg .btn .c{font:700 11px var(--mono);color:var(--ink2)}
 #sg .btn.on .c{color:var(--hanji)}
-#sg .btn.treat{width:176px;white-space:nowrap;border-color:var(--red);color:var(--red);font-size:18px}
+#sg .btn.treat{width:158px;white-space:nowrap;border-color:var(--red);color:var(--red);font-size:16px}
 #sg .btn.treat .c{color:var(--red)}
 #sg .btn.treat.off{border-color:var(--line);color:var(--mut)}
 #sg .btncol{display:flex;flex-direction:column;gap:9px}
 #sg .btn.endturn{background:var(--red);color:var(--hanjiW);border-color:var(--red);
-  padding:15px 30px;font:800 20px/1 var(--sans);letter-spacing:.08em;justify-content:center}
+  padding:12px 26px;font:800 18px/1 var(--sans);letter-spacing:.08em;justify-content:center}
 #sg .btn.endturn:hover{background:#a83a33}
 #sg .btn.endturn.off{opacity:.45;cursor:default}
 #sg .btn.early{justify-content:center}
 
-#sg .stack{position:relative;width:82px;height:112px;cursor:default}
+#sg .stack{position:relative;width:70px;height:96px;cursor:default}
 #sg .stack.go{cursor:pointer}
 #sg .stack i{position:absolute;inset:0;background:var(--paper2);border:2px solid var(--line)}
 #sg .stack i:nth-child(1){transform:translate(6px,6px)}
@@ -579,7 +592,7 @@ body.sgon{overflow:hidden}
 #sg .stack .top{position:absolute;inset:0;background:var(--paper);border:2px solid var(--steelD);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
 #sg .stack.go:hover .top{border-color:var(--brass)}
-#sg .stack .top b{font:800 32px/1 var(--mono);color:var(--ink3)}
+#sg .stack .top b{font:800 27px/1 var(--mono);color:var(--ink3)}
 #sg .stack .top span{font:700 12px/1 var(--sans);letter-spacing:.12em;color:var(--ink2)}
 
 #sg_toast{position:absolute;left:50%;bottom:300px;transform:translateX(-50%);z-index:70;
@@ -861,11 +874,11 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 
   
   <div id="sg_pat">
-    <div class="lab">환자</div>
+    <div class="who" id="sg_pwho">환자</div>
     <div class="bust" id="sg_bust"></div><div class="flash"></div>
-    <div class="hpnum" id="sg_hp">—</div>
-    <div class="hpbar" id="sg_hpbar"><div class="hf"></div><div class="hg"></div></div>
-    <div class="tlab"><span>체력</span><span id="sg_mind">—</span></div>
+    <div class="hpbar" id="sg_hpbar"><div class="hf"></div><div class="hg"></div>
+      <div class="hpnum" id="sg_hp">—</div></div>
+    <div class="tlab"><span class="mn" id="sg_mind">—</span></div>
   </div>
 
   
@@ -879,7 +892,10 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   <div class="plate" id="sg_actbar"><span class="n" id="sg_an"></span><span class="v" id="sg_av"></span></div>
 
   
-  <div id="sg_chart"></div>
+  <div id="sg_chartwrap">
+    <div class="spine" onclick="chartPin()"><span>차 트</span></div>
+    <div id="sg_chart"></div>
+  </div>
 
   
   <div id="sg_handzone">
@@ -5799,14 +5815,14 @@ function stageLayout(){
   const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
   const row  = alive(S).filter(n=>n!==dis);
   const CN   = row.length || 1;
-  const SZ   = Math.min(dis ? 176 : 244, (W*0.92)/CN - 26);
-  const cy   = dis ? H*0.25 : H*0.40;
+  const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.92)/CN - 96));
+  const cy   = dis ? H*0.68 : H*0.46;
   row.forEach((n,i)=>{
     n.px = W*0.04 + (W*0.92)*(i+0.5)/CN;
     n.py = cy;
     n.sz = SZ;
   });
-  if(dis){ dis.px = W/2; dis.py = H*0.655; dis.sz = Math.min(330, W*0.30) }
+  if(dis){ dis.px = W/2; dis.py = H*0.235; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
 
@@ -5884,6 +5900,7 @@ function stageLinks(){
   const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
   const shown = alive(S).some(n=>n.revealed);
+  const rowTop = ns.length ? Math.min(...ns.map(n=>(n.py - n.sz*0.56)/H*744)) : 120;
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
                  ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
 
@@ -5894,7 +5911,7 @@ function stageLinks(){
     const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=34 + lane*26; lane++;
+    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 24 - lane*26); lane++;
     const mx=(sx+ex)/2;
     const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
     const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
@@ -5978,13 +5995,19 @@ function stageRender(){
 }
 
 //@ 무대.차트 — 턴 · 사람 · 정신 · 남은 턴 · 문진
+//@ 무대.이름 — 이 사람을 뭐라 부르는가
+function patientName(){
+  const p = BOARD.script, boss = !!BOARD.boss;
+  const full = p ? p.name : (boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
+  const bits = String(full).split(' · ');
+  if(bits.length<2) return {who: bits[0], what: ''};
+  return boss ? {who: bits[0], what: bits.slice(1).join(' · ')}
+              : {who: bits.slice(1).join(' · '), what: bits[0]};
+}
+
 function stageChart(){
   const p = BOARD.script;
-  const nameFull = p ? p.name : (BOARD.boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
-  const bits = String(nameFull).split(' · ');
-  const boss = !!BOARD.boss;
-  const who  = bits.length>1 ? (boss ? bits[0] : bits.slice(1).join(' · ')) : bits[0];
-  const what = bits.length>1 ? (boss ? bits.slice(1).join(' · ') : bits[0]) : '';
+  const {who, what} = patientName();
 
   const hide = (MODE==='sess' && !S.tagsShown);
   const tags = hide
@@ -6040,6 +6063,8 @@ function stagePatient(){
   const bust = $('sg_bust');
   if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
 
+  $('sg_pwho').textContent = patientName().who;
+
   const hpEl = $('sg_hp');
   const mask = (MODE==='sess' && !S.tagsShown);
   hpEl.innerHTML = `<b>${mask?'?':hp}</b><s>/ ${mask?'?':S.hpMax}</s>`
@@ -6053,9 +6078,13 @@ function stagePatient(){
   bar.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
 
   const m = $('sg_mind');
-  m.textContent = S.mind;
-  m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
+  m.textContent = '정신 · ' + S.mind;
+  m.className = 'mn ' + (S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad'));
+  m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
 }
+
+//@ 무대.차트고정 — 등뼈를 누르면 열어 둔다
+function chartPin(){ $('sg').classList.toggle('chartpin') }
 
 //@ 무대.의사자원 — 기세 · 관해도. 켜진 것만 뜬다
 function stageDoc(){

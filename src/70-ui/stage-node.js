@@ -413,27 +413,36 @@ function diagRing(n){
   return s;
 }
 
-/* ── 자리 놓기 ── 위쪽에 부채꼴로 편다 ─────────────────────── */
+/* ── 자리 놓기 ── 가로 한 줄 ────────────────────────────────
+   전에는 호(arc)에 앉혔는데 자리가 늘면 위아래로 벌어져 배선이 계기판을 넘어
+   다녔다. 줄로 세우면 배선이 한 레인 위로만 지난다.
+
+   스토리는 병 노드가 **위**, 증상이 아래다. 병이 판을 내려다보고 증상에서
+   병으로 올라가는 그림이다 — 반대로 두었더니 병이 손패 줄에 눌려 앉고
+   증상이 병을 굽어보는 꼴이 됐다.
+
+   자리 사이를 96px 벌린다. 배지가 테 밖 58px 에 앉으므로 26px 만 띄우면
+   옆자리 배지와 겹친다 — 실제로 왼쪽 위 방패와 옆자리 오른쪽 위 진화 시계가
+   붙어 있었다. 가로로 삐져나오는 양은 0.777×(sz/2+58) + 배지 반폭 ≈
+   0.389sz + 69 이고 테 반폭이 0.5sz 이므로 자리 하나가 69 − 0.111sz,
+   둘이 마주 보면 그 두 배다. 자리가 244 일 때 84 라 96 이면 넉넉하다. */
 function stageLayout(){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  /* 가로 한 줄. 전에는 호(arc)에 앉혔는데 자리가 늘면 위아래로 벌어져
-     배선이 계기판을 넘어 다녔다. 줄로 세우면 배선이 한 레인 위로만 지난다.
-     병 노드는 줄에 끼지 않고 아래 가운데에 크게 앉는다 — 부수 증상과 격이 다르다. */
   const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
   const row  = alive(S).filter(n=>n!==dis);
   const CN   = row.length || 1;
-  const SZ   = Math.min(dis ? 176 : 244, (W*0.92)/CN - 26);
-  const cy   = dis ? H*0.25 : H*0.40;
+  const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.92)/CN - 96));
+  const cy   = dis ? H*0.68 : H*0.46;
   row.forEach((n,i)=>{
     n.px = W*0.04 + (W*0.92)*(i+0.5)/CN;
     n.py = cy;
     n.sz = SZ;
   });
-  /* 병 노드는 이름표와 칩이 아래로 더 나가므로 손패 줄에 안 닿게 더 올려 앉힌다 */
-  /* 병 노드는 판의 주인공이라 부수 증상보다 확실히 크게 앉힌다 */
-  if(dis){ dis.px = W/2; dis.py = H*0.655; dis.sz = Math.min(330, W*0.30) }
+  /* 병 노드는 줄에 끼지 않고 위 가운데에 앉는다. 부수 증상보다 크되 전처럼
+     판을 다 먹지는 않는다 — 330 은 배지까지 합쳐 판 높이의 절반을 넘었다 */
+  if(dis){ dis.px = W/2; dis.py = H*0.235; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
 
@@ -527,6 +536,9 @@ function stageLinks(){
   const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
   const shown = alive(S).some(n=>n.revealed);
+  /* 레인은 줄 바로 위에 깐다. 판 꼭대기(34)에 못 박아 두었더니 스토리에서
+     증상이 아래로 내려간 순간 배선이 병 노드를 가로질러 올라갔다 */
+  const rowTop = ns.length ? Math.min(...ns.map(n=>(n.py - n.sz*0.56)/H*744)) : 120;
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
                  ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
 
@@ -541,7 +553,7 @@ function stageLinks(){
     const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=34 + lane*26; lane++;
+    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 24 - lane*26); lane++;
     const mx=(sx+ex)/2;
     /* 전이는 새 자리를 낳고 촉발은 있는 자리를 건드린다 — 색으로 가른다 */
     const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');

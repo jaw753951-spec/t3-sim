@@ -11,13 +11,13 @@
   <div class="bg"></div>
   <button id="sg_exit" onclick="stageClose()">작업대로 (Esc)</button>
 
-  <!-- 좌 — 환자 -->
+  <!-- 좌 — 환자. 이름이 머리에 오고, 수치는 막대 안에 든다 -->
   <div id="sg_pat">
-    <div class="lab">환자</div>
+    <div class="who" id="sg_pwho">환자</div>
     <div class="bust" id="sg_bust"></div><div class="flash"></div>
-    <div class="hpnum" id="sg_hp">—</div>
-    <div class="hpbar" id="sg_hpbar"><div class="hf"></div><div class="hg"></div></div>
-    <div class="tlab"><span>체력</span><span id="sg_mind">—</span></div>
+    <div class="hpbar" id="sg_hpbar"><div class="hf"></div><div class="hg"></div>
+      <div class="hpnum" id="sg_hp">—</div></div>
+    <div class="tlab"><span class="mn" id="sg_mind">—</span></div>
   </div>
 
   <!-- 좌 아래 — 의사 자원. 기세는 참조 카드가 있을 때, 관해도는 열린 뒤에만.
@@ -31,8 +31,12 @@
   <div class="plate" id="sg_bubble"><div class="who" id="sg_bwho">환자</div><div class="txt" id="sg_btxt"></div><div class="tail"></div></div>
   <div class="plate" id="sg_actbar"><span class="n" id="sg_an"></span><span class="v" id="sg_av"></span></div>
 
-  <!-- 우 — 차트. 이 사람에 대해 지금까지 알아낸 것만 적는다 -->
-  <div id="sg_chart"></div>
+  <!-- 우 — 차트. 이 사람에 대해 지금까지 알아낸 것만 적는다.
+       평소에는 등뼈만 내놓고 숨어 있다 — 마우스를 올리거나 등뼈를 누르면 나온다 -->
+  <div id="sg_chartwrap">
+    <div class="spine" onclick="chartPin()"><span>차 트</span></div>
+    <div id="sg_chart"></div>
+  </div>
 
   <!-- 아래 — 손패 줄 -->
   <div id="sg_handzone">

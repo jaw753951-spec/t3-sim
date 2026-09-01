@@ -5778,7 +5778,7 @@ function badgeSVG(S, n, sz){
            + `${x1.toFixed(1)} ${y1.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${w}"`
            + ` opacity="${op}" stroke-linecap="butt"/>`;
     };
-    s += `<g${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
+    s += `<g class="ring"${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
           + `<br>병기 시계 <b>${left}</b> — 0이 되면 병기가 한 칸 오른다.`
           + `<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>`;
     for(let i=0;i<seg;i++){

@@ -332,7 +332,11 @@ function badgeSVG(S, n, sz){
            + `${x1.toFixed(1)} ${y1.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${w}"`
            + ` opacity="${op}" stroke-linecap="butt"/>`;
     };
-    s += `<g${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
+    /* class="ring" 은 표지다. stage_check 가 배지의 「크기 · 간격이 자리와
+       무관한가」를 잴 때 이것을 뺀다 — 링은 테를 두르는 물건이라 지름이
+       자리를 따라가는 것이 맞고, 140° 호의 외곽 상자 한가운데는 테 안쪽에
+       찍혀서 같은 잣대로 재면 간격이 음수로 나온다 */
+    s += `<g class="ring"${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
           + `<br>병기 시계 <b>${left}</b> — 0이 되면 병기가 한 칸 오른다.`
           + `<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>`;
     for(let i=0;i<seg;i++){

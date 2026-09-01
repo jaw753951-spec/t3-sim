@@ -685,7 +685,9 @@ function stageSync(){
     el.classList.toggle('ready', !imm && r!==null && r!=='none');
     el.classList.toggle('noshield', !n.shielded);
     el.classList.toggle('sh50',  !!n.shielded && n.shReduc > R.SHIELD_CUT);
-    el.classList.toggle('warn',  !n.evolved && n.revealed && n.evoLeft<=1 && n.role!=='disease');
+    /* 떨림은 툴팁과 같은 조건을 본다 (문안.진화임박) — 두 벌로 적으면 판은
+       떨고 있는데 설명은 아직 「진화하면」이라 하는 일이 난다 */
+    el.classList.toggle('warn',  evoSoon(n));
     el.classList.toggle('sel',   SEL===alive(S).indexOf(n));
     el.classList.toggle('tgt',   STAGE_MODE!==null);
     el.classList.toggle('dis',   n.role==='disease');

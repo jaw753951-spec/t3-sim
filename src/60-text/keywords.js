@@ -144,46 +144,79 @@ const EVOTXT_F = {
 };
 
 /* ── 증상 설명 ── */
-/* 증상 설명은 두 벌이다 — 진화 전과 진화 후.
-   한 벌로 두고 끝에 「진화하면 …」을 달아 두면, 이미 진화한 자리에서도 앞으로
-   일어날 일처럼 읽힌다. 정작 그때 알고 싶은 것은 「지금 이 자리가 무엇을
-   하고 있는가」다. 진화 전은 지금 하는 일 + 앞으로 바뀔 것을 흐리게,
-   진화 후는 바뀐 뒤의 값으로 말한다.
-   고르는 손은 symTip(n) 하나다 (아래) — 두 곳에서 따로 고르면 갈린다.
+/* 증상 문안은 조각 셋으로 적는다 — 지금 하는 일(now) · 진화하면 바뀔 것(will) ·
+   바뀐 뒤(done). 화면에 뜨는 세 상태가 이 셋을 조합해서 나온다.
+
+     진화 전    now + 「진화하면 — will」 (흐리게)
+     진화 임박  now + 「다음 턴에 진화한다 — 그 뒤에는」 + done
+     진화 후    now + 「진화함」 + done
+
+   상태마다 문안을 통째로 적어 두면 「지금 하는 일」이 세 벌이 되고, 한 줄 고칠
+   때 셋을 다 고쳐야 한다. 한 벌이라도 놓치면 그 상태에서만 옛 말을 한다 —
+   이 저장소가 값을 두 벌로 적었을 때 겪은 것과 같은 자리다.
+
+   조각을 함수로 두는 까닭은 R 을 부를 때 읽기 위해서다. 통짜 문자열로 적으면
+   파일을 읽는 그 순간의 값이 굳어 덮어쓰기 칸을 안 따라간다.
 
    진화한 통증 · 호흡곤란이 완화를 턴당 한 번 튕기는 것은 커널 쪽 규칙이라
-   (커널.완화) 진화 후 문안에만 적는다. */
-const SYMTIP = {
- get 발열(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.`
-   +`<br><span class="d">진화하면 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.</span>` },
- get 출혈(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.`
-   +`<br><span class="d">진화하면 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.</span>` },
- get 감염(){ return `다른 모든 자리에 성장률을 얹는다.`
-   +`<br><span class="d">진화하면 ${R.EVO_X2}배가 되고, 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.</span>` },
- get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.`
-   +`<br><span class="d">진화하면 이 자리의 보호막을 아예 벗길 수 없다.</span>` },
- get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).`
-   +`<br><span class="d">진화하면 통증 말고는 아무것도 처치할 수 없다.</span>` },
- get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.`
-   +`<br><span class="d">진화하면 ${R.EVO_X2}배로 깎는다.</span>` },
+   (커널.완화) done 에만 적는다. */
+//@ 문안.증상 — 조각 셋과 그것으로 짓는 세 상태
+const SYMBODY = {
+  발열: () => ({
+    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.`,
+    will: `수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.`,
+    done: `수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴 자리다. 매 턴 맞는 값도 그만큼 크다.`,
+  }),
+  출혈: () => ({
+    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.`,
+    will: `성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.`,
+    done: `성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진 자리다. 미룰수록 손을 못 대는 폭이 커진다.`,
+  }),
+  감염: () => ({
+    now : `다른 모든 자리에 성장률을 얹는다.`,
+    will: `얹는 값이 ${R.EVO_X2}배가 되고, 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.`,
+    done: `얹는 값이 ${R.EVO_X2}배다. 진화하면서 이 자리의 진단 요구 스택이 ${R.EVO_INF_DIAG} 올랐다.`,
+  }),
+  탈수: () => ({
+    now : `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.`,
+    will: `이 자리의 보호막을 아예 벗길 수 없게 된다.`,
+    done: `이 자리의 보호막은 벗길 수 없다 — 안정화가 0으로 들어간다.`,
+  }),
+  통증: () => ({
+    now : `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).`,
+    will: `통증 말고는 아무것도 처치할 수 없게 된다.`,
+    done: `통증 말고는 아무것도 처치할 수 없다 — 이 자리를 먼저 끊어야 판이 열린다.<br>자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.`,
+  }),
+  호흡곤란: () => ({
+    now : `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.`,
+    will: `깎는 값이 ${R.EVO_X2}배가 된다.`,
+    done: `턴 드로우를 ${R.DRAW_CUT*R.EVO_X2}장 깎는다 (${R.EVO_X2}배).<br>자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.`,
+  }),
+};
+const symBody = sym => (SYMBODY[sym] ? SYMBODY[sym]() : null);
+
+/* 진화가 코앞인가. **떨림 연출과 이 문안이 같은 조건을 쓴다** — 갈리면 판은
+   떨고 있는데 설명은 아직 「진화하면」이라 하거나 그 반대가 된다.
+   진단한 자리에만 뜬다: 진화 시계를 진단 뒤에만 보이게 한 것과 같은 잣대다 */
+//@ 문안.진화임박 — 떨림 연출과 툴팁이 함께 보는 조건
+const evoSoon = n => !!n && !n.evolved && !!n.revealed && n.evoLeft<=1 && n.role!=='disease';
+
+/* 옛 이름 두 벌은 남긴다 — 작업대와 문서가 이 이름으로 읽는다 */
+const SYMTIP = {}, SYMTIP_EVO = {};
+for(const k of Object.keys(SYMBODY)){
+  Object.defineProperty(SYMTIP, k, {enumerable:true, get(){ const b = symBody(k);
+    return `${b.now}<br><span class="d">진화하면 — ${b.will}</span>` }});
+  Object.defineProperty(SYMTIP_EVO, k, {enumerable:true, get(){ const b = symBody(k);
+    return `${b.now}<br><b>진화함</b> — ${b.done}` }});
 }
 
-//@ 문안.증상진화 — 진화한 뒤의 증상 설명
-const SYMTIP_EVO = {
- get 발열(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.`
-   +`<br><b>진화함</b> — 진화하던 턴에 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛰었다. 매 턴 맞는 값도 그만큼 커졌다.` },
- get 출혈(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다.`
-   +`<br><b>진화함</b> — 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라졌다. 미룰수록 손을 못 대는 폭이 커진다.` },
- get 감염(){ return `다른 모든 자리에 성장률을 <b>${R.EVO_X2}배</b>로 얹는다.`
-   +`<br><b>진화함</b> — 진화하면서 이 자리의 진단 요구 스택이 ${R.EVO_INF_DIAG} 올랐다.` },
- get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.`
-   +`<br><b>진화함</b> — 이 자리의 보호막은 아예 벗길 수 없다. 안정화가 0으로 들어간다.` },
- get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).`
-   +`<br><b>진화함</b> — 통증 말고는 아무것도 처치할 수 없다. 이 자리를 먼저 끊어야 판이 열린다.`
-   +`<br>자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.` },
- get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 <b>${R.EVO_X2}배</b>로 깎는다. 기본이 ${R.DRAW_CUT}장이므로 ${R.DRAW_CUT*R.EVO_X2}장이다.`
-   +`<br><b>진화함</b> — 자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.` },
-}
-
-/* 어느 벌을 쓸지 고르는 손은 여기 하나다 */
-const symTip = n => (n && n.evolved ? SYMTIP_EVO[n.sym] : SYMTIP[n.sym]) || SYMTIP[n && n.sym] || '';;
+/* 어느 상태로 말할지 고르는 손은 여기 하나다 */
+const symTip = n => {
+  if(!n || !SYMBODY[n.sym]) return '';
+  if(n.evolved) return SYMTIP_EVO[n.sym];
+  if(!evoSoon(n)) return SYMTIP[n.sym];
+  /* 임박에서는 흐린 예고 줄(will)을 안 붙인다 — done 이 같은 사실을 더 구체적으로
+     말해서 한 툴팁 안에 같은 말이 두 번 뜬다 (「1.5배로 뛴다」 / 「1.5배로 뛴 자리다」) */
+  const b = symBody(n.sym);
+  return `${b.now}<br><br><b>다음 턴에 진화한다</b> — 그 뒤에는<br>${b.done}`;
+};

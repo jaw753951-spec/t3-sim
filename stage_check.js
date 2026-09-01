@@ -147,12 +147,15 @@ const BOARDS = {
     await pg.goto('file://' + file);
     await pg.waitForTimeout(300);
     const r = await pg.evaluate(() => {
-      const res = { bad: [], turns: 0, chips: 0, chipNoTip: 0, wires: 0, wireNoTip: 0 };
+      const res = { bad: [], turns: 0, chips: 0, chipNoTip: 0, wires: 0, wireNoTip: 0, evoMix: 0 };
       const run = setup => {
         setup();
         for (let t = 0; t < 9; t++) {
           if (!eval('S') || !eval('alive(S).length')) break;
           eval('stageSync()');
+          /* 이름을 TIPMAP 으로 둔다 — 지역 상수를 TIPS 로 두면 그 초기화 식
+             안에서 자기 자신을 부르게 된다 (TDZ). 이 저장소에서 세 번째로 밟은 함정이다 */
+          const TIPMAP = eval('TIPS');
           const f = eval('forecast()');
           let sum = 0;
           for (const el of document.querySelectorAll('#sg .gz .icp.dmg b'))
@@ -160,6 +163,15 @@ const BOARDS = {
           if (sum !== f.dmg) res.bad.push(`턴 ${eval('S.turn')} 칩 합 ${sum} ≠ 예고 ${f.dmg}`);
           for (const c of document.querySelectorAll('#sg .gz .icp,#sg .gz .imk')) {
             res.chips++; if (!c.getAttribute('data-tip')) res.chipNoTip++ }
+          /* 떨림(warn)과 증상 문안의 상태가 갈리지 않는가. 둘 다 evoSoon 을 보므로
+             갈릴 수 없어야 하지만, 한쪽만 조건을 손보는 것이 이 저장소가 여러 번
+             겪은 일이라 자를 댄다 — 판이 떠는데 설명은 아직 「진화하면」이라 하는 꼴 */
+          for (const el of document.querySelectorAll('#sg .gz')) {
+            const g = el.querySelector('.dial .nmg'); if (!g) continue;
+            const t = TIPMAP[g.getAttribute('data-tip')] || '';
+            const soon = t.includes('다음 턴에 진화한다');
+            if (soon !== el.classList.contains('warn')) res.evoMix++;
+          }
           for (const g of document.querySelectorAll('#sg_links .wirem')) {
             res.wires++; if (!g.getAttribute('data-tip')) res.wireNoTip++ }
           res.turns++;
@@ -179,7 +191,57 @@ const BOARDS = {
     for (const t of r.bad) bad.push('정직성 — ' + t);
     if (r.chipNoTip) bad.push(`정직성 — 설명 없는 칩/딱지 ${r.chipNoTip}개`);
     if (r.wireNoTip) bad.push(`정직성 — 설명 없는 배선 메달 ${r.wireNoTip}개`);
+    if (r.evoMix) bad.push(`정직성 — 떨림과 증상 문안의 진화 상태가 어긋난 자리 ${r.evoMix}개`);
     for (const e of errs) bad.push('정직성 — 오류 ' + e);
+    await pg.close();
+  }
+
+  /* ── 증상 문안 세 상태 ── 실제 진행에만 기대면 못 본다.
+     AI 는 진단을 잘 안 하고, 진화 임박(evoSoon)은 진단한 자리에만 뜬다 —
+     71턴을 돌려도 warn 이 한 번도 안 서서 앞의 검사가 헛물을 켰다.
+     그래서 자리를 손수 세 상태로 몰아 놓고 잰다. */
+  {
+    const pg = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    const errs = []; pg.on('pageerror', e => errs.push(String(e)));
+    await pg.goto('file://' + file);
+    await pg.waitForTimeout(300);
+    const r = await pg.evaluate(() => {
+      setMode('one'); document.getElementById('lv').value = '5';
+      document.getElementById('seed').value = '42'; newGame(); eval('stageOpen()');
+      const TIPMAP = eval('TIPS'), out = [];
+      const read = n => { eval('stageSync()'); const el = eval('stageEl')(n);
+        const g = el.querySelector('.dial .nmg');
+        return { t: g ? (TIPMAP[g.getAttribute('data-tip')] || '') : '',
+                 warn: el.classList.contains('warn') } };
+      const n = eval("alive(S)").find(x => x.sym === '발열');
+      n.revealed = true;
+      n.evolved = false; n.evoLeft = 4; out.push(['진화 전', read(n)]);
+      n.evoLeft = 1;                     out.push(['임박',   read(n)]);
+      n.evolved = true;                  out.push(['진화 후', read(n)]);
+      n.evolved = false; n.evoLeft = 1; n.revealed = false;
+      out.push(['미진단 · 임박', read(n)]);
+      /* 문턱이 어긋나는지는 한 점만 찍어서는 안 보인다 — 떨림 조건만 <=2 로
+         바꿔도 1과 4 에서는 둘이 같은 답을 낸다. 값을 훑어서 어디서든 같은지 본다 */
+      n.revealed = true; const sweep = [];
+      for (let k = 1; k <= 5; k++) { n.evoLeft = k; const s = read(n);
+        sweep.push({ k, warn: s.warn, soon: s.t.includes('다음 턴에 진화한다') }) }
+      return { out, sweep };
+    });
+    const has = (s, w) => s.includes(w);
+    const [pre, soon, post, hidden] = r.out.map(x => x[1]);
+    if (has(pre.t, '다음 턴에 진화한다') || has(pre.t, '진화함')) bad.push('증상 문안 — 진화 전인데 뒷이야기가 뜬다');
+    if (!has(pre.t, '진화하면')) bad.push('증상 문안 — 진화 전에 예고가 없다');
+    if (pre.warn) bad.push('증상 문안 — 진화 전인데 떤다');
+    if (!has(soon.t, '다음 턴에 진화한다')) bad.push('증상 문안 — 임박인데 진화 뒤 이야기가 없다');
+    if (!soon.warn) bad.push('증상 문안 — 임박인데 안 떤다');
+    if (!has(post.t, '진화함')) bad.push('증상 문안 — 진화 후인데 진화함이 없다');
+    if (has(post.t, '진화하면') || has(post.t, '다음 턴에')) bad.push('증상 문안 — 진화 후인데 앞이야기가 남았다');
+    if (post.warn) bad.push('증상 문안 — 진화한 뒤에도 떤다');
+    if (has(hidden.t, '다음 턴에 진화한다') || hidden.warn)
+      bad.push('증상 문안 — 진단 안 한 자리가 진화 임박을 흘린다');
+    for (const s of r.sweep) if (s.warn !== s.soon)
+      bad.push(`증상 문안 — 남은 턴 ${s.k} 에서 떨림(${s.warn})과 문안(${s.soon})이 어긋난다`);
+    for (const e of errs) bad.push('증상 문안 — 오류 ' + e);
     await pg.close();
   }
 
@@ -190,5 +252,6 @@ const BOARDS = {
     process.exit(1);
   }
   console.log(`\n무대는 제자리다 — 판 ${boards}개 · 배지 ${badges}개 · `
-    + `${turns}턴에서 칩 합 = 「턴 끝 −N」 · 칩과 딱지 ${chips}개 · 배선 메달 ${wires}개가 전부 설명을 단다 · 오류 0`);
+    + `${turns}턴에서 칩 합 = 「턴 끝 −N」 · 칩과 딱지 ${chips}개 · 배선 메달 ${wires}개가 전부 설명을 달고 `
+    + `증상 문안이 진화 전 · 임박 · 후로 갈리며 떨림과 어긋나지 않는다 · 오류 0`);
 })();

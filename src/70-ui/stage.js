@@ -8,8 +8,9 @@
    그래서 무대와 작업대는 언제나 같은 판을 본다. 되돌리기 · 자동 진행 ·
    배치가 무대를 몰라도 되는 이유다 — render() 가 무대까지 맞춘다.
 
-   연출은 「부르기 전 판」과 「부른 뒤 판」을 견줘서 짠다 (fxPlanDiff).
-   커널에 훅을 심지 않은 것은 규칙 파일을 건드리지 않기 위해서다.
+   연출은 커널이 S.ev 에 적어 둔 사건 줄을 읽어서 짠다 (fxPlanLog).
+   커널에 심은 것은 훅이 아니라 기록이다 — 화면을 부르지 않고 배열에 밀어 넣기만
+   하므로 30-core 는 여전히 화면을 모른다. S.ev 를 안 켜면 아무것도 쌓지 않는다.
    ══════════════════════════════════════════════════════════════════ */
 
 //@ 무대.전역 — 무대가 떠 있는가, 무엇을 겨누는 중인가
@@ -83,153 +84,199 @@ function stageRender(){
   if(STAGE_CARD && !S.hand.includes(STAGE_CARD)){ STAGE_MODE = null; STAGE_CARD = null }
   tipReset();
   stageSync();
-  stageHud();
-  stageKarte();
+  stageChart();
   stagePatient();
-  stageActbar();
+  stageDoc();
   stagePanel();
   stageHand();
   pileRender();                       // 더미 창이 떠 있으면 같이 맞춘다
 }
 
-/* 머리띠 — 세션이면 명단과 예산, 스토리면 막과 증거 */
-function stageHud(){
-  const day = $('sg_day'), qs = $('sg_qs'), qt = $('sg_qtxt'),
-        bud = $('sg_budget'), act = $('sg_act');
-  if(MODE==='sess' && SESS){
-    const list = sessList(), doneN = SESS.results.filter(r=>(r.round??0)===SESS.round).length;
-    day.textContent = SESS.def.name;
-    qs.innerHTML = list.map((id,i)=>
-      `<i class="${i<doneN?'done':(i===SESS.idx?'now':'')}"></i>`).join('');
-    qt.textContent = `대기 ${Math.max(0, list.length-SESS.idx)}`;
-    bud.innerHTML = `${Math.max(0,SESS.budget)}<i>턴 남음</i>`;
-    act.style.display = SESS.def.visit ? '' : 'none';
-    if(SESS.def.visit) act.textContent = `평판 ${SESS.rep>0?'+':''}${SESS.rep}`;
-  } else if(MODE==='story'){
-    day.textContent = (BOSS[BOARD.boss]||{}).name || '스토리';
-    qs.innerHTML = '';
-    qt.textContent = S.act===1 ? `증거 ${S.evid}/${SR.EVID_TOTAL}`
-                   : S.policy ? `${S.correct?'정진단':'오진'}` : '';
-    bud.innerHTML = '';
-    act.style.display = '';
-    act.textContent = `${S.act}막${S.policy?' · '+S.policy:''}`;
-  } else {
-    day.textContent = BOARD.script ? BOARD.script.name.split(' · ')[0] : `레벨 ${BOARD.level}`;
-    qs.innerHTML = ''; qt.textContent = '단판';
-    bud.innerHTML = ''; act.style.display = 'none';
-  }
+/* ── 우측 차트 ── 이 사람에 대해 지금까지 알아낸 것만 적는다 ──
+   전에는 머리띠(세션·막)와 카르테 두 칸으로 나뉘어 있었다. 한 칸으로 합쳤다.
+   값은 그대로다 — 무엇을 감추는가도 그대로다 (문진 전에는 체력 태그가 「미상」). */
+//@ 무대.차트 — 턴 · 사람 · 정신 · 남은 턴 · 문진
+/* 이름 한 벌 — 차트 머리와 환자칸이 같은 것을 쓴다. 대본은 「병 · 사람」 순이고
+   보스는 「사람 · 병」 순이라, 두 곳에서 따로 자르면 한쪽이 병명을 이름 자리에
+   올린다. 자르는 손은 여기 하나만 둔다 */
+//@ 무대.이름 — 이 사람을 뭐라 부르는가
+function patientName(){
+  const p = BOARD.script, boss = !!BOARD.boss;
+  const full = p ? p.name : (boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
+  const bits = String(full).split(' · ');
+  if(bits.length<2) return {who: bits[0], what: ''};
+  return boss ? {who: bits[0], what: bits.slice(1).join(' · ')}
+              : {who: bits.slice(1).join(' · '), what: bits[0]};
 }
 
-/* 카르테 — 이 사람에 대해 지금까지 알아낸 것만 적는다 */
-function stageKarte(){
+function stageChart(){
   const p = BOARD.script;
-  const nameFull = p ? p.name : (BOARD.boss ? (BOSS[BOARD.boss]||{}).name : `레벨 ${BOARD.level} 환자`);
-  const bits = String(nameFull).split(' · ');
-  const boss = !!BOARD.boss;
-  const who = bits.length>1 ? (boss ? bits[0] : bits.slice(1).join(' · ')) : bits[0];
-  const what = bits.length>1 ? (boss ? bits.slice(1).join(' · ') : bits[0]) : '';
-  $('sg_kname').textContent = who;
-  $('sg_kmeta').textContent = (what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`);
+  const {who, what} = patientName();
 
   const hide = (MODE==='sess' && !S.tagsShown);
-  $('sg_ktags').innerHTML = hide
+  const tags = hide
     ? '<span class="ktag hid">체력 태그 미상</span>'
     : ((BOARD.tags||[]).length
         ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, `체력 <b>×${HP_TAG[t]}</b>`))}>${esc(t)} ×${HP_TAG[t]}</span>`).join('')
         : '<span class="ktag">특이 없음</span>');
 
-  $('sg_kchief').textContent = chiefOf();
+  /* 머리 — 턴과 사람. 막·증거는 여기 배지로 붙는다 (연출이 sg_act 를 잡는다) */
+  const badge = MODE==='story'
+    ? `<span id="sg_act">${S.act}막${S.policy?' · '+S.policy:''}${S.act===1?` · 증거 ${S.evid}/${SR.EVID_TOTAL}`:''}</span>`
+    : `<span id="sg_act"></span>`;
+  const rows = [];
+  rows.push(`<div class="sec"><div class="lab">턴 ${S.turn} ${badge}</div>
+    <div class="kname">${esc(who)}</div>
+    <div class="kmeta">${esc((what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`))}</div>
+    <div class="kchief">${esc(chiefOf())}</div>
+    <div class="ktags">${tags}</div></div>`);
+
+  rows.push(`<div class="sec"><div class="lab">정신 · ${S.mind}</div>
+    <div class="body"${tip(TT('정신 · '+S.mind, mindTipBody(S)))}>${mindLine(S)}</div></div>`);
+
+  /* 외래는 오늘 남은 턴, 스토리는 지금 방침이 판에 새긴 것 */
+  if(MODE==='sess' && SESS){
+    rows.push(`<div class="sec"><div class="lab">오늘 남은 턴</div>
+      <div class="big">${Math.max(0,SESS.budget)}</div>
+      <div class="body d">다음 환자 ${Math.max(0, sessList().length-SESS.idx-1)}명</div></div>`);
+  } else if(MODE==='story' && S.act===3){
+    /* 방침을 머리에 세운다. 전에는 「병 노드」라는 이름표 아래 이기는 조건만
+       적혀 있었는데, 그 조건이 무엇인지를 정하는 것이 방침이라 이름표가
+       한 겹 잘못 걸려 있었다. 방침 이름이 크게 오고 그 아래가 이기는 조건이다 */
+    rows.push(`<div class="sec"><div class="lab">방침</div>
+      <div class="big"${tip(policyTip(S.policy))}>${esc(S.policy||'—')}</div>
+      <div class="body">${winNote(S)}</div></div>`);
+  }
 
   const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
-  $('sg_kask').innerHTML = asked.length
-    ? asked.map(id=>{ const q=QUIZ.find(x=>x.id===id); return q
-        ? `<span class="ai">${esc(q.q)}<em>${esc(q.opens)}</em></span>` : '' }).join('')
-    : `<span style="color:var(--mut)">${MODE==='sess'?'묻지 않았다':'—'}</span>`;
+  rows.push(`<div class="sec"><div class="lab">문진에서 얻은 것</div>`
+    + (asked.length
+        ? asked.map(id=>{ const q=QUIZ.find(x=>x.id===id); return q
+            ? `<div class="ai"><em>${esc(q.opens)}</em><span>${esc(q.q)}</span><span>✓</span></div>` : '' }).join('')
+        : `<div class="ai d"><span>${MODE==='sess'?'묻지 않았다':'—'}</span></div>`)
+    + `</div>`);
+
+  setHTML($('sg_chart'), rows.join(''));
 }
 
-/* 환자 — 체력 고리 · 흉상 · 정신 */
+/* 정신 한 줄 — 지금 무엇이 걸려 있는가. 값은 손잡이에서 읽는다 */
+function mindLine(S){
+  if(S.mind==='평정')    return `안정화가 ${numOf(R.MIND_CALM_STAB)}배로 들어간다.`;
+  if(S.mind==='공황')    return '처치를 눌러도 다음 턴 시작에 들어간다.';
+  if(S.mind==='의식불명') return `진단이 ${R.MIND_ANX_DIAG + R.MIND_KO_DIAG} 줄어든다.`;
+  return `억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}.`;
+}
+
+/* 환자 — 흉상 · 체력 막대 · 정신 */
 function stagePatient(){
   const f = forecast();
-  const hp = Math.max(0, S.hp), pct = hp/Math.max(1,S.hpMax);
-  const fore = Math.max(0, hp - f.dmg)/Math.max(1,S.hpMax);
-  const C = 2*Math.PI*100;
-  $('sg_ring').innerHTML =
-    `<circle cx="108" cy="108" r="100" fill="none" stroke="#14181C" stroke-width="13"/>`
-  + `<circle cx="108" cy="108" r="100" fill="none" stroke="#98302A" stroke-width="13"
-       stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}" transform="rotate(-90 108 108)"/>`
-  + `<circle cx="108" cy="108" r="100" fill="none" stroke="#E8E2D2" stroke-width="13"
-       stroke-dasharray="${C}" stroke-dashoffset="${C*(1-fore)}" transform="rotate(-90 108 108)"/>`;
+  const hp = Math.max(0, S.hp), pct = hp/Math.max(1,S.hpMax)*100;
+  const gone = Math.min(hp, f.dmg)/Math.max(1,S.hpMax)*100;
 
+  /* 정신이 바뀔 때만 다시 그린다 — 매 수마다 SVG 를 다시 파싱하지 않는다 */
   const bust = $('sg_bust');
-  if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
+  if(bust.dataset.mind !== S.mind){ bust.innerHTML = bustSVG(S.mind); bust.dataset.mind = S.mind }
+
+  /* 이름은 차트와 같은 것을 쓴다 (무대.이름) */
+  $('sg_pwho').textContent = patientName().who;
 
   /* 설명은 작업대와 같은 것을 쓴다. 여기는 속성에 직접 다는 자리라 열쇠만 받는다 */
   const hpEl = $('sg_hp');
-  hpEl.innerHTML = `${(MODE==='sess'&&!S.tagsShown)?'?':hp}<i>${f.dmg?'−'+f.dmg:''}</i>`;
+  const mask = (MODE==='sess' && !S.tagsShown);
+  hpEl.innerHTML = `<b>${mask?'?':hp}</b><s>/ ${mask?'?':S.hpMax}</s>`
+                 + `<u>${f.dmg?`턴 끝 −${f.dmg}`:''}</u>`;
   hpEl.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
 
+  const bar = $('sg_hpbar');
+  bar.querySelector('.hf').style.width = pct+'%';
+  const hg = bar.querySelector('.hg');
+  hg.style.left = (pct-gone)+'%'; hg.style.width = gone+'%';
+  bar.setAttribute('data-tip', tipKey(TT('환자 체력', hpTipBody(S, f))));
+
   const m = $('sg_mind');
-  m.textContent = S.mind;
-  m.className = S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad');
+  m.textContent = '정신 · ' + S.mind;
+  m.className = 'mn ' + (S.mind==='평정' ? '' : (S.mind==='의식불명' ? 'ko' : 'bad'));
   m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
 }
 
-/* 고른 자리 한 줄 — 지금 끊으면 무슨 일이 나는가 */
-function stageActbar(){
-  const bar = $('sg_actbar');
-  const n = alive(S)[SEL];
-  if(!n){ bar.classList.remove('on'); return }
-  bar.classList.add('on');
-  $('sg_an').textContent = n.role==='disease' ? '병 노드' : n.sym;
-  const r = reaction(S,n), imm = immune(S,n);
-  let v;
-  if(imm) v = '1막의 병은 무적이다 — <u>진단</u>만 통한다';
-  else if(r===null) v = `처치선까지 <u>${n.val - killLine(S,n)}</u> 남았다`;
-  else if(r==='none') v = '휴면 — 보상 없음 · 연결선도 터지지 않는다';
-  else {
-    const fires = basicLines(alive(S).filter(x=>x.role!=='disease').map(x=>x.sym))
-      .concat((BOARD.enh||[]).filter(()=>alive(S).some(x=>x.revealed)))
-      .filter(l=>l.a===n.sym).map(l=>`${l.b} ${l.k}`);
-    v = `${r==='strong'?'강반응':'약반응'} · 전체 −${sweepAmt(n)}`
-      + (fires.length?` · <u>${fires.join(' / ')}</u>`:'')
-      + (r==='strong'?' · <u>정신이 무너진다</u>':'');
+/* 차트를 붙박이로 둔다 — 마우스를 올려야만 나오면 카드를 내는 동안 못 본다.
+   판 폭이 같이 줄므로 다시 재고 다시 그린다 (stageFit 이 둘 다 한다).
+   안 재면 계기가 옛 폭으로 앉아 차트 밑에 깔린다 — SG_BW 는 열 때와 창이
+   바뀔 때만 재는 값이라 여기서 손수 불러 줘야 한다 */
+//@ 무대.차트고정 — 등뼈를 누르면 열어 둔다
+function chartPin(){ $('sg').classList.toggle('chartpin'); stageFit() }
+
+/* ── 의사 자원 ── 기세 · 관해도 ────────────────────────────────
+   둘 다 게이트가 있다. 목업은 늘 띄우지만 그러면 규칙이 거짓말을 한다.
+     기세    S.rushArmed — 「참조 카드가 없어도 쌓인다. 계기판만 가린다」.
+             쓸 카드가 가방에 없으면 숫자가 장식으로 올라갈 뿐이다.
+     관해도  S.rem || S.remOpened — 열어 본 적이 없으면 있는 줄도 몰라야 한다.
+   둘 다 꺼져 있으면 칸을 통째로 비운다 (CSS 가 :empty 면 테두리도 안 그린다). */
+//@ 무대.의사자원 — 기세 · 관해도. 켜진 것만 뜬다
+function stageDoc(){
+  const out = [];
+  /* 눈금 밑에 글을 깔지 않는다 — 늘 떠 있을 값이 아니라 물어볼 값이다.
+     지금 상태(관해 몇 턴째 · 유지비가 모자란가)는 툴팁 끝에 붙여 준다 */
+  if(S.rushArmed){
+    out.push(`<div class="grp"${tip(KWTIP['기세'] + `<br><br>지금 <b>${S.rush}</b> / ${R.RUSH_MAX}`)}>
+      <div class="mrow"><span>기세</span><span class="mv">${S.rush} / ${R.RUSH_MAX}</span></div>
+      <div class="meter">${Array.from({length:R.RUSH_MAX},(_,i)=>`<i class="${i<S.rush?'on':''}"></i>`).join('')}</div></div>`);
   }
-  $('sg_av').innerHTML = v + '<br>' + nodeMarks(S, n);
+  if(S.rem || S.remOpened){
+    const g = S.remGauge, up = R.REM_UPKEEP;
+    const now = S.rem
+      ? `관해 <b>${S.remTurns}턴째</b> · 다음 턴 유지비 ${up}${g<up?' — <b>모자란다. 끝난다</b>':''}`
+      : '관해가 끝났다';
+    out.push(`<div class="grp"${tip(KWTIP['관해도'] + '<br><br>' + now)}>
+      <div class="mrow"><span>관해도</span><span class="mv">${g} / ${R.REM_MAX}</span></div>
+      <div class="meter rm">${Array.from({length:R.REM_MAX},(_,i)=>
+        `<i class="${i<g-up?'on':i<g?'drain':''}"></i>`).join('')}</div></div>`);
+  }
+  const el = $('sg_doc');
+  setHTML(el, out.length ? `<div class="lab">의사</div>${out.join('')}` : '');
 }
 
-/* 우측 계기 — 턴 · 코스트 · 파일. 아래칸 카르테는 stageKarte() 가 채운다 */
+/* 자리를 누르면 뜨던 줄(sg_actbar)은 걷었다 (되짚기 5).
+   「처치선까지 N 남았다」는 계기 얼굴의 수치판이 늘 말하고, 표식(약화 · 지연 ·
+   성장 정지 · 반응 강등 · 잠잠 · 만성 · 1막 무적)은 계기 아래 딱지로 내려갔다
+   (stage-node.js 의 standingMarks). 눌러야만 보이던 것을 늘 보이게 바꾼 것이라
+   글자 수는 줄고 읽히는 것은 늘었다.
+   되살릴 거면 nodeMarks 를 그대로 쓸 수 있다 — 작업대가 아직 쓴다. */
+
+/* 아래 줄의 손잡이 — 처치 · 코스트 · 덱 · 버림 · 정산 · 턴 종료.
+   전에는 우측 패널에 있던 것들이다. 하는 일은 그대로다 */
 function stagePanel(){
-  $('sg_turn').textContent = S.turn;
-  $('sg_spent').textContent = MODE==='sess' && SESS ? `${SESS.idx+1}/${sessList().length}명` : '';
   const en = Math.max(R.ENERGY, S.energy);
-  $('sg_energy').innerHTML = Array.from({length:en},(_,i)=>`<i class="${i<S.energy?'on':''}"></i>`).join('');
+  setHTML($('sg_energy'), Array.from({length:en},(_,i)=>`<i class="${i<S.energy?'on':''}"></i>`).join(''));
 
   /* 1막에는 끊을 것이 없다 — 그 자리를 「병명을 선언한다」가 쓴다 */
   const tb = $('sg_treat');
   if(MODE==='story' && S.act===1){
-    tb.className = 'btn' + (S.evid>=SR.EVID_AIM ? '' : ' off');
-    tb.firstChild.nodeValue = '병명을 선언한다';
+    tb.className = 'btn treat' + (S.evid>=SR.EVID_AIM ? '' : ' off');
+    tb.firstChild.nodeValue = '병명 선언';
     $('sg_treatc').textContent = `증거 ${S.evid}/${SR.EVID_TOTAL}`;
   } else {
     const n = alive(S)[SEL];
     const canT = n && !immune(S,n) && reaction(S,n)!==null && !verdictNow();
-    tb.className = 'btn' + (STAGE_MODE==='treat' ? ' on' : (canT||n ? '' : ' off'));
+    tb.className = 'btn treat' + (STAGE_MODE==='treat' ? ' on' : (canT||n ? '' : ' off'));
     tb.firstChild.nodeValue = '처치';
     $('sg_treatc').textContent = `${R.KILL_COST}코${S.mind==='공황'?' · 다음 턴':''}`;
   }
 
+  /* 조기 정산은 외래·왕진만 — 스토리에는 손을 뗄 자리가 없다 */
   const sb = $('sg_settle');
   const canS = MODE==='sess' && SESS && SESS.phase==='fight';
-  sb.className = 'btn' + (canS ? '' : ' off');
+  sb.style.display = (MODE==='sess') ? '' : 'none';
+  sb.className = 'btn early' + (canS ? '' : ' off');
   $('sg_settlec').textContent = canS ? outcome(S, BOARD.core) : '—';
 
   $('sg_pDeck').textContent = S.deck.length;
   $('sg_pDisc').textContent = S.discard.length;
-  $('sg_pHand').textContent = S.hand.length;
 
+  const done = verdictNow();
   const eb = $('sg_end');
-  eb.className = verdictNow() ? 'off' : '';
-  eb.textContent = verdictNow() ? `${verdictNow()} — 정산한다` : '턴 종료';
+  eb.className = 'btn endturn' + (done ? ' off' : '');
+  eb.textContent = done ? `${done} — 정산한다` : '턴 종료';
 }
 
 /* 손패 — 카드 한 장의 겉모습은 작업대와 같은 것을 쓴다 (cardHTML).
@@ -260,15 +307,47 @@ function stageHand(){
 }
 
 /* ── 환자 흉상 ── 그림 파일 없이 실루엣 하나 ─────────────────
-   증상마다 바꾸지 않는다. 나중에 그림이 들어올 자리이기도 하다. */
-function bustSVG(){
+   증상마다 바꾸지 않는다. 나중에 그림이 들어올 자리이기도 하다.
+
+   정신 상태만은 얼굴에 싣는다. 전에는 넉 상태가 전부 같은 얼굴이었고,
+   달라지는 것은 아래 「정신 · 공황」 글자뿐이라 왼쪽 칸을 봐도 이 사람이
+   어떤지 알 수 없었다. 눈썹 · 눈 · 입 셋만 바꾼다 — 실루엣과 어깨선은
+   그대로라 같은 사람으로 읽힌다.
+
+   MIND_FACE 의 열쇠는 커널이 쓰는 정신 이름 그대로다. 모르는 이름이 오면
+   평정으로 떨어진다 (상태가 늘어도 화면이 안 깨진다). */
+const MIND_FACE = {
+  /* 평정 — 감은 눈, 다문 입 */
+  '평정': `<path d="M84 66q6 4 12 0M104 66q6 4 12 0" stroke="rgba(20,18,16,.5)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>
+           <path d="M88 84h24" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  /* 불안 — 치켜올라간 눈썹, 작게 벌어진 입 */
+  '불안': `<path d="M80 56 96 61M120 56 104 61" stroke="rgba(20,18,16,.55)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>
+           <circle cx="89" cy="68" r="3.4" fill="rgba(20,18,16,.6)"/>
+           <circle cx="111" cy="68" r="3.4" fill="rgba(20,18,16,.6)"/>
+           <ellipse cx="100" cy="85" rx="6" ry="4.5" fill="rgba(20,18,16,.5)"/>`,
+  /* 공황 — 크게 뜬 눈, 벌어진 입, 관자놀이의 땀 */
+  '공황': `<path d="M78 54 97 62M122 54 103 62" stroke="rgba(20,18,16,.6)" stroke-width="3.4"
+             fill="none" stroke-linecap="round"/>
+           <circle cx="88" cy="69" r="5.4" fill="rgba(20,18,16,.72)"/>
+           <circle cx="112" cy="69" r="5.4" fill="rgba(20,18,16,.72)"/>
+           <ellipse cx="100" cy="87" rx="8.5" ry="7.5" fill="rgba(20,18,16,.62)"/>
+           <path d="M126 60q5 7 0 11t-5-11z" fill="rgba(190,215,225,.75)"/>`,
+  /* 의식불명 — 감긴 눈 위의 가로줄, 늘어진 입 */
+  '의식불명': `<path d="M82 68h14M104 68h14" stroke="rgba(20,18,16,.55)" stroke-width="3.4"
+             fill="none" stroke-linecap="round"/>
+           <path d="M88 88q12-6 24 0" stroke="rgba(20,18,16,.45)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>`,
+};
+function bustSVG(mind){
   return `<svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">
     <defs><linearGradient id="sgbust" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#8d8377"/><stop offset="1" stop-color="#3a352f"/></linearGradient></defs>
     <path d="M100 44c-15 0-26 12-26 28 0 11 4 20 10 26-18 7-32 20-38 38-2 6 2 12 8 12h92c6 0 10-6 8-12
              -6-18-20-31-38-38 6-6 10-15 10-26 0-16-11-28-26-28z" fill="url(#sgbust)"/>
     <path d="M74 148h52" stroke="rgba(20,18,16,.5)" stroke-width="3" fill="none"/>
-    <path d="M86 72q14 8 28 0" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    ${MIND_FACE[mind] || MIND_FACE['평정']}
   </svg>`;
 }
 
@@ -286,7 +365,7 @@ function stageNodeClick(ix){
 function stageCardClick(id){
   if(FX_BUSY || !S) return;
   const c = CARDS[id];
-  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`)); fxFlush(); stageToast('지금은 낼 수 없다'); return }
+  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`), ['hand']); fxFlush(); stageToast('지금은 낼 수 없다'); return }
   if(c.target==='node'){
     if(alive(S)[SEL]){ stagePlay(id); return }
     STAGE_MODE = (STAGE_MODE==='card' && STAGE_CARD===id) ? null : 'card';
@@ -299,9 +378,11 @@ function stageCardClick(id){
 
 function stagePickCard(id){
   if(FX_BUSY) return;
-  const b = fxSnap(S);
+  const b = fxMark(S);
+  S.ev = [];
   pickCard(id);
-  if(!PICK) fxPlanDiff(b, {verb:'card'});
+  if(!PICK) fxPlanLog(S.ev, b, {verb:'card'});
+  if(S) S.ev = null;
   fxFlush();
 }
 
@@ -335,13 +416,17 @@ function stageEndBtn(){
 }
 
 /* ── 손 → 커널 → 연출 ────────────────────────────────────────
-   기존 손을 그대로 부른다. 앞뒤로 판을 떠서 무슨 일이 났는지만 읽는다. */
-//@ 무대.행동 — 기존 손을 부르고 그 전후를 견준다
+   기존 손을 그대로 부른다. 부르는 동안 커널이 S.ev 에 적어 둔 사건 줄을 읽는다.
+   구간 넘김과 스토리 게이지만 전후를 견준다 (fxMark). */
+//@ 무대.행동 — 기존 손을 부르고 커널이 적은 사건 줄을 읽는다
 function stageAct(fn, plan){
   if(FX_BUSY || !S) return;
-  const b = fxSnap(S);
+  const b = fxMark(S);
+  const rec = S;                       // 손이 판을 갈아 끼울 수 있다 (되돌리기 · 세션) — 켠 자리를 기억해 둔다
+  rec.ev = [];
   fn();
-  if(S) fxPlanDiff(b, plan);
+  if(S) fxPlanLog(S===rec ? rec.ev : [], b, plan);
+  rec.ev = null; if(S) S.ev = null;
   fxFlush(()=>{ if(STAGE_ON) stageAfter() });
 }
 
@@ -375,124 +460,137 @@ function stageAfter(){
   sayTurnTick();
 }
 
-/* ── 판을 뜬다 · 견준다 ──────────────────────────────────────── */
-//@ 무대.스냅 — 연출이 볼 수 있는 만큼만 뜬다
-function fxSnap(S){
+/* ── 사건으로 낼 수 없는 나머지 ────────────────────────────────
+   커널이 S.ev 에 적어 주지 못하는 것만 여기 남는다. 둘뿐이다.
+
+   · 구간 넘김(zone) — reaction() 은 painShare(S) 를 타서 **전역**이다.
+     한 자리를 억제하면 손도 안 댄 자리의 등급이 같이 바뀐다. 어느 한 대입
+     자리에서 낼 수 있는 사건이 아니라서 전후를 견주는 수밖에 없다.
+   · 증거 · 병기 — 스토리 층(30-core/story.js)이 올리는 값이다. 이 층에는
+     아직 사건을 안 붙였다.
+
+   전에 fxSnap 이 뜨던 「자리마다 11필드 + 전역 7개」가 이만큼으로 줄었다. */
+//@ 무대.나머지 — 사건으로 못 내는 것만 뜬다
+function fxMark(S){
   const dis = S.nodes.find(n=>n.role==='disease');
   return {
-    hp:S.hp, mind:S.mind, turn:S.turn,
-    rush:S.rush||0, remGauge:S.remGauge||0,
-    evid:S.evid, stage: dis?dis.stage:0,
-    len:S.nodes.length,
-    nodes:S.nodes.map(n=>({
-      dead:!!n.dead, val:n.val, shielded:!!n.shielded, dormT:n.dormT||0,
-      evolved:!!n.evolved, weak:n.weak||0, rig:rigTotal(n), stabAcc:n.stabAcc||0,
-      diagRound:n.diagRound||0, diagAcc:n.diagAcc||0, demoted:!!n.demoted,
-      react: n.dead ? null : reaction(S,n),
-    })),
+    evid: S.evid, stage: dis?dis.stage:0, mind: S.mind,
+    rush: S.rush||0, remGauge: S.remGauge||0,
+    react: S.nodes.map(n=>n.dead ? null : reaction(S,n)),
   };
 }
 
-/* 무슨 일이 났는가 — 순서가 곧 연출 순서다.
-   자리 하나에 여러 일이 겹치면 「값이 움직인 것 → 막이 깨진 것 → 잠든 것」 순이다. */
-//@ 무대.연출짜기 — 전후를 견줘 줄을 세운다
-function fxPlanDiff(b, plan){
+/* ── 사건 줄을 연출 줄로 ────────────────────────────────────────
+   커널이 적어 준 차례가 곧 연출 차례다. 되짚기와 달리
+     · 같은 자리를 두 번 억제하면 두 번 뜬다 (전에는 차이 하나로 뭉쳤다)
+     · 아무것도 안 움직인 튕김도 뜬다 (무적 · 완화 면역)
+     · 촉발 · 전이는 커널이 '실제로 건 것'만 넘겨 준다 — 무대가 흉내 내지 않는다
+   구간 넘김과 손패 돌리기만 마지막에 따로 붙인다. */
+//@ 무대.연출짜기 — 커널이 적어 준 사건 줄을 그대로 옮긴다
+function fxPlanLog(log, before, plan){
   plan = plan || {};
-  const cur = fxSnap(S);
-  const zoneAfter = [];
+  const cur = fxMark(S);
+  let killed = false, turned = false, turnHp = 0;
+  /* 연출이 무엇을 건드리는지 적어 준다 — 겹치지 않는 것끼리 한꺼번에 나간다
+     (연출.배속 옆의 fxFlush). 자리는 번호로 센다. 이름으로 세면 같은 증상이
+     둘일 때 서로 겹친 것으로 보고 줄을 세운다 */
+  const nk = n => 'n' + S.nodes.indexOf(n);
 
-  /* 처치는 그 자리의 사라짐이 먼저다 */
-  if(plan.verb==='kill' && plan.killIx!=null){
-    const n = S.nodes[plan.killIx];
-    const was = b.nodes[plan.killIx];
+  for(const e of (log||[])){
+    const n = e.n;
+    switch(e.t){
+      case 'kill':
+        killed = true;
+        fxq(()=>FXE.treat(n, e.grade), [nk(n)]);
+        sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
+        break;
+      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade), [nk(e.from), nk(e.to)]); break;
+      case 'spawn':      fxq(()=>FXE.spawn(e.from, n), [nk(e.from), nk(n)]); sayEmit('spawn', {key:n.sym, node:n}); break;
+      /* 부설이 놓은 배선. e.n 이 없는 사건이라 nk(n) 이 아니라 출발 자리를 잡는다 */
+      case 'lay':        fxq(()=>FXE.lay(e.from, kwLabel({k:e.kind})), [nk(e.from)]); break;
+      case 'sup':        fxq(()=>FXE.suppress(n, e.amt), [nk(n)]); break;
+      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt), [nk(n)]); break;
+      case 'shBreak':    fxq(()=>FXE.shieldBreak(n), [nk(n)]); sayEmit('shield', {key:n.sym, node:n}); break;
+      case 'weak':       fxq(()=>FXE.weaken(n, e.add), [nk(n)]); break;
+      case 'rig':        fxq(()=>FXE.rig(n, e.amt), [nk(n)]); break;
+      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt), [nk(n)]); break;
+      case 'diag':       fxq(()=>FXE.diagnose(n, e.round), [nk(n)]);
+                         sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
+      case 'demote':     fxq(()=>FXE.demote(n), [nk(n)]); break;
+      case 'resist':     fxq(()=>FXE.resist(n, e.back), [nk(n)]); break;
+      /* 진화는 자리 이름표를 붙인다. 판을 어둡게 까는 것은 맞지만 그 어둠을
+         세어서 겹쳐 쓰므로(fxDarkOn), 같은 턴에 둘이 진화하면 한 번 어두워진
+         채로 둘이 같이 부푼다. 전에는 어둠을 각자 걷어서 한 자리씩 차례로
+         어두워졌다 밝아졌다 했다 */
+      case 'evolve':     fxq(()=>FXE.evolve(n), [nk(n)]); sayEmit('evolve', {key:n.sym, node:n}); break;
+      case 'dorm':       fxq(()=>FXE.dormant(n), [nk(n)]); sayEmit('dormant', {key:n.sym, node:n}); break;
+      case 'revive':     fxq(()=>FXE.revive(n), [nk(n)]); sayEmit('revive', {key:n.sym, node:n}); break;
+      /* 손은 닿았는데 판이 안 움직인 자리 — 되짚기로는 볼 수 없던 것들 */
+      case 'immune':
+      case 'calmBounce': fxq(()=>FXE.immune(n), [nk(n)]); break;
+      case 'delay':      fxq(()=>FXE.stabilize(n, 0), [nk(n)]); break;
+      /* 환자가 맞는 것은 한 손에 여러 번 온다 — 자리마다 오는 턴 공격, 진화
+         즉발, 점화. 그때마다 띄우면 320ms 가 그 수만큼 쌓이고, 넷 다 같은
+         환자칸을 건드리므로 겹쳐 낼 수도 없다. 총합으로 한 번만 띄운다.
+
+         「이 자리가 냈다」를 잃는 것 아니냐 — 아니다. patHit 은 환자 위에
+         숫자만 띄우지 어느 자리가 냈는지는 원래 안 보여 준다. 자리별 몫은
+         계기 아래 의도 칩이 이미 말하고 있고, 이렇게 해야 뜨는 숫자가
+         환자칸의 「턴 끝 −N」과 같아진다.
+         사혈(bleed)만 따로 둔다 — 의사가 스스로 낸 값이라 색과 글이 다르다 */
+      case 'hp':
+        if(e.why==='bleed') fxq(()=>FXE.patPay(e.amt), ['pat']);
+        else                turnHp += e.amt;
+        break;
+      /* 정신은 여기서 띄우지 않는다 — 한 손에 두세 번 흔들리는 일이 흔해서
+         (억제로 악화 → 휴면 도달로 호전 …) 사건마다 띄우면 배너가 겹친다.
+         결과만 아래에서 한 번 알린다. 게이지를 결과 한 번으로 내는 것과 같다. */
+      case 'turn':       turned = true; break;
+      /* 성장 · 뽑기 · 성장 정지는 계기판이 그리므로 연출을 따로 내지 않는다 */
+    }
+  }
+
+  /* 환자가 이번 손에 맞은 총합 — 자리별 연출이 다 지나간 뒤 한 번 */
+  if(turnHp>0) fxq(()=>FXE.patHit(turnHp), ['pat']);
+
+  /* 처치를 걸었는데 사건이 안 왔다 — 못 끊었다. 표를 도로 뗀다 */
+  if(plan.verb==='kill' && plan.killIx!=null && !killed){
     const el = STAGE_ELS.get(plan.killIx);
-    if(!(n && was && !was.dead && cur.nodes[plan.killIx].dead)){
-      if(el) delete el.dataset.dying;     // 못 끊었다 — 표를 도로 뗀다
-    } else {
-      fxq(()=>FXE.treat(n, plan.grade));
-      sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
-      /* 촉발 · 전이 — 이 자리에서 뻗은 선이 터진다 */
-      if(plan.grade && plan.grade!=='none'){
-        const lines = [...basicLines(b.nodes.map((_,i)=>S.nodes[i]).filter(x=>x&&!x.dead).map(x=>x.sym)),
-                       ...((BOARD.enh)||[])];
-        for(const l of lines){
-          if(l.a!==n.sym) continue;
-          const t = alive(S).find(x=>x.sym===l.b && x!==n);
-          if(t) fxq(()=>FXE.trigger(n, t, plan.grade));
-        }
-      }
-    }
+    if(el) delete el.dataset.dying;
   }
 
-  /* 자리마다 — 값 · 막 · 약화 · 설치 · 진단 · 진화 · 휴면 */
-  for(let i=0;i<cur.len;i++){
-    const a = b.nodes[i], c = cur.nodes[i], n = S.nodes[i];
-    if(!n) continue;
-    if(!a){                                   // 새로 난 자리 (전이)
-      const src = plan.killIx!=null ? S.nodes[plan.killIx] : null;
-      if(src) fxq(()=>FXE.spawn(src, n));
-      sayEmit('spawn', {key:n.sym, node:n});
-      continue;
-    }
-    if(a.dead || c.dead) continue;            // 이미 위에서 다뤘거나 볼 것이 없다
-
-    if(c.val < a.val)      fxq(()=>FXE.suppress(n, a.val-c.val));
-    else if(c.val > a.val && plan.verb!=='turn') fxq(()=>FXE.stabilize(n, 0));
-    if(c.stabAcc > a.stabAcc && c.shielded) fxq(()=>FXE.stabilize(n, c.stabAcc-a.stabAcc));
-    if(c.weak > a.weak)    fxq(()=>FXE.weaken(n, c.weak-a.weak));
-    if(c.rig  > a.rig)     fxq(()=>FXE.rig(n, c.rig));
-    if(c.rig  < a.rig)     fxq(()=>FXE.rigOpen(n, a.rig-c.rig));
-    if(a.shielded && !c.shielded){ fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}) }
-    if(c.diagRound > a.diagRound){
-      fxq(()=>FXE.diagnose(n, c.diagRound));
-      sayEmit('diag', {key:n.sym, node:n, round:c.diagRound});
-    }
-    if(!a.demoted && c.demoted) fxq(()=>FXE.demote(n));
-    if(!a.evolved && c.evolved){ fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}) }
-    if(a.dormT===0 && c.dormT>0){ fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}) }
-    if(a.dormT>0 && c.dormT===0 && c.val>0){ fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}) }
-    if(c.react !== a.react && c.react && c.react!=='none') zoneAfter.push([n, c.react]);
-  }
-
-  /* 1막 병 노드를 건드렸는데 아무것도 안 움직였다 — 튕겨 낸다 */
-  if(plan.verb==='card'){
-    const n = alive(S)[SEL];
-    if(n && immune(S,n) && CARDS[plan.card] && CARDS[plan.card].verb!=='진단'){
-      const i = S.nodes.indexOf(n);
-      if(b.nodes[i] && b.nodes[i].val === cur.nodes[i].val) fxq(()=>FXE.immune(n));
-    }
-  }
-
-  /* 환자 쪽 */
-  if(cur.hp < b.hp){
-    const d = b.hp - cur.hp;
-    if(plan.verb==='turn') fxq(()=>FXE.patHit(d));
-    else if(CARDS[plan.card] && CARDS[plan.card].bleed) fxq(()=>FXE.patPay(d));
-    else fxq(()=>FXE.patHit(d));
-  }
-  if(cur.mind !== b.mind){
-    const worse = ['평정','불안','공황','의식불명'].indexOf(cur.mind)
-                > ['평정','불안','공황','의식불명'].indexOf(b.mind);
-    fxq(()=>FXE.mind(cur.mind, worse));
+  /* 정신 — 오간 끝에 자리가 바뀌었을 때만 */
+  if(cur.mind !== before.mind){
+    const M = ['평정','불안','공황','의식불명'];
+    const worse = M.indexOf(cur.mind) > M.indexOf(before.mind);
+    fxq(()=>FXE.mind(cur.mind, worse), ['mind']);
     sayEmit(worse?'mind':'mindUp', {key:cur.mind});
   }
 
-  /* 전역 게이지 */
-  /* 상태판을 걷었으므로 이 셋은 환자 위에 떠서 알린다 — 붙을 계기판이 없다 */
-  if(cur.rush !== b.rush)         fxq(()=>FXE.gauge('sg_pat', `기세 ${cur.rush}`, cur.rush>b.rush));
-  if(cur.remGauge !== b.remGauge) fxq(()=>FXE.gauge('sg_pat', `관해 ${cur.remGauge}`, cur.remGauge>b.remGauge));
-  if(cur.stage !== b.stage){
-    fxq(()=>FXE.gauge('sg_pat', `병기 ${cur.stage}`, false));
+  /* 전역 게이지 — 사건이 여러 번 왔어도 결과 한 번만 알린다 */
+  /* 숫자는 그 값이 실제로 적혀 있는 칸 위에 뜬다. 넷 다 sg_pat 을 가리키고
+     있었는데, 그때는 sg_pat 이 위쪽 머리띠라 기세 · 관해 · 병기가 다 거기
+     있었다. 네 구역으로 가르면서 기세 · 관해는 의사 패널로, 병기는 병 노드
+     계기의 배지로 옮겨 갔다 — 가리키는 곳도 같이 옮긴다 */
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush), ['doc']);
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge), ['doc']);
+  if(cur.stage !== before.stage){
+    const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
+    /* 병기는 뜨는 숫자 하나로 넘기지 않는다 — 판이 통째로 한 단 더 나빠지는
+       사건이고, 계기 겉모습(무쇠 → 녹 → 숯)도 그때 바뀐다 */
+    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage), [nk(dz)]);
+    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false), ['chart']);
     sayEmit('stage', {key:String(cur.stage)});
   }
-  if(cur.evid !== b.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
+  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true), ['chart']);
 
   /* 구간을 새로 넘어선 자리는 마지막에 한 번씩 김을 뿜는다 */
-  for(const [n, r] of zoneAfter) fxq(()=>FXE.zone(n, r));
+  for(let i=0;i<cur.react.length;i++){
+    const a = before.react[i], c = cur.react[i];
+    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c), [nk(S.nodes[i])]);
+  }
 
-  /* 턴이 넘어갔으면 손패를 새로 돌린다 */
-  if(cur.turn > b.turn) fxq(()=>FXE.dealHand());
-
+  if(turned) fxq(()=>FXE.dealHand(), ['hand']);
   sayHpCheck();
 }
 

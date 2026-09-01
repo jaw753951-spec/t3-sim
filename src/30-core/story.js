@@ -7,7 +7,7 @@ function mkSpot(sym, init, turn){
   return {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
     grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
     rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-    demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
+    resist:0, resistBack:false, demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
 }
 
 /* ── 판 짓기 ── */
@@ -17,7 +17,7 @@ function makeDisease(key, rng){
   const dis = {sym:'병', role:'disease', init:SR.DIS_BASE[SLV(key,'dis',stage)], val:SR.DIS_BASE[SLV(key,'dis',stage)],
     shielded:false, shReduc:0, stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false,
     dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
-    diagNeed:R.DIAG_NEED, demoted:false, revealed:false, spawned:false,
+    diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false, spawned:false,
     stage, stageMax:b.stageMax, stageClock:SR.STAGE_TURNS, beat:0};
   const nodes=[dis];
   b.seed.forEach((s,i)=>{
@@ -27,7 +27,7 @@ function makeDisease(key, rng){
     nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
       grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
       rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-      demoted:false, revealed:false, spawned:false, role:'sym'});
+      resist:0, resistBack:false, demoted:false, revealed:false, spawned:false, role:'sym'});
   });
   let hp=b.hp;
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
@@ -123,7 +123,7 @@ function diseaseAct(S, dis, act){
       const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
       S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
         grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
+        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false,
         spawned:true, born:S.turn, role:'sym'});
       return `분화 — ${s}`;
     }

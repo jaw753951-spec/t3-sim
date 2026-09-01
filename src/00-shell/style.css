@@ -157,16 +157,19 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .cost{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:2px solid var(--cd-rule);
   display:grid;place-items:center;background:rgba(255,252,240,.30);
   font:700 17px/1 var(--mono);color:var(--cd-ink);min-width:0}
-#sg_hand .chead b{display:block;font:700 14.5px/1.25 var(--sans);color:var(--cd-ink)}
+#sg_hand .chead b{display:block;font:700 15.5px/1.25 var(--sans);color:var(--cd-ink)}
 #sg_hand .bl{align-self:flex-start;color:#F2E6CE;border-color:#6E211C}
 /* 카드 그림이 들어올 칸 */
-#sg_hand .cart{display:grid;flex:0 0 116px;border:1px solid var(--cd-line);
+/* 그림칸을 116 → 40 으로 줄이고 그만큼 본문에 준다. 손패 줄이 통째로 0.8배라
+   본문 11.5px 은 화면에서 9.2px 이었다 — 정작 카드에서 읽어야 하는 것이
+   그림 자리가 아니라 이 글이다. 그림이 실제로 들어오면 다시 저울질한다 */
+#sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
-  font:10.5px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+  font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
   padding:7px 9px}
-#sg_hand .ctext{font:11.5px/1.5 var(--sans);color:var(--cd-ink)}
-#sg_hand .keep{margin-top:5px;font:10px var(--mono);color:var(--cd-mut)}
+#sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
+#sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}
 #sg_hand .keep.why{color:var(--blood)}
 
@@ -207,6 +210,10 @@ summary{font:11px var(--mono);letter-spacing:.1em;color:var(--dim);cursor:pointe
 .mini{width:auto;margin:0;padding:3px 8px;font-size:10px}
 .mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:10px 0}
 label.mk{display:block;margin:0;text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim)}
+/* 강화형 넷을 한 칸에 눕힌다 — 배선 줄이 늘어나도 표가 세로로만 큰다 */
+label.mkchk{display:inline-flex;align-items:center;gap:3px;margin:0 7px 0 0;
+  text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim);cursor:help}
+label.mkchk input{width:auto;margin:0}
 label.mk input,label.mk select{margin-top:4px}
 label.mk input[type=checkbox]{width:auto}
 td input[type=number],td input[type=text],td select{padding:4px 6px;font-size:12px}

@@ -47,6 +47,26 @@ function basicLines(syms){
   return out;
 }
 
+/* 배선 종류가 촉발인가 전이인가 — 종류 이름 하나로 정한다.
+
+   fireReactions 는 L.kind 로 갈래를 가르는데, 명부(20-data/patients.js)가 손으로
+   적는 강화형 배선은 {a,b,k} 세 칸뿐이라 kind 가 없었다. 그래서 **명부의 강화
+   배선이 하나도 안 터졌다** — 화면에는 그려지고 설명도 뜨는데 처치해도 아무 일이
+   없다. 「감염 → 탈수 가속」(d2_1)과 「감염 → 통증 불응」(d2_3) 둘 다 그랬다.
+
+   표를 따로 적지 않고 TRIG · TRANS 에서 뽑는다. 표에 없는 종류(불응처럼 강화형
+   에만 있는 것)만 아래에 적는다 — 두 벌로 적으면 새 종류를 넣을 때 한쪽만 고친다. */
+//@ 커널.배선종류 — 종류 이름 → 촉발 · 전이
+let LINK_KIND = null;
+function linkKind(k){
+  if(!LINK_KIND){
+    LINK_KIND = {'불응':'trig'};                       // 표에 없는 강화형
+    for(const [,,x] of TRIG)  LINK_KIND[x] = 'trig';
+    for(const [,,x] of TRANS) LINK_KIND[x] = 'trans';
+  }
+  return LINK_KIND[k] || 'trig';
+}
+
 /* 이 자리의 값 — 적어 둔 것이 있으면 그것, 없으면 권위본 기본값 */
 function sp(n, sym){
   const d = SYMPARAM[sym||n.sym]; if(!d) return 0;
@@ -356,6 +376,19 @@ function killNow(S,n){
   const r = reaction(S,n);
   if(r===null) return false;
   if(S.energy < R.KILL_COST) return false;
+  /* 불응이 걸어 둔 처치 저항 — 손과 코스트는 나가고 처치는 안 된다.
+     공황 예약이 헛손질로 끝나도 코스트를 안 돌려주는 것과 같은 잣대다.
+     반응 판정 뒤에 둔다: 애초에 못 끊는 자리는 저항을 쓰지 않는다 */
+  if(n.resist > 0){
+    S.energy -= R.KILL_COST;
+    n.resist--;
+    S.acts = (S.acts||0)+1; S.played++;
+    const back = !!n.resistBack;
+    if(back){ n.val = n.init; n.resistBack = false }
+    ev(S,{t:'resist', n, back});
+    if(S.rec) S.rec.push(`불응 ${n.sym}`);
+    return true;
+  }
   S.energy -= R.KILL_COST;
   S.energy += R.REFUND;
   const amt = sweepAmt(n);
@@ -386,12 +419,22 @@ function fireReactions(S,src,grade){
   for(const L of lines){
     if(L.a!==src.sym) continue;
     const tgt = alive(S).find(n=>n.sym===L.b && n!==src);
-    if(L.kind==='trig'){
+    /* 명부가 손으로 적는 강화 배선에는 kind 가 없다 — 종류 이름에서 되찾는다 */
+    const kind = L.kind || linkKind(L.k);
+    if(kind==='trig'){
       if(!tgt) continue;
       const LK = R.LINK;
       /* 사건은 '실제로 건 것'만 낸다 — 점화는 목표가 공격 증상일 때만 걸린다.
          무대가 이 조건을 따로 흉내 내다 틀렸던 자리다. */
       if(L.k==='가속'){ tgt.grow += strong?LK.가속.강:LK.가속.약; ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
+      /* 불응 — 대상에 처치 저항을 한 번 건다. v0.2.1 까지 이 종류는 명부(patients.js)
+         에만 있고 여기서 안 봤다: 배선은 그려지고 설명도 떴는데 아무 일도 안 났다.
+         강반응으로 건 저항은 튕겨 낼 때 그 자리를 초기값으로 되돌린다 — 되돌림은
+         저항마다 따로 세지 않고 자리에 한 벌만 둔다. 겹쳐 걸리면 마지막 강반응이
+         이긴다: 약반응이 강반응 뒤에 겹쳐도 되돌림을 못 지운다 */
+      if(L.k==='불응'){ tgt.resist = (tgt.resist||0) + 1;
+                        if(strong) tgt.resistBack = true;
+                        ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       /* 약한 경화는 평범한 보호막이다 — SHIELD_CUT 을 그대로 쓴다 */
       if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
                         ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
@@ -404,7 +447,7 @@ function fireReactions(S,src,grade){
                   grow: L.k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
                   evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
                   evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-                  diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
+                  diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
                   revealed:false, spawned:true, born:S.turn, role:'sym'};
       S.nodes.push(nn);
       ev(S,{t:'spawn', from:src, n:nn});

@@ -186,15 +186,20 @@ function standingChips(S, n){
 function standingMarks(S, n){
   const out = [];
   if(immune(S,n)) out.push({ic:'imm', tip:TT('1막 · 무적',
-    '병명을 밝히기 전까지 병 노드는 억제 · 안정화 · 처치를 전부 받지 않는다.<br>이 자리에 통하는 것은 <b>진단</b>과 <b>재진</b>뿐이다.')});
+    '병명 확정 전 까지 <br><b>진단</b>만 실시할 수 있다.')});
   if(n.weak)      out.push({ic:'weak',  txt:n.weak,     tip:KWTIP['약화']});
   if(n.delayed)   out.push({ic:'delay', txt:n.delayed,  tip:KWTIP['지연']});
   if(n.growHold>0)out.push({ic:'frost', txt:n.growHold, tip:TT('성장 정지',
-    `이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`)});
+    `이 증상은 <b>${n.growHold}턴</b> 성장이 멈춘다.<br>`)});
   if(n.demoted)   out.push({ic:'demote', tip:TT('반응 강등',
-    '진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.')});
+    '강반응이 영구히 약반응으로 내려간다.<br>')});
   if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
-  if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 자리는 이번 턴 아무것도 하지 않는다.')});
+  /* 불응이 걸어 둔 처치 저항. 걸린 줄 모르면 처치 한 번을 헛되이 쓴다 */
+  if(n.resist>0)  out.push({ic:'bHard', txt:n.resist, tip:TT('처치 저항 · 불응',
+    `다음 처치를 <b>${n.resist}번</b> 튕겨 낸다. 코스트와 손은 나가고 처치는 되지 않는다.`
+    + (n.resistBack?'<br><b>강반응으로 걸린 저항</b> — 튕겨 낼 때 이 증상이 <b>초기값으로 돌아간다</b>.':''))});
+  /* TT 는 (제목, 본문) 두 벌이다. 한 인자로 부르면 본문이 undefined 로 찍힌다 */
+  if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 증상은 이번 턴 아무것도 하지 않는다.')});
   return out;
 }
 
@@ -518,7 +523,6 @@ function dialSVG(S, n){
     s += `<g class="shg"${tip(TT('보호막',
           `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
           + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
-          + `<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.`
           + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
       + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
       + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)

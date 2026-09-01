@@ -195,6 +195,14 @@ const FXE = {
     el.classList.remove('evoing');
     await fxWait(180);
   },
+  /* 불응이 처치를 튕겼다 — 손은 나갔는데 자리가 그대로다. 그것이 보여야 한다 */
+  async resist(n, back){
+    const el = stageEl(n); if(!el) return;
+    FX.shake(el);
+    FX.pulse(el, back ? 'var(--red)' : 'var(--mut)');
+    FX.float(el, back ? '불응 · 초기값' : '불응', 'dn big');
+    await fxWait(back ? 620 : 420);
+  },
   /* 병기 한 칸 — 진화보다 무거운 소식이라 판을 어둡게 깔고 계기만 남긴다 */
   async stageUp(n, stage){
     const el = stageEl(n); if(!el) return;

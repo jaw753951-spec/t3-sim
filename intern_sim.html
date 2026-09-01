@@ -1651,6 +1651,17 @@ function basicLines(syms){
   return out;
 }
 
+//@ 커널.배선종류 — 종류 이름 → 촉발 · 전이
+let LINK_KIND = null;
+function linkKind(k){
+  if(!LINK_KIND){
+    LINK_KIND = {'불응':'trig'};                       // 표에 없는 강화형
+    for(const [,,x] of TRIG)  LINK_KIND[x] = 'trig';
+    for(const [,,x] of TRANS) LINK_KIND[x] = 'trans';
+  }
+  return LINK_KIND[k] || 'trig';
+}
+
 function sp(n, sym){
   const d = SYMPARAM[sym||n.sym]; if(!d) return 0;
   const v = n[d.key];
@@ -1897,6 +1908,16 @@ function killNow(S,n){
   const r = reaction(S,n);
   if(r===null) return false;
   if(S.energy < R.KILL_COST) return false;
+  if(n.resist > 0){
+    S.energy -= R.KILL_COST;
+    n.resist--;
+    S.acts = (S.acts||0)+1; S.played++;
+    const back = !!n.resistBack;
+    if(back){ n.val = n.init; n.resistBack = false }
+    ev(S,{t:'resist', n, back});
+    if(S.rec) S.rec.push(`불응 ${n.sym}`);
+    return true;
+  }
   S.energy -= R.KILL_COST;
   S.energy += R.REFUND;
   const amt = sweepAmt(n);
@@ -1921,10 +1942,14 @@ function fireReactions(S,src,grade){
   for(const L of lines){
     if(L.a!==src.sym) continue;
     const tgt = alive(S).find(n=>n.sym===L.b && n!==src);
-    if(L.kind==='trig'){
+    const kind = L.kind || linkKind(L.k);
+    if(kind==='trig'){
       if(!tgt) continue;
       const LK = R.LINK;
       if(L.k==='가속'){ tgt.grow += strong?LK.가속.강:LK.가속.약; ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
+      if(L.k==='불응'){ tgt.resist = (tgt.resist||0) + 1;
+                        if(strong) tgt.resistBack = true;
+                        ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
                         ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
       if(L.k==='점화'){ if(SYM[tgt.sym].atk){ ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade});
@@ -1936,7 +1961,7 @@ function fireReactions(S,src,grade){
                   grow: L.k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
                   evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
                   evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-                  diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
+                  diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
                   revealed:false, spawned:true, born:S.turn, role:'sym'};
       S.nodes.push(nn);
       ev(S,{t:'spawn', from:src, n:nn});
@@ -2170,7 +2195,7 @@ function build(level, rng, opt={}){
     return {sym:s, init, val:init, band, shielded, shReduc:shielded?R.SHIELD_CUT:0, stabAcc:0,
             grow:0, evo, evoLeft:evo, evolved:false, dead:false, dormT:0, weak:0,
             rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0,
-            diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
+            diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
             revealed:false, spawned:false, role:'sym'};
   });
   if(!nodes.some(n=>SYM[n.sym].atk)) for(const n of nodes) n.grow += R.NOATK_G;
@@ -2481,7 +2506,7 @@ function mkSpot(sym, init, turn){
   return {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
     grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
     rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-    demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
+    resist:0, resistBack:false, demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
 }
 
 function makeDisease(key, rng){
@@ -2490,7 +2515,7 @@ function makeDisease(key, rng){
   const dis = {sym:'병', role:'disease', init:SR.DIS_BASE[SLV(key,'dis',stage)], val:SR.DIS_BASE[SLV(key,'dis',stage)],
     shielded:false, shReduc:0, stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false,
     dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
-    diagNeed:R.DIAG_NEED, demoted:false, revealed:false, spawned:false,
+    diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false, spawned:false,
     stage, stageMax:b.stageMax, stageClock:SR.STAGE_TURNS, beat:0};
   const nodes=[dis];
   b.seed.forEach((s,i)=>{
@@ -2500,7 +2525,7 @@ function makeDisease(key, rng){
     nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
       grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
       rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-      demoted:false, revealed:false, spawned:false, role:'sym'});
+      resist:0, resistBack:false, demoted:false, revealed:false, spawned:false, role:'sym'});
   });
   let hp=b.hp;
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
@@ -2583,7 +2608,7 @@ function diseaseAct(S, dis, act){
       const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
       S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
         grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
+        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false,
         spawned:true, born:S.turn, role:'sym'});
       return `분화 — ${s}`;
     }
@@ -3113,11 +3138,11 @@ get '기세'(){ return TT('기세 · 외과',
 get '사혈'(){ return TT('사혈 · 외과',
   `환자 체력을 지불해 효과를 키운다. 지불 후 체력이 ${R.BLEED_FLOOR} 이상 남을 때만 사용할 수 있다.`) },
 get '사혈1'(){ return TT('사혈 1단',
-  `최대 체력의 <b>${pctOf(R.BLEED_PAY[1])}</b>를 지불한다.<br>사는 값 = 억제 6 · 안정화 5 · 진단 2 · 드로우 2.<br>지불 후 체력이 ${R.BLEED_FLOOR} 이상 남아야 낼 수 있다. 한 턴 지불 총량은 ${pctOf(R.BLEED_TURN_CAP)}까지.`) },
+  `최대 체력의 <b>${pctOf(R.BLEED_PAY[1])}</b>를 지불한다.`) },
 get '사혈2'(){ return TT('사혈 2단',
-  `최대 체력의 <b>${pctOf(R.BLEED_PAY[2])}</b>를 지불한다.<br>사는 값 = 억제 14 · 안정화 10 · 진단 3 · 드로우 5.<br>지불 후 체력이 ${R.BLEED_FLOOR} 이상 남아야 낼 수 있다. 한 턴 지불 총량은 ${pctOf(R.BLEED_TURN_CAP)}까지.`) },
+  `최대 체력의 <b>${pctOf(R.BLEED_PAY[2])}</b>를 지불한다.`) },
 get '사혈3'(){ return TT('사혈 3단',
-  `최대 체력의 <b>${pctOf(R.BLEED_PAY[3])}</b>를 지불한다.<br>사는 값 = 억제 23 · 안정화 10+추가 · 진단 3+추가.<br>한 턴에 이것 하나면 상한을 다 쓴다. 지불 직후 정신이 한 단계 무너진다.`) },
+  `최대 체력의 <b>${pctOf(R.BLEED_PAY[3])}</b>를 지불한다.`) },
 get '진단'(){ return TT('진단 · 전 분과',
   `진단 카드로 스택을 쌓아 진단을 완료한다.`
   +'<br><br>진단 완료 시 — 이 자리의 <b>연결선</b>과 <b>진화 카운터</b>가 드러난다.') },
@@ -3127,7 +3152,7 @@ get '재진'(){ return TT('재진 · 내과',
   +`<tr><td>2</td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
   +`<tr><td>3 이상</td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
 '관해': TT('관해 · 내과',
-  '매 턴 관해도를 지불하여 관해 상태를 유지한다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b>'),
+  '매 턴 관해도를 지불하여 관해 상태를 유지한다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b><br>관해 중에는 진단이 <b>+' + R.REM_DIAG_BONUS + '</b> 붙는다.'),
 get '관해도'(){ return TT('관해도 · 내과',
   `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 감소하며 부족할 시 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
 get '지연'(){ return TT('지연 · 내과',
@@ -3144,53 +3169,53 @@ get '개방'(){ return TT('개방 · 의공학',
 
 const LINKTIP = {
 get '가속'(){ return TT('가속 · 촉발',
-  '<b>앞쪽 자리를 처치하는 순간</b> 한 번 터진다. 상시 발동이 아니다.<br>'
-  +`터지면 뒤쪽 자리의 성장률이 <b>+${numOf(R.LINK.가속.약)}</b>(강반응 +${numOf(R.LINK.가속.강)}) 오른다.<br><br>`
-  +'<span class="d">한 번 붙은 성장률은 되돌아가지 않는다. 그래서 판에서는 계속 걸려 있는 것처럼 보인다 — 배선이 매 턴 도는 게 아니라 이미 받은 값이 남아 있는 것이다.</span><br><br>'
-  +'휴면 등급에서 끊으면 촉발이 아예 터지지 않는다.') },
+  '<b>해당 증상을 처치하는 순간</b> 한 번 발동한다.<br>'
+  +`발동 시 대상 증상의 성장률이 <b>+${numOf(R.LINK.가속.약)}</b>(강반응 +${numOf(R.LINK.가속.강)}) 오른다.`) },
 get '경화'(){ return TT('경화 · 촉발',
-  '<b>앞쪽 자리를 처치하는 순간</b> 한 번 터진다.<br>'
-  +'뒤쪽 자리에 보호막이 다시 씌워지고 안정화 누적이 0으로 돌아간다.<br>'
-  +`받는 피해 ${pctOf(R.SHIELD_CUT)} 경감, 강반응이면 ${pctOf(R.LINK.경화.강)}.<br><br>`
-  +'휴면 등급에서 끊으면 터지지 않는다.') },
+  '<b>해당 증상을 처치하는 순간</b> 한 번 발동한다.<br>'
+  +'대상 증상의 보호막이 다시 생성되며 안정화 누적이 0으로 돌아간다.<br>'
+  +`받는 피해 ${pctOf(R.SHIELD_CUT)} 경감, 강반응이면 ${pctOf(R.LINK.경화.강)}.`) },
 get '점화'(){ return TT('점화 · 촉발',
-  '<b>앞쪽 자리를 처치하는 순간</b> 한 번 터진다.<br>'
-  +`뒤쪽 자리가 공격 증상이면 그 수치의 ${pctOf(R.ATK_K*R.LINK.점화.약)}만큼 환자를 즉시 때린다. 강반응은 ${pctOf(R.ATK_K*R.LINK.점화.강)}.<br><br>`
-  +'휴면 등급에서 끊으면 터지지 않는다.') },
+  '<b>해당 증상을 처치하는 순간</b> 한 번 발동한다.<br>'
+  +`대상 증상이 공격 증상이면 그 수치의 ${pctOf(R.ATK_K*R.LINK.점화.약)}, 강반응은 ${pctOf(R.ATK_K*R.LINK.점화.강)}만큼 환자를 즉시 공격한다.`) },
 get '발현'(){ return TT('발현 · 전이',
-  '<b>앞쪽 자리를 처치하는 순간</b> 뒤쪽 증상이 새로 태어난다.<br>'
-  +`초기값은 끊은 자리의 ${pctOf(R.LINK.발현.약)}, 강반응이면 ${pctOf(R.LINK.발현.강)}. 보호막을 달고 나온다.<br>`
-  +'같은 증상이 이미 판에 있으면 생기지 않는다.') },
+  '<b>해당 증상을 처치하는 순간</b> 대상 증상이 생성된다.<br>'
+  +`처치된 증상의 ${pctOf(R.LINK.발현.약)}, 강반응이면 ${pctOf(R.LINK.발현.강)}의 수치로 생성된다.<br>`
+  +'같은 증상이 이미 판에 있으면 생성되지 않는다.') },
 get '무장발현'(){ return TT('무장발현 · 전이',
-  '<b>앞쪽 자리를 처치하는 순간</b> 뒤쪽 증상이 성장률을 달고 태어난다.<br>'
-  +`약반응 ${numOf(R.LINK.무장발현.약)}, 강반응 ${numOf(R.LINK.무장발현.강)}. 그 밖은 발현과 같다.`) },
-'불응': TT('불응 · 강화', '이 환자에게만 걸린 강화형 배선이다. 앞쪽 자리를 처치할 때 상태가 뒤쪽으로 옮는다.'),
+  '<b>해당 증상을 처치하는 순간</b> 대상 증상이 성장률을 가지고 생성된다.<br>'
+  +`약반응 ${numOf(R.LINK.무장발현.약)}, 강반응 ${numOf(R.LINK.무장발현.강)}의 성장률을 가지고 생성된다. `) },
+'불응': TT('불응 · 강화',
+  '<b>해당 증상을 처치하는 순간</b> 대상 증상에 <b>처치 저항</b>을 한 번 부여한다.<br>'
+  +'저항이 걸린 증상은 다음 처치를 한 번 튕겨 낸다 — 코스트와 손은 나가고 처치는 되지 않는다.<br>'
+  +'강반응으로 걸린 저항은 튕겨 낼 때 그 증상을 <b>초기값으로 되돌린다</b>.<br><br>'
+  +'<span class="d">이 환자에게만 걸린 강화형 배선이다.</span>'),
 };
 
 const BEATTIP = {
-'분화': TT('분화', '부수 증상 하나를 새로 뿜는다. 병기별 자리 상한에 닿아 있으면 아무 일도 일어나지 않는다.'),
-get '진행'(){ return TT('진행', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다. 다음 병기가 그만큼 빨리 온다.`) },
+'분화': TT('분화', '부수 증상 하나를 생성한다. 증상 자리 상한에 닿아 있으면 아무 일도 일어나지 않는다.'),
+get '진행'(){ return TT('진행', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
 get '가속'(){ return TT('가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
 get '병기 가속'(){ return TT('병기 가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '성장'(){ return TT('성장', `살아 있는 부수 증상이 전부 초기값의 ${pctOf(SR.BEAT.성장)}만큼 자란다.`) },
-'같은 박자': TT('같은 박자', '이번 턴은 아무것도 하지 않는다. 준비할 자리다.'),
-'창': TT('창 · 아이 전용', '부수 자리가 전부 무너진다. 다음 비트 턴에는 병 노드가 보호막 없이 선다.'),
-'굳는다': TT('굳는다', '보호막이 벗겨진 자리 전부에 다시 보호막을 두른다.'),
-get '몰린다'(){ return TT('몰린다', `수치가 가장 낮은 자리 하나만 초기값의 ${pctOf(SR.BEAT.몰린다)}만큼 밀어 올린다.`) },
-'엮는다': TT('엮는다', '살아 있는 증상 둘 사이에 촉발 배선을 새로 놓는다.'),
-get '번진다'(){ return TT('번진다 · 어부', `활성 통증 자리가 전부 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 오른다.`) },
-'아문다': TT('아문다 · 어부', '수치가 가장 낮은 자리 하나가 스스로 휴면에 든다.'),
-get '치민다'(){ return TT('치민다 · 송이', `자리 전부가 초기값의 ${pctOf(SR.BEAT.치민다)}만큼 오르고 정신이 한 단계 무너진다.`) },
-get '가라앉는다'(){ return TT('가라앉는다 · 송이', `자리 전부가 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 내려간다. 하한은 1이라 휴면에는 들지 않는다.`) },
-'고유': TT('고유', '이 병만의 수. 병과 병기마다 다르다.'),
+get '성장'(){ return TT('성장', `모든 부수 증상이 초기값의 ${pctOf(SR.BEAT.성장)}만큼 성장한다.`) },
+'같은 박자': TT('같은 박자', '이번 턴은 아무것도 하지 않는다.'),
+'창': TT('창 · 아이 전용', '모든 부수 증상을 처치한다.'),
+'굳는다': TT('굳는다', '모든 증상에 보호막을 생성한다. 이미 보호막이 있다면 아무 일도 일어나지 않는다.'),
+get '몰린다'(){ return TT('몰린다', `수치가 가장 낮은 증상 하나가 초기값의 ${pctOf(SR.BEAT.몰린다)}만큼 성장한다.`) },
+'엮는다': TT('엮는다', '촉발 배선을 한 개 생성한다.'),
+get '번진다'(){ return TT('번진다 · 어부', `모든 통증이 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 성장한다.`) },
+'아문다': TT('아문다 · 어부', '수치가 가장 낮은 증상 하나를 휴면 상태로 만든다.'),
+get '치민다'(){ return TT('치민다 · 송이', `모든 증상이 초기값의 ${pctOf(SR.BEAT.치민다)}만큼 성장하고 정신이 한 단계 무너진다.`) },
+get '가라앉는다'(){ return TT('가라앉는다 · 송이', `모든 증상이 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 억제된다. 하한 1.`) },
+'고유': TT('고유', '이 병의 고유 행동.'),
 };
 
 const UNIQTIP = {
-get '아이:3'(){ return TT('파고든다 · 고유', `신경계 자리(통증 · 호흡곤란)의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`) },
+get '아이:3'(){ return TT('파고든다 · 고유', `통증과 호흡곤란의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`) },
 '아이:4': TT('알아듣지 못한다 · 고유', '정신 상태가 한 단계 무너진다.'),
-'아이:5': TT('터진다 · 고유', '재워 둔 자리 하나가 초기값 그대로 다시 일어난다.'),
+'아이:5': TT('터진다 · 고유', '휴면 상태의 증상 하나가 초기값으로 부활한다.'),
 get '어부:3'(){ return TT('긁는다 · 고유', `활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이고 감염이 없으면 이차 감염이 새로 앉는다.`) },
-'송이:3': TT('지금이면 괜찮아진다 · 고유', '재워 둔 자리 하나를 깨우고 정신을 한 단계 무너뜨린다.'),
+'송이:3': TT('지금이면 괜찮아진다 · 고유', '휴면 상태의 증상 하나를 부활시키고 정신을 한 단계 무너뜨린다.'),
 };
 
 const KWORDS = ['관해도','관해','설치물','설치','개방','약화','기세','재진','지연'];
@@ -3221,56 +3246,57 @@ const EVOTXT_F = {
 };
 
 //@ 문안.증상 — 조각 셋과 그것으로 짓는 세 상태
+const spOf = (n, sym) => (n ? sp(n, sym) : SYMPARAM[sym].def());
 const SYMBODY = {
-  발열: () => ({
-    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.`,
-    will: `수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.`,
-    done: `수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴 자리다. 매 턴 맞는 값도 그만큼 크다.`,
+  발열: n => ({
+    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.`,
+    will: `진화 시 수치가 <b>${numOf(spOf(n,'발열'))}배</b>로 증가한다. 상한은 초기값의 ${numOf(R.VAL_CAP)}배다.`,
+    done: `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.<br>진화하며 수치가 <b>${numOf(spOf(n,'발열'))}배</b>로 뛰었다 — 때리는 값도 그만큼 크다.`,
   }),
-  출혈: () => ({
-    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.`,
-    will: `성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.`,
-    done: `성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진 자리다. 미룰수록 손을 못 대는 폭이 커진다.`,
+  출혈: n => ({
+    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다.`,
+    will: `진화 시 성장률이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.`,
+    done: `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다 — 진화로 ${numOf(R.EVO_BLEED_ACC)}배가 된 값이다.`,
   }),
-  감염: () => ({
-    now : `다른 모든 자리에 성장률을 얹는다.`,
-    will: `얹는 값이 ${R.EVO_X2}배가 되고, 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.`,
-    done: `얹는 값이 ${R.EVO_X2}배다. 진화하면서 이 자리의 진단 요구 스택이 ${R.EVO_INF_DIAG} 올랐다.`,
+  감염: n => ({
+    now : `다른 모든 노드에 성장률을 <b>이 증상 수치의 ${pctOf(spOf(n,'감염'))}</b> 부여한다. 총량을 노드들이 나눠 갖는다.`,
+    will: `진화 시 부여하는 성장률이 ${R.EVO_X2}배가 된다. 이 증상의 진단 요구 스택이 ${R.EVO_INF_DIAG} 증가한다.`,
+    done: `다른 모든 노드에 성장률을 <b>이 증상 수치의 ${pctOf(spOf(n,'감염')*R.EVO_X2)}</b> 부여한다. 총량을 노드들이 나눠 갖는다.<br>이 증상의 진단 요구 스택이 ${R.EVO_INF_DIAG} 증가했다.`,
   }),
-  탈수: () => ({
-    now : `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.`,
-    will: `이 자리의 보호막을 아예 벗길 수 없게 된다.`,
-    done: `이 자리의 보호막은 벗길 수 없다 — 안정화가 0으로 들어간다.`,
+  탈수: n => ({
+    now : `안정화 효율을 <b>÷${numOf(spOf(n,'탈수'))}</b> 로 감소시킨다 — ${pctOf(1/spOf(n,'탈수'))}만 남는다.`,
+    will: `진화 시 이 증상의 보호막을 제거할 수 없다.`,
+    done: `안정화 효율을 <b>÷${numOf(spOf(n,'탈수'))}</b> 로 감소시킨다 — ${pctOf(1/spOf(n,'탈수'))}만 남는다.<br>이 증상의 보호막은 제거할 수 없다.`,
   }),
-  통증: () => ({
-    now : `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).`,
-    will: `통증 말고는 아무것도 처치할 수 없게 된다.`,
-    done: `통증 말고는 아무것도 처치할 수 없다 — 이 자리를 먼저 끊어야 판이 열린다.<br>자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.`,
+  통증: n => ({
+    now : `모든 노드의 처치선을 <b>×${numOf(spOf(n,'통증'))}</b> 낮춘다. 겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}.`,
+    will: `진화 시 다른 증상의 처치를 막는다.`,
+    done: `모든 노드의 처치선을 <b>×${numOf(spOf(n,'통증'))}</b> 낮춘다. 겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}.<br>다른 증상의 처치를 막는다. 완화를 턴당 한 번 무시한다.`,
   }),
-  호흡곤란: () => ({
-    now : `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.`,
-    will: `깎는 값이 ${R.EVO_X2}배가 된다.`,
-    done: `턴 드로우를 ${R.DRAW_CUT*R.EVO_X2}장 깎는다 (${R.EVO_X2}배).<br>자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.`,
+  호흡곤란: n => ({
+    now : `매 턴 드로우를 <b>${numOf(spOf(n,'호흡곤란'))}장</b> 감소시킨다.`,
+    will: `진화 시 깎는 장수가 ${R.EVO_X2}배가 된다.`,
+    done: `매 턴 드로우를 <b>${numOf(spOf(n,'호흡곤란')*R.EVO_X2)}장</b> 감소시킨다.<br>완화를 턴당 한 번 무시한다.`,
   }),
 };
-const symBody = sym => (SYMBODY[sym] ? SYMBODY[sym]() : null);
+const symBody = (sym, n) => (SYMBODY[sym] ? SYMBODY[sym](n) : null);
 
 //@ 문안.진화임박 — 떨림 연출과 툴팁이 함께 보는 조건
 const evoSoon = n => !!n && !n.evolved && !!n.revealed && n.evoLeft<=1 && n.role!=='disease';
 
 const SYMTIP = {}, SYMTIP_EVO = {};
 for(const k of Object.keys(SYMBODY)){
-  Object.defineProperty(SYMTIP, k, {enumerable:true, get(){ const b = symBody(k);
+  Object.defineProperty(SYMTIP, k, {enumerable:true, get(){ const b = symBody(k, null);
     return `${b.now}<br><span class="d">진화하면 — ${b.will}</span>` }});
-  Object.defineProperty(SYMTIP_EVO, k, {enumerable:true, get(){ const b = symBody(k);
+  Object.defineProperty(SYMTIP_EVO, k, {enumerable:true, get(){ const b = symBody(k, null);
     return `${b.now}<br><b>진화함</b> — ${b.done}` }});
 }
 
 const symTip = n => {
   if(!n || !SYMBODY[n.sym]) return '';
-  if(n.evolved) return SYMTIP_EVO[n.sym];
-  if(!evoSoon(n)) return SYMTIP[n.sym];
-  const b = symBody(n.sym);
+  const b = symBody(n.sym, n);
+  if(n.evolved)   return `${b.now}<br><b>진화함</b> — ${b.done}`;
+  if(!evoSoon(n)) return `${b.now}<br><span class="d">진화하면 — ${b.will}</span>`;
   return `${b.now}<br><br><b>다음 턴에 진화한다</b> — 그 뒤에는<br>${b.done}`;
 };
 
@@ -3667,17 +3693,17 @@ function policyTip(k){
   if(P.painCut) dbuf.push(`통증 · 호흡곤란 수치 <b>−${(P.painCut*100)|0}%</b>`);
   if(P.dmgUp) dbuf.push(`환자가 받는 피해 <b>+${(P.dmgUp*100)|0}%</b>`);
   const win = {
-    '완치':'병 노드를 처치선까지 내려 끊는다.',
-    '연명':`활성 부수 증상을 하나도 남기지 않는다. 병 노드는 보지 않는다.`,
-    '편하게':'병이 최종 병기의 시계를 다 돌 때까지 환자가 살아 있으면 이긴다.',
+    '완치':'병 노드를 처치선까지 내려 처치한다.',
+    '연명':`활성 부수 증상을 모두 처치한다.`,
+    '편하게':'병이 최종 병기에 도달할 때 까지 환자가 살아 있다.',
   }[k];
   let body = `<b>승리 조건</b><br>${win}<br><br><b>판에 새기는 것</b><br>`
     + (dbuf.length ? dbuf.join(' · ') : '없다')
-    + `<br><span class="d">오진이면 병 노드 수치 감소와 통증 완화가 붙지 않는다. 병기 시계 보정은 그대로 붙는다.</span>`;
+    + `<br><span class="d">오진 시 병 노드 수치 감소와 통증 완화가 붙지 않는다.</span>`;
   if(k==='편하게'){
     const cut = R.COMFORT_CUT * 3;                       // 세 겹을 다 채웠을 때 빠지는 값
     const floor = Math.max(0, (1 + P.dmgUp) - cut);
-    body += `<br><br><b>대가</b><br>병을 놔두는 대신 환자가 받는 피해가 <b>${pctOf(P.dmgUp)}</b> 늘어난다. 턴 피해와 진화 피해 둘 다에 걸린다.`
+    body += `<br><br><b>대가</b><br>환자가 받는 피해가 <b>${pctOf(P.dmgUp)}</b> 늘어난다.`
           + `<br><br><b>버프</b><br>턴 종료 시 <b>통증 비활성</b> · <b>호흡곤란 비활성</b> · <b>공황 아님</b> 중`
           + ` 충족한 항목 하나마다 이번 턴 환자 피해가 <b>${pctOf(R.COMFORT_CUT)}</b> 줄어든다.`
           + `<br><span class="d">완화는 방침 배수에서 뺀다. 셋을 모두 채워도 ${numOf(1+P.dmgUp)} − ${numOf(cut)} = <b>${numOf(floor)}</b> 에서 멈춘다`
@@ -3685,7 +3711,6 @@ function policyTip(k){
   }
   return TT(k, body);
 }
-
 function markKw(text){
   let out = esc(text);
   const slot = [];
@@ -4001,10 +4026,9 @@ function render(){
 function mindTipBody(S){
   return `평정 = 안정화 ×${R.MIND_CALM_STAB}<br>불안 · 공황 = 억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}`
     + `<br>의식불명 = 진단이 −${R.MIND_KO_DIAG} 더<br><br>`
-    + `한 자리를 한 턴에 <b>${R.HIT_ANX}번째</b>로 억제하면 불안으로 간다 — 평정일 때만이고,`
-    + ' 억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제(광역 · 설치물)는 세지 않는다.<br>'
-    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 한 단계 무너진다 — 턴당 한 번이다.<br>`
-    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
+    + `평정일 때 한 턴에 <b>${R.HIT_ANX}회</b> 억제하면 정신상태가 악화된다.`
+    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 정신상태가 악화된다. 턴당 한 번.<br>`
+    + '증상 처치, 진단 성공, 증상 휴면 도달은 정신 상태를 완화한다.'
     + (S.mind==='공황' ? '<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.' : '');
 }
 
@@ -4016,7 +4040,7 @@ function hpTipBody(S, f){
     + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
     + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
     + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
-    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'');
+    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>.</span>':'');
 }
 
 //@ 화면.처치선 — 바탕 처치선과 지금 처치선
@@ -5490,6 +5514,13 @@ const FXE = {
     el.classList.remove('evoing');
     await fxWait(180);
   },
+  async resist(n, back){
+    const el = stageEl(n); if(!el) return;
+    FX.shake(el);
+    FX.pulse(el, back ? 'var(--red)' : 'var(--mut)');
+    FX.float(el, back ? '불응 · 초기값' : '불응', 'dn big');
+    await fxWait(back ? 620 : 420);
+  },
   async stageUp(n, stage){
     const el = stageEl(n); if(!el) return;
     fxDarkOn();
@@ -5751,15 +5782,18 @@ function standingChips(S, n){
 function standingMarks(S, n){
   const out = [];
   if(immune(S,n)) out.push({ic:'imm', tip:TT('1막 · 무적',
-    '병명을 밝히기 전까지 병 노드는 억제 · 안정화 · 처치를 전부 받지 않는다.<br>이 자리에 통하는 것은 <b>진단</b>과 <b>재진</b>뿐이다.')});
+    '병명 확정 전 까지 <br><b>진단</b>만 실시할 수 있다.')});
   if(n.weak)      out.push({ic:'weak',  txt:n.weak,     tip:KWTIP['약화']});
   if(n.delayed)   out.push({ic:'delay', txt:n.delayed,  tip:KWTIP['지연']});
   if(n.growHold>0)out.push({ic:'frost', txt:n.growHold, tip:TT('성장 정지',
-    `이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`)});
+    `이 증상은 <b>${n.growHold}턴</b> 성장이 멈춘다.<br>`)});
   if(n.demoted)   out.push({ic:'demote', tip:TT('반응 강등',
-    '진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.')});
+    '강반응이 영구히 약반응으로 내려간다.<br>')});
   if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
-  if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 자리는 이번 턴 아무것도 하지 않는다.')});
+  if(n.resist>0)  out.push({ic:'bHard', txt:n.resist, tip:TT('처치 저항 · 불응',
+    `다음 처치를 <b>${n.resist}번</b> 튕겨 낸다. 코스트와 손은 나가고 처치는 되지 않는다.`
+    + (n.resistBack?'<br><b>강반응으로 걸린 저항</b> — 튕겨 낼 때 이 증상이 <b>초기값으로 돌아간다</b>.':''))});
+  if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 증상은 이번 턴 아무것도 하지 않는다.')});
   return out;
 }
 
@@ -5992,7 +6026,6 @@ function dialSVG(S, n){
     s += `<g class="shg"${tip(TT('보호막',
           `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
           + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
-          + `<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.`
           + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
       + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
       + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)
@@ -6585,6 +6618,7 @@ function fxPlanLog(log, before, plan){
       case 'diag':       fxq(()=>FXE.diagnose(n, e.round), [nk(n)]);
                          sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
       case 'demote':     fxq(()=>FXE.demote(n), [nk(n)]); break;
+      case 'resist':     fxq(()=>FXE.resist(n, e.back), [nk(n)]); break;
       case 'evolve':     fxq(()=>FXE.evolve(n), [nk(n)]); sayEmit('evolve', {key:n.sym, node:n}); break;
       case 'dorm':       fxq(()=>FXE.dormant(n), [nk(n)]); sayEmit('dormant', {key:n.sym, node:n}); break;
       case 'revive':     fxq(()=>FXE.revive(n), [nk(n)]); sayEmit('revive', {key:n.sym, node:n}); break;

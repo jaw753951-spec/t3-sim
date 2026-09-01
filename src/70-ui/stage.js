@@ -514,6 +514,7 @@ function fxPlanLog(log, before, plan){
       case 'diag':       fxq(()=>FXE.diagnose(n, e.round), [nk(n)]);
                          sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
       case 'demote':     fxq(()=>FXE.demote(n), [nk(n)]); break;
+      case 'resist':     fxq(()=>FXE.resist(n, e.back), [nk(n)]); break;
       /* 진화는 자리 이름표를 붙인다. 판을 어둡게 까는 것은 맞지만 그 어둠을
          세어서 겹쳐 쓰므로(fxDarkOn), 같은 턴에 둘이 진화하면 한 번 어두워진
          채로 둘이 같이 부푼다. 전에는 어둠을 각자 걷어서 한 자리씩 차례로

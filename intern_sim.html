@@ -447,6 +447,8 @@ body.sgon{overflow:hidden}
 #sg_chart .kmeta{font:12.5px/1.5 var(--sans);color:var(--ink2);margin-top:7px}
 #sg_chart .big{font:800 38px/1 var(--mono);color:var(--ink3);margin-top:7px}
 #sg_chart .body{font:14px/1.55 var(--sans);color:var(--ink3);margin-top:8px}
+
+#sg_chart .kchief{font:italic 12.5px/1.5 var(--sans);color:var(--dim);margin-top:6px}
 #sg_chart .ktags{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
 #sg_chart .ktag{font:700 12px/1 var(--sans);border:1px solid var(--line);padding:4px 8px;color:var(--ink2)}
 #sg_chart .ktag.hid{border-style:dashed;color:var(--mut)}
@@ -2055,7 +2057,7 @@ function transmit(S, src, L, k, strong){
 }
 
 function layLink(S, src, L, strong){
-  const rnd = (S.rng || Math.random);
+  const rnd = S.rng;
   const from = L.b;
   const outs = alive(S).filter(n => n.role!=='disease' && n.sym!==from && n.val>0);
   if(!outs.length) return;
@@ -4281,9 +4283,9 @@ function renderInto(h){
   const bl=basicLines(ns.filter(n=>n.role!=='disease').map(n=>n.sym));
   const shown=ns.some(n=>n.revealed);
   $(h+'_wires').innerHTML=
-    (bl.length||(BOARD.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
+    (bl.length||(S.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
     + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
-    +(BOARD.enh||[]).map(e=>shown
+    +(S.enh||[]).map(e=>shown
         ?`<span class="wire enh"${tip(kwTip(e)+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${kwLabel(e)}</em></span>`
         :`<span class="wire hid"${tip(TT('감춰진 배선','이 환자에게만 걸린 강화형 연결선이다.<br>진단 1회차나 문진 「어쩌다 다치셨어요」로 드러난다.'))}>? → ? <em>진단 필요</em></span>`).join('');
 
@@ -6192,22 +6194,6 @@ function dialSVG(S, n){
   return s;
 }
 
-function diagRing(n){
-  const need = Math.max(1, n.diagNeed||R.DIAG_NEED), acc = Math.min(need, n.diagAcc||0);
-  const V=200, c=V/2, rr=V*0.455;
-  let s='';
-  for(let i=0;i<need;i++){
-    const a = Math.PI*(1 - (need===1 ? .5 : i/(need-1))) * 0.86 + Math.PI*0.07;
-    const x = c+rr*Math.cos(a), y = c-rr*Math.sin(a);
-    s += `<circle cx="${x}" cy="${y}" r="${i<acc?5:3.4}" fill="${i<acc?'#4DD4C8':'rgba(232,226,210,.30)'}"/>`;
-  }
-  if(n.diagRound>0){
-    s += `<text x="${c}" y="${c-rr-4}" text-anchor="middle" font-size="17" font-weight="800"
-            fill="#4DD4C8" font-family="ui-monospace,monospace">${'I'.repeat(Math.min(4,n.diagRound))}${n.diagRound>4?'+':''}</text>`;
-  }
-  return s;
-}
-
 function stageLayout(){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
@@ -6441,6 +6427,7 @@ function stageChart(){
   rows.push(`<div class="sec"><div class="lab">턴 ${S.turn} ${badge}</div>
     <div class="kname">${esc(who)}</div>
     <div class="kmeta">${esc((what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`))}</div>
+    <div class="kchief">${esc(chiefOf())}</div>
     <div class="ktags">${tags}</div></div>`);
 
   rows.push(`<div class="sec"><div class="lab">정신 · ${S.mind}</div>
@@ -7552,9 +7539,7 @@ function renderMake(){
         <td><select onchange="mkSet('enh.${i}.a',this.value)">${symOpt(e.a)}</select></td>
         <td><select onchange="mkSet('enh.${i}.b',this.value)">${symOpt(e.b)}</select></td>
         <td><select onchange="mkKwBase(${i},this.value)">${['없음',...BASE_KW].map(k=>`<option ${k===base?'selected':''}>${k}</option>`).join('')}</select></td>
-        <td>${ENH_KW.map(k=>`<label class="mkchk"${tip(LINKTIP[k]||'')}><input type="checkbox" ${mods.includes(k)?'checked':''} onchange="mkKwMod(${i},'${k}',this.checked)">${k}</label>`).join('')}`
-        + (ks.length ? '' : '<span class="mkchk" style="color:var(--red)">키워드가 없다 — 이 배선은 아무 일도 안 한다</span>')
-        + `</td>
+        <td>${ENH_KW.map(k=>`<label class="mkchk"${tip(LINKTIP[k]||'')}><input type="checkbox" ${mods.includes(k)?'checked':''} onchange="mkKwMod(${i},'${k}',this.checked)">${k}</label>`).join('')}</td>
         <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`

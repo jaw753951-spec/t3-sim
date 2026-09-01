@@ -128,6 +128,7 @@ function stageChart(){
   rows.push(`<div class="sec"><div class="lab">턴 ${S.turn} ${badge}</div>
     <div class="kname">${esc(who)}</div>
     <div class="kmeta">${esc((what?what+' · ':'') + (p?`Lv${p.lv}`:`Lv${BOARD.level||'—'}`))}</div>
+    <div class="kchief">${esc(chiefOf())}</div>
     <div class="ktags">${tags}</div></div>`);
 
   rows.push(`<div class="sec"><div class="lab">정신 · ${S.mind}</div>

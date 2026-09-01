@@ -174,9 +174,7 @@ function renderMake(){
         <td><select onchange="mkSet('enh.${i}.a',this.value)">${symOpt(e.a)}</select></td>
         <td><select onchange="mkSet('enh.${i}.b',this.value)">${symOpt(e.b)}</select></td>
         <td><select onchange="mkKwBase(${i},this.value)">${['없음',...BASE_KW].map(k=>`<option ${k===base?'selected':''}>${k}</option>`).join('')}</select></td>
-        <td>${ENH_KW.map(k=>`<label class="mkchk"${tip(LINKTIP[k]||'')}><input type="checkbox" ${mods.includes(k)?'checked':''} onchange="mkKwMod(${i},'${k}',this.checked)">${k}</label>`).join('')}`
-        + (ks.length ? '' : '<span class="mkchk" style="color:var(--red)">키워드가 없다 — 이 배선은 아무 일도 안 한다</span>')
-        + `</td>
+        <td>${ENH_KW.map(k=>`<label class="mkchk"${tip(LINKTIP[k]||'')}><input type="checkbox" ${mods.includes(k)?'checked':''} onchange="mkKwMod(${i},'${k}',this.checked)">${k}</label>`).join('')}</td>
         <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`

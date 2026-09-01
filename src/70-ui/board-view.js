@@ -238,9 +238,11 @@ function renderInto(h){
   const bl=basicLines(ns.filter(n=>n.role!=='disease').map(n=>n.sym));
   const shown=ns.some(n=>n.revealed);
   $(h+'_wires').innerHTML=
-    (bl.length||(BOARD.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
+    /* 배선은 **판(S)** 에서 읽는다 — BOARD.enh 는 처음 만들어진 판의 것이라
+       부설이 싸움 중에 놓은 줄이 안 나온다 (무대가 같은 함정에 빠져 있었다) */
+    (bl.length||(S.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
     + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
-    +(BOARD.enh||[]).map(e=>shown
+    +(S.enh||[]).map(e=>shown
         ?`<span class="wire enh"${tip(kwTip(e)+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${kwLabel(e)}</em></span>`
         :`<span class="wire hid"${tip(TT('감춰진 배선','이 환자에게만 걸린 강화형 연결선이다.<br>진단 1회차나 문진 「어쩌다 다치셨어요」로 드러난다.'))}>? → ? <em>진단 필요</em></span>`).join('');
 

@@ -569,10 +569,14 @@ function transmit(S, src, L, k, strong){
 
 /* 부설 — 대상 B 에서 나가는 배선을 하나 새로 놓는다.
    약반응은 기본형 종류, 강반응은 강화형 종류다. 도착점은 살아 있는 다른 자리에서
-   고른다. 판의 난수를 쓴다 — 탐색 복제본은 rng 가 ()=>0.5 로 고정이라 갈래가
-   흔들리지 않는다 (clone 이 그렇게 잡아 둔 까닭과 같다) */
+   고른다.
+
+   난수는 **판의 것**(S.rng)만 쓴다. Math.random 으로 물러서게 두면 씨앗이 같은
+   판이 서로 다른 배선을 놓게 되고 — 되돌리기 · 되짚기 · 견주기가 전부 어긋난다 —
+   그런데 화면에는 아무 티가 안 난다. 커널의 다른 난수 자리(story.js 의 분화)도
+   같은 잣대다. 탐색 복제본은 rng 가 ()=>0.5 로 고정이라 갈래가 안 흔들린다. */
 function layLink(S, src, L, strong){
-  const rnd = (S.rng || Math.random);
+  const rnd = S.rng;
   const from = L.b;
   const outs = alive(S).filter(n => n.role!=='disease' && n.sym!==from && n.val>0);
   if(!outs.length) return;

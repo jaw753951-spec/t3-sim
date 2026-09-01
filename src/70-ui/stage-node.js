@@ -596,23 +596,10 @@ function dialSVG(S, n){
   return s;
 }
 
-/* ── 진단 링 ── 테를 두르는 점선. 이번 회차에 얼마나 쌓았는가 ── */
-function diagRing(n){
-  const need = Math.max(1, n.diagNeed||R.DIAG_NEED), acc = Math.min(need, n.diagAcc||0);
-  const V=200, c=V/2, rr=V*0.455;
-  let s='';
-  for(let i=0;i<need;i++){
-    /* 위쪽 반원에 고르게 — 계기판 아래는 이름표가 차지한다 */
-    const a = Math.PI*(1 - (need===1 ? .5 : i/(need-1))) * 0.86 + Math.PI*0.07;
-    const x = c+rr*Math.cos(a), y = c-rr*Math.sin(a);
-    s += `<circle cx="${x}" cy="${y}" r="${i<acc?5:3.4}" fill="${i<acc?'#4DD4C8':'rgba(232,226,210,.30)'}"/>`;
-  }
-  if(n.diagRound>0){
-    s += `<text x="${c}" y="${c-rr-4}" text-anchor="middle" font-size="17" font-weight="800"
-            fill="#4DD4C8" font-family="ui-monospace,monospace">${'I'.repeat(Math.min(4,n.diagRound))}${n.diagRound>4?'+':''}</text>`;
-  }
-  return s;
-}
+/* 진단 링(diagRing)을 걷었다 — 테를 두르는 점선으로 이번 회차 진단 누적을
+   말하던 물건이다. 좌하 **시약관 배지**가 같은 값을 더 정확히 말한다 (요구가
+   3이든 40이든 관 크기는 고정이고 눈금만 촘촘해진다). 되살릴 거면 배지를 먼저
+   걷어야 한다 — 둘이 같은 값을 두 벌로 그리면 한쪽이 곧 거짓말을 한다. */
 
 /* ── 자리 놓기 ── 가로 한 줄 ────────────────────────────────
    전에는 호(arc)에 앉혔는데 자리가 늘면 위아래로 벌어져 배선이 계기판을 넘어

@@ -166,6 +166,32 @@ const html = [
 try { new (require('vm').Script)(js, { filename: 'bundle.js' }) }
 catch (e) { console.error('문법 오류:', e.message); process.exit(1) }
 
+/* ── 부르는 데 없는 이름 ──────────────────────────────────────
+   층을 갈아 끼울 때 옛 함수가 조용히 남는다. 문법도 맞고 검사기도 다 통과하니
+   아무도 안 걸린다. 실제로 둘이 남아 있었다 — 계기판을 다시 짜며 시약관 배지가
+   대신한 `diagRing`, 차트를 네 구역으로 다시 짜며 **줄 자체가 빠진** `chiefOf`.
+   뒤엣것은 죽은 코드가 아니라 잃어버린 화면이었다 (CHIEF · CHIEF_BY_SYM 두 표가
+   같이 놀고 있었다). 그래서 이 검사는 청소가 아니라 회귀 잡이다.
+
+   껍데기(HTML)까지 같이 훑는다 — onclick 으로만 불리는 이름이 많다.
+   `$` 는 낱말 경계가 안 잡혀서 늘 걸린다. 셈에서 뺀다. */
+{
+  const whole = html, orphan = [];
+  const names = new Set();
+  for (const m of js.matchAll(/^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);
+  for (const m of js.matchAll(/^\s*(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=/gm)) names.add(m[1]);
+  for (const n of names) {
+    if (n === '$') continue;
+    const re = new RegExp('\\b' + n.replace(/\$/g, '\\$') + '\\b', 'g');
+    if ((whole.match(re) || []).length <= 1) orphan.push(n);
+  }
+  if (orphan.length) {
+    console.error('=== 부르는 데 없는 이름 ' + orphan.length + ' ===\n  ' + orphan.sort().join('\n  ')
+      + '\n걷을 것인지, 부르던 자리가 사라진 것인지 먼저 답할 수 있어야 한다.');
+    process.exit(1);
+  }
+}
+
 if (process.argv.includes('--check')) {
   console.log(`점검 통과 — 층 ${ORDER.length}개 · JS ${js.split('\n').length}줄`);
 } else {

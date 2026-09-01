@@ -245,6 +245,59 @@ const BOARDS = {
     await pg.close();
   }
 
+  /* ── 감춰진 배선 ── 강화형 연결선은 **진단 1회차(또는 문진 「어쩌다 다치셨어요」)
+     전에는 한 줄도 안 그린다.** 점선으로라도 그리면 어느 자리끼리 걸렸는지가
+     새어 나가고, 그것이 이 판에서 진단이 사는 이유다.
+
+     그림만 세면 모자란다 — 선을 안 긋고 설명(data-tip)만 남겨도 마우스를 올리면
+     다 보인다. 그래서 무대 DOM 이 물고 있는 설명문 전체에서 강화형 배선의
+     키워드가 새는지까지 본다. */
+  {
+    const pg = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    const errs = []; pg.on('pageerror', e => errs.push(String(e)));
+    await pg.goto('file://' + file);
+    await pg.waitForTimeout(300);
+    const r = await pg.evaluate(() => {
+      setMode('one'); document.getElementById('lv').value = '5';
+      document.getElementById('seed').value = '42'; newGame(); eval('stageOpen()');
+      const syms = eval('alive(S)').map(n => n.sym);
+      /* 이 판에 강화형 배선이 없을 수도 있다 — 없으면 검사가 헛물을 켠다.
+         손으로 얹고, 아무도 진단 안 한 상태에서 시작한다 */
+      S.enh = [{ a: syms[0], b: syms[1], k: ['무장발현', '만개'] }];
+      for (const n of eval('alive(S)')) { n.revealed = false; n.diagRound = 0; n.diagAcc = 0 }
+      const TIPMAP = eval('TIPS');
+      const read = () => {
+        eval('stageSync()');
+        const tips = [...document.querySelectorAll('#sg [data-tip]')]
+          .map(e => TIPMAP[e.getAttribute('data-tip')] || '').join('\u0000');
+        return { enh: document.querySelectorAll('#sg_links .wf.enh').length,
+                 all: document.querySelectorAll('#sg_links .wirem').length,
+                 /* 자를 댈 글은 **기본형 표에 없는 것**이라야 한다. 처음에는
+                    '무장발현' 을 봤는데 그것은 TRANS 의 발열→탈수 이기도 해서
+                    이 판에 이미 기본 배선으로 떠 있었고, 검사가 헛물을 켰다 */
+                 leak: ['만개', '이 환자에게만 걸린 배선'].filter(k => tips.includes(k)).join('/') };
+      };
+      const out = { before: read() };
+      /* 진단을 끝까지 밀어 1회차를 연다 — 판정은 커널이 한다 (diagnose) */
+      const n = eval('alive(S)')[0];
+      for (let i = 0; i < 20 && !n.revealed; i++) eval('diagnose')(S, n, 3, false);
+      out.round = n.diagRound; out.revealed = !!n.revealed;
+      out.after = read();
+      /* 되돌려 놓고, 이번에는 문진 쪽 길 */
+      for (const x of eval('alive(S)')) { x.revealed = false }
+      out.reset = read();
+      return out;
+    });
+    if (r.before.enh !== 0) bad.push(`감춰진 배선 — 진단 전인데 강화형 줄이 ${r.before.enh}개 그려졌다`);
+    if (r.before.leak) bad.push(`감춰진 배선 — 진단 전인데 설명이 「${r.before.leak}」를 흘린다`);
+    if (r.round !== 1 || !r.revealed) bad.push(`감춰진 배선 — 진단 1회차가 안 열렸다 (회차 ${r.round})`);
+    if (r.after.enh !== 1) bad.push(`감춰진 배선 — 1회차를 열었는데 강화형 줄이 ${r.after.enh}개다`);
+    if (!r.after.leak) bad.push('감춰진 배선 — 드러난 뒤에도 설명에 키워드가 없다');
+    if (r.reset.enh !== 0) bad.push('감춰진 배선 — 드러남을 되돌렸는데 줄이 남았다');
+    for (const e of errs) bad.push('감춰진 배선 — 오류 ' + e);
+    await pg.close();
+  }
+
   /* ── 여럿 든 배선 ── 배선 하나가 키워드를 넷까지 든다. 실제 진행에 기대면
      못 본다 — 강화형 배선은 생성기가 드물게 놓고, 드러나기(revealed)까지 해야
      한 줄이라도 그려진다. 그래서 배선을 손으로 얹고 잰다.
@@ -308,5 +361,6 @@ const BOARDS = {
   console.log(`\n무대는 제자리다 — 판 ${boards}개 · 배지 ${badges}개 · `
     + `${turns}턴에서 칩 합 = 「턴 끝 −N」 · 칩과 딱지 ${chips}개 · 배선 메달 ${wires}개가 전부 설명을 달고 `
     + `증상 문안이 진화 전 · 임박 · 후로 갈리며 떨림과 어긋나지 않는다 · `
-    + `여럿 든 배선이 안 겹치고 설명이 키워드를 다 말한다 · 오류 0`);
+    + `여럿 든 배선이 안 겹치고 설명이 키워드를 다 말한다 · `
+    + `강화형 배선이 진단 1회차 전에는 그림도 설명도 안 샌다 · 오류 0`);
 })();

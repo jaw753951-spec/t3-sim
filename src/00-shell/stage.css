@@ -159,6 +159,10 @@ body.sgon{overflow:hidden}
 #sg_chart .kmeta{font:12.5px/1.5 var(--sans);color:var(--ink2);margin-top:7px}
 #sg_chart .big{font:800 38px/1 var(--mono);color:var(--ink3);margin-top:7px}
 #sg_chart .body{font:14px/1.55 var(--sans);color:var(--ink3);margin-top:8px}
+/* 호소 증상 — 카르테 맨 윗칸의 마지막 줄. 네 구역으로 다시 짤 때 이 줄이
+   통째로 빠져서 chiefOf · CHIEF · CHIEF_BY_SYM 셋이 부르는 데 없이 남아 있었다
+   (죽은 이름 훑기가 잡았다). 기울임은 이것이 사람 말이라는 표시다 */
+#sg_chart .kchief{font:italic 12.5px/1.5 var(--sans);color:var(--dim);margin-top:6px}
 #sg_chart .ktags{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
 #sg_chart .ktag{font:700 12px/1 var(--sans);border:1px solid var(--line);padding:4px 8px;color:var(--ink2)}
 #sg_chart .ktag.hid{border-style:dashed;color:var(--mut)}

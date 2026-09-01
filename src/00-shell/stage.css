@@ -189,6 +189,7 @@ body.sgon{overflow:hidden}
 #sg .gz .stg{position:absolute;inset:0}
 #sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
 #sg .gz .dial .shg{cursor:help}
+#sg .gz .dial .nmg{cursor:help}
 #sg .gz .dring{position:absolute;inset:0;overflow:visible;z-index:5;pointer-events:none}
 #sg .gz .glass{position:absolute;inset:8%;border-radius:50%;z-index:4;pointer-events:none;
   background:linear-gradient(133deg,rgba(255,255,255,.32) 5%,transparent 32% 60%,rgba(255,255,255,.12) 88%);

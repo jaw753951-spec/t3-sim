@@ -220,12 +220,15 @@ function renderInto(h){
 
     const marks = nodeMarks(S, n);
     const nm = n.role==='disease' ? '병 노드' : n.sym;
-    const symTip = n.role==='disease'
+    /* 이름을 nameTip 으로 바꿨다. 전에는 이 지역 상수가 symTip 이었는데,
+       문안 고르는 함수도 symTip 이라 그 초기화 식 안에서 자기 자신을 부르게 됐다
+       (「Cannot access 'symTip' before initialization」로 작업대가 통째로 안 떴다) */
+    const nameTip = n.role==='disease'
       ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
-      : tip(TT(n.sym, SYMTIP[n.sym]||''));
+      : tip(TT(n.sym + (n.evolved?' ✦':''), symTip(n)));
     const evoTip = tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'') + '<br><br><span class="d">한 번 진화한 자리는 되돌아가지 않는다.</span>'));
     return `<div class="node ${SEL===i?'sel':''} ${SYM[n.sym]&&SYM[n.sym].atk?'atk':''} ${n.evolved?'evo':''} ${n.role==='disease'?'dis':''}" onclick="pickNode(${i})">
-      <div class="nhead"><span><b${symTip}>${nm}</b>${n.evolved?`<span class="evomark"${evoTip}>진화</span>`:''}</span><span class="val">${n.val}<span class="d">/${n.init}</span></span></div>
+      <div class="nhead"><span><b${nameTip}>${nm}</b>${n.evolved?`<span class="evomark"${evoTip}>진화</span>`:''}</span><span class="val">${n.val}<span class="d">/${n.init}</span></span></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,n.val/den*100)}%"></div>
         <div class="cut" style="left:${Math.min(100,line/den*100)}%"></div>
         <div class="cut half" style="left:${Math.min(100,edge/den*100)}%"></div></div>

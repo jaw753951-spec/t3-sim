@@ -122,7 +122,11 @@ const BEATICO = {
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 
 /* 칩 하나 · 딱지 하나. 툴팁이 이름을 말하므로 칸에는 그림과 숫자만 남는다 */
-const chipHTML = c => `<span class="icp ${c.cls}"${tip(TT(c.lab, KWTIP[c.why]||SYMTIP[c.why]||''))}>`
+/* 증상 설명은 진화 전후로 갈리므로(문안.증상진화) 칩이 자리를 들고 다닌다.
+   c.n 이 없으면 진화 전 문안으로 떨어진다 — 자리가 없는 칩은 없지만,
+   나중에 자리 없는 칩이 생겨도 화면이 안 깨진다 */
+const chipHTML = c => `<span class="icp ${c.cls}"${tip(TT(c.lab,
+    KWTIP[c.why] || (c.n ? symTip(c.n) : SYMTIP[c.why]) || ''))}>`
   + ico(c.ic) + (c.txt?`<b>${c.txt}</b>`:'') + '</span>';
 const markHTML = m => `<span class="imk"${tip(m.tip)}>` + ico(m.ic) + (m.txt?`<b>${m.txt}</b>`:'') + '</span>';
 
@@ -164,12 +168,12 @@ function standingChips(S, n){
   const out = [];
   if(n.muted || n.val<=0 || n.dead) return out;
   if(n.sym==='탈수')     out.push({cls:'std', ic:'stab', txt:`÷${numOf(sp(n,'탈수'))}`,
-                                  lab:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
+                                  lab:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수', n});
   if(n.sym==='통증')     out.push({cls:'std', ic:'line', txt:`×${numOf(sp(n,'통증'))}`,
-                                  lab:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
+                                  lab:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증', n});
   if(n.sym==='호흡곤란'){ const c = sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
                          out.push({cls:'std', ic:'draw', txt:`−${numOf(c)}`,
-                                   lab:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+                                   lab:`드로우 −${numOf(c)}`, why:'호흡곤란', n}) }
   return out;
 }
 
@@ -566,11 +570,18 @@ function dialSVG(S, n){
     const [ax1,ay1] = [c+rn*Math.cos(rad(35)),  c+rn*Math.sin(rad(35))];
     /* 145° → 35° 를 sweep 0 으로 그으면 아래(90°)를 지난다. 글은 이 선 위에
        똑바로 선다 — 방향을 뒤집으면 글자가 거꾸로 매달린다 */
+    /* 이름에 증상 설명을 단다. 무대에는 이것을 읽을 자리가 여태 없었다 —
+       자리를 누르면 뜨던 줄(sg_actbar)을 걷으면서 같이 사라졌고, 의도 칩에는
+       탈수 · 통증 · 호흡곤란만 붙어 있어 발열 · 출혈 · 감염은 읽을 길이
+       아예 없었다. 이름이 곧 증상이니 이름에 다는 것이 제자리다.
+       병 노드는 증상이 아니라 병이라 안 단다 (박자와 병기가 따로 말한다) */
+    const st = n.role==='disease' ? '' : symTip(n);
     s += `<defs><path id="sgnm${ix}" d="M${ax0.toFixed(1)} ${ay0.toFixed(1)} `
        + `A${rn} ${rn} 0 0 0 ${ax1.toFixed(1)} ${ay1.toFixed(1)}"/></defs>`
+       + `<g class="nmg"${st?tip(TT(n.sym + (n.evolved?' ✦':''), st)):''}>`
        + `<text font-family="var(--sans)" font-size="${fs.toFixed(1)}" font-weight="800"`
        + ` letter-spacing="${ls}" fill="${isCore?'#98302A':'rgba(58,53,48,.62)'}">`
-       + `<textPath href="#sgnm${ix}" startOffset="50%" text-anchor="middle">${esc(nm)}</textPath></text>`;
+       + `<textPath href="#sgnm${ix}" startOffset="50%" text-anchor="middle">${esc(nm)}</textPath></text></g>`;
   }
   return s;
 }

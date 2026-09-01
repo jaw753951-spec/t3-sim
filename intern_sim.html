@@ -464,6 +464,7 @@ body.sgon{overflow:hidden}
 #sg .gz .stg{position:absolute;inset:0}
 #sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
 #sg .gz .dial .shg{cursor:help}
+#sg .gz .dial .nmg{cursor:help}
 #sg .gz .dring{position:absolute;inset:0;overflow:visible;z-index:5;pointer-events:none}
 #sg .gz .glass{position:absolute;inset:8%;border-radius:50%;z-index:4;pointer-events:none;
   background:linear-gradient(133deg,rgba(255,255,255,.32) 5%,transparent 32% 60%,rgba(255,255,255,.12) 88%);
@@ -3106,22 +3107,11 @@ const numOf = x => Number.isInteger(x) ? String(x) : String(Math.round(x*100)/10
 
 const KWTIP = {
 get '약화'(){ return TT('약화 · 외과',
-  `스택당 노드의 처치선이 <b>${pctOf(R.WEAK_STACK)}</b> 올라간다.<br>병 노드에는 효과가 반감된다(${pctOf(R.WEAK_STACK_DIS)}). 처치선은 최대 ${pctOf(R.WEAK_LINE_MAX)}까지 올라간다.<br>약화로 기존 처치선보다 높은 곳에서 처치해도 광역 억제는 초기값 ${pctOf(R.SWEEP_CAP)} 기준으로 발동된다.<br><span class="d">예 · 약화 2 → 처치선 ${pctOf(R.KILL_LINE)}에서 ${pctOf(R.KILL_LINE + R.WEAK_STACK*2)}로.</span>`) },
+  `스택당 노드의 처치선이 <b>${pctOf(R.WEAK_STACK)}</b> 상승한다.<br>병 노드에는 효과가 반감된다(${pctOf(R.WEAK_STACK_DIS)}).<br>약화로 기존 처치선보다 높은 곳에서 처치해도 광역 억제는 초기값 ${pctOf(R.SWEEP_CAP)} 기준으로 발동된다.`) },
 get '기세'(){ return TT('기세 · 외과',
-  `증상을 처치할 때 기세가 쌓인다. 처치 한 번에 <b>${R.RUSH_PER}</b> 쌓이고 상한은 <b>${R.RUSH_MAX}</b> 다.<br>`
-  +'단독으로는 아무 효과가 없다. 참조하는 카드만 쓴다.<br>'
-  +'기세 하나가 얼마를 사는지는 <b>카드마다 다르다</b> — 규칙이 아니라 카드가 정한다.<br>'
-  +`<span class="d">예 · 「몰아붙인다」는 소모한 기세 하나당 억제 ${CARDS['몰아붙인다'].v.per}.</span>`) },
+  `증상을 처치하면 기세가 <b>${R.RUSH_PER}</b> 쌓인다. 상한은 <b>${R.RUSH_MAX}</b> 다.`) },
 get '사혈'(){ return TT('사혈 · 외과',
-  '환자 체력을 지불해 효과를 키운다. 1단부터 3단까지 있고 단수 하나가 1코스트의 값을 한다.'
-  +'<table><tr><th>단</th><th>지불(최대 체력)</th><th>사는 값</th></tr>'
-  +`<tr><td>1단</td><td>${pctOf(R.BLEED_PAY[1])}</td><td>억제 6 · 안정화 5 · 진단 2 · 드로우 2</td></tr>`
-  +`<tr><td>2단</td><td>${pctOf(R.BLEED_PAY[2])}</td><td>억제 14 · 안정화 10 · 진단 3 · 드로우 5</td></tr>`
-  +`<tr><td>3단</td><td>${pctOf(R.BLEED_PAY[3])}</td><td>억제 23 · 안정화 10+ · 진단 3+</td></tr></table>`
-  +`<br><b>하한 ${R.BLEED_FLOOR}</b> — 지불 후 체력이 ${R.BLEED_FLOOR} 이상 남을 때만 낼 수 있다. 사혈이 직접 죽이지 않는다.`
-  +`<br><b>턴당 상한 ${pctOf(R.BLEED_TURN_CAP)}</b> — 한 턴에 3단 하나 또는 1단+2단까지다.`
-  +`<br><b>코스트 + 단수 ≤ ${R.ENERGY}</b>`
-  +`<br>한 턴에 최대 체력의 ${pctOf(R.MIND_BIGHIT)} 이상 잃으면 정신 상태가 한 단계 악화한다(턴당 1회).`) },
+  `환자 체력을 지불해 효과를 키운다. 지불 후 체력이 ${R.BLEED_FLOOR} 이상 남을 때만 사용할 수 있다.`) },
 get '사혈1'(){ return TT('사혈 1단',
   `최대 체력의 <b>${pctOf(R.BLEED_PAY[1])}</b>를 지불한다.<br>사는 값 = 억제 6 · 안정화 5 · 진단 2 · 드로우 2.<br>지불 후 체력이 ${R.BLEED_FLOOR} 이상 남아야 낼 수 있다. 한 턴 지불 총량은 ${pctOf(R.BLEED_TURN_CAP)}까지.`) },
 get '사혈2'(){ return TT('사혈 2단',
@@ -3129,29 +3119,27 @@ get '사혈2'(){ return TT('사혈 2단',
 get '사혈3'(){ return TT('사혈 3단',
   `최대 체력의 <b>${pctOf(R.BLEED_PAY[3])}</b>를 지불한다.<br>사는 값 = 억제 23 · 안정화 10+추가 · 진단 3+추가.<br>한 턴에 이것 하나면 상한을 다 쓴다. 지불 직후 정신이 한 단계 무너진다.`) },
 get '진단'(){ return TT('진단 · 전 분과',
-  `자리 하나를 <b>처음</b> 여는 일. 진단 카드가 스택을 쌓아 <b>${R.DIAG_NEED}</b>이 차면 1회차가 끝난다.`
-  +'<br>여는 카드에 제한이 없다 — 전 분과가 낼 수 있다.'
-  +'<br><br>1회차로 얻는 것 — 이 자리의 <b>연결선</b>과 <b>진화 카운터</b>가 드러난다.'
-  +'<br><br>2회차부터는 <b>재진</b> 태그가 붙은 카드라야 열 수 있다.') },
+  `진단 카드로 스택을 쌓아 진단을 완료한다.`
+  +'<br><br>진단 완료 시 — 이 자리의 <b>연결선</b>과 <b>진화 카운터</b>가 드러난다.') },
 get '재진'(){ return TT('재진 · 내과',
-  '진단이 끝난 자리를 <b>다시</b> 여는 태그. 재진 없이는 2회차로 들어갈 수 없다.'
-  +'<table><tr><th>회차</th><th>요구 스택</th><th>얻는 것</th></tr>'
-  +`<tr><td>2</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP}</td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
-  +`<tr><td>3 이상</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP*2}, ${R.DIAG_NEED + R.DIAG_NEED_UP*3}, …</td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
+  `반복해서 진단을 할 수 있다. 회차 완료마다 요구 진단 스택이 ${R.DIAG_NEED_UP} 증가한다.`
+  +'<table><tr><th>회차</th><th>얻는 것</th></tr>'
+  +`<tr><td>2</td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
+  +`<tr><td>3 이상</td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
 '관해': TT('관해 · 내과',
-  '매 턴 관해도를 지불하고 전장을 멈춘다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b><br>특정 내과 카드는 관해가 지속된 턴 수에 따라 강해진다.'),
+  '매 턴 관해도를 지불하여 관해 상태를 유지한다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b>'),
 get '관해도'(){ return TT('관해도 · 내과',
-  `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 빠지고 모자라면 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
+  `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 감소하며 부족할 시 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
 get '지연'(){ return TT('지연 · 내과',
-  `진화 카운터를 <b>N턴 뒤로</b> 민다.<br>미룬 턴 1당 노드 수치가 초기값의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.<br><span class="d">예 · 지연 1 → 진화 카운터 +1, 노드 수치 +${pctOf(R.DELAY_GROW)}.</span>`) },
+  `진화 카운터를 <b>N 늘린다</b>.<br>미룬 턴 1당 노드 수치가 초기값의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.`) },
 get '설치'(){ const rig = CARDS['거치'].v.rig, cap = Math.max(R.RIG_CAP_MIN, rig*R.RIG_CAP_MUL);
   return TT('설치 · 의공학',
-  `노드에 매 턴 자동으로 억제하는 설치물을 놓는다.<br>같은 설치물에 설치 카드를 다시 쓰면 자동 억제 수치가 더해진다.<br>상한은 <b>설치한 카드 수치의 ${R.RIG_CAP_MUL}배</b>(최소 ${R.RIG_CAP_MIN}).<br>설치물은 <b>보호막을 무시</b>한다. 노드를 처치하면 설치물도 사라진다.<br><span class="d">예 · 설치 ${rig} → 매 턴 ${rig} 억제. 다시 쓰면 ${rig*2}. 상한 ${cap}.</span>`) },
+  `노드에 매 턴 자동으로 억제하는 설치물을 설치한다.<br>같은 설치물에 설치 카드를 다시 쓰면 자동 억제 수치가 증가한다.<br>상한은 <b>설치한 카드 수치의 ${R.RIG_CAP_MUL}배</b>(최소 ${R.RIG_CAP_MIN}).<br>설치물은 <b>보호막을 무시</b>한다. 노드를 처치하면 설치물도 사라진다.`) },
 get '설치물'(){ return KWTIP['설치'] },
 get '개방'(){ return TT('개방 · 의공학',
   `설치물을 소모해 그 노드를 <b>설치물 수치의 ${CARDS['출력 개방'].v.mult}배</b>만큼 억제한다.`
-  + `<br>개방도 <b>보호막을 무시</b>한다 — 설치물이 하는 일이기 때문이다.`
-  + `<br>개방한 설치물은 사라진다. 수치가 없는 유틸용 조립도 같이 사라진다.`) },
+  + `<br>개방 피해는 <b>보호막을 무시</b>한다.`
+  + `<br>개방한 설치물은 사라진다.`) },
 };
 
 const LINKTIP = {
@@ -3233,13 +3221,38 @@ const EVOTXT_F = {
 };
 
 const SYMTIP = {
- get 발열(){ return `공격 증상. 매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>진화하면 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.` },
- get 출혈(){ return `공격 증상. 매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.<br>진화하면 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.` },
- get 감염(){ return `다른 모든 자리에 성장률을 얹는다. 진화하면 ${R.EVO_X2}배.<br>진화 시 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.` },
- get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.<br>진화하면 이 자리의 보호막을 아예 벗길 수 없다.` },
- get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).<br>진화하면 통증 말고는 아무것도 처치할 수 없다.` },
- get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.<br>진화하면 ${R.EVO_X2}배로 깎는다.` },
-};
+ get 발열(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.`
+   +`<br><span class="d">진화하면 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.</span>` },
+ get 출혈(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.`
+   +`<br><span class="d">진화하면 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.</span>` },
+ get 감염(){ return `다른 모든 자리에 성장률을 얹는다.`
+   +`<br><span class="d">진화하면 ${R.EVO_X2}배가 되고, 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.</span>` },
+ get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.`
+   +`<br><span class="d">진화하면 이 자리의 보호막을 아예 벗길 수 없다.</span>` },
+ get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).`
+   +`<br><span class="d">진화하면 통증 말고는 아무것도 처치할 수 없다.</span>` },
+ get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.`
+   +`<br><span class="d">진화하면 ${R.EVO_X2}배로 깎는다.</span>` },
+}
+
+//@ 문안.증상진화 — 진화한 뒤의 증상 설명
+const SYMTIP_EVO = {
+ get 발열(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.`
+   +`<br><b>진화함</b> — 진화하던 턴에 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛰었다. 매 턴 맞는 값도 그만큼 커졌다.` },
+ get 출혈(){ return `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다.`
+   +`<br><b>진화함</b> — 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라졌다. 미룰수록 손을 못 대는 폭이 커진다.` },
+ get 감염(){ return `다른 모든 자리에 성장률을 <b>${R.EVO_X2}배</b>로 얹는다.`
+   +`<br><b>진화함</b> — 진화하면서 이 자리의 진단 요구 스택이 ${R.EVO_INF_DIAG} 올랐다.` },
+ get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.`
+   +`<br><b>진화함</b> — 이 자리의 보호막은 아예 벗길 수 없다. 안정화가 0으로 들어간다.` },
+ get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).`
+   +`<br><b>진화함</b> — 통증 말고는 아무것도 처치할 수 없다. 이 자리를 먼저 끊어야 판이 열린다.`
+   +`<br>자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.` },
+ get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 <b>${R.EVO_X2}배</b>로 깎는다. 기본이 ${R.DRAW_CUT}장이므로 ${R.DRAW_CUT*R.EVO_X2}장이다.`
+   +`<br><b>진화함</b> — 자신을 겨눈 완화를 턴당 한 번 튕겨 낸다.` },
+}
+
+const symTip = n => (n && n.evolved ? SYMTIP_EVO[n.sym] : SYMTIP[n.sym]) || SYMTIP[n && n.sym] || '';;
 
 //@ 파일.60-text/rule-doc
 
@@ -4092,12 +4105,12 @@ function renderInto(h){
 
     const marks = nodeMarks(S, n);
     const nm = n.role==='disease' ? '병 노드' : n.sym;
-    const symTip = n.role==='disease'
+    const nameTip = n.role==='disease'
       ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
-      : tip(TT(n.sym, SYMTIP[n.sym]||''));
+      : tip(TT(n.sym + (n.evolved?' ✦':''), symTip(n)));
     const evoTip = tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'') + '<br><br><span class="d">한 번 진화한 자리는 되돌아가지 않는다.</span>'));
     return `<div class="node ${SEL===i?'sel':''} ${SYM[n.sym]&&SYM[n.sym].atk?'atk':''} ${n.evolved?'evo':''} ${n.role==='disease'?'dis':''}" onclick="pickNode(${i})">
-      <div class="nhead"><span><b${symTip}>${nm}</b>${n.evolved?`<span class="evomark"${evoTip}>진화</span>`:''}</span><span class="val">${n.val}<span class="d">/${n.init}</span></span></div>
+      <div class="nhead"><span><b${nameTip}>${nm}</b>${n.evolved?`<span class="evomark"${evoTip}>진화</span>`:''}</span><span class="val">${n.val}<span class="d">/${n.init}</span></span></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,n.val/den*100)}%"></div>
         <div class="cut" style="left:${Math.min(100,line/den*100)}%"></div>
         <div class="cut half" style="left:${Math.min(100,edge/den*100)}%"></div></div>
@@ -5675,7 +5688,8 @@ const BEATICO = {
 };
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 
-const chipHTML = c => `<span class="icp ${c.cls}"${tip(TT(c.lab, KWTIP[c.why]||SYMTIP[c.why]||''))}>`
+const chipHTML = c => `<span class="icp ${c.cls}"${tip(TT(c.lab,
+    KWTIP[c.why] || (c.n ? symTip(c.n) : SYMTIP[c.why]) || ''))}>`
   + ico(c.ic) + (c.txt?`<b>${c.txt}</b>`:'') + '</span>';
 const markHTML = m => `<span class="imk"${tip(m.tip)}>` + ico(m.ic) + (m.txt?`<b>${m.txt}</b>`:'') + '</span>';
 
@@ -5705,12 +5719,12 @@ function standingChips(S, n){
   const out = [];
   if(n.muted || n.val<=0 || n.dead) return out;
   if(n.sym==='탈수')     out.push({cls:'std', ic:'stab', txt:`÷${numOf(sp(n,'탈수'))}`,
-                                  lab:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수'});
+                                  lab:`안정화 ÷${numOf(sp(n,'탈수'))}`, why:'탈수', n});
   if(n.sym==='통증')     out.push({cls:'std', ic:'line', txt:`×${numOf(sp(n,'통증'))}`,
-                                  lab:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증'});
+                                  lab:`처치선 ×${numOf(sp(n,'통증'))}`, why:'통증', n});
   if(n.sym==='호흡곤란'){ const c = sp(n,'호흡곤란') * (n.evolved?R.EVO_X2:1);
                          out.push({cls:'std', ic:'draw', txt:`−${numOf(c)}`,
-                                   lab:`드로우 −${numOf(c)}`, why:'호흡곤란'}) }
+                                   lab:`드로우 −${numOf(c)}`, why:'호흡곤란', n}) }
   return out;
 }
 
@@ -5985,11 +5999,13 @@ function dialSVG(S, n){
     const fs = Math.max(13, Math.min(isCore ? 24 : 20, 2*rad(HA)*rn/nm.length - ls));
     const [ax0,ay0] = [c+rn*Math.cos(rad(145)), c+rn*Math.sin(rad(145))];
     const [ax1,ay1] = [c+rn*Math.cos(rad(35)),  c+rn*Math.sin(rad(35))];
+    const st = n.role==='disease' ? '' : symTip(n);
     s += `<defs><path id="sgnm${ix}" d="M${ax0.toFixed(1)} ${ay0.toFixed(1)} `
        + `A${rn} ${rn} 0 0 0 ${ax1.toFixed(1)} ${ay1.toFixed(1)}"/></defs>`
+       + `<g class="nmg"${st?tip(TT(n.sym + (n.evolved?' ✦':''), st)):''}>`
        + `<text font-family="var(--sans)" font-size="${fs.toFixed(1)}" font-weight="800"`
        + ` letter-spacing="${ls}" fill="${isCore?'#98302A':'rgba(58,53,48,.62)'}">`
-       + `<textPath href="#sgnm${ix}" startOffset="50%" text-anchor="middle">${esc(nm)}</textPath></text>`;
+       + `<textPath href="#sgnm${ix}" startOffset="50%" text-anchor="middle">${esc(nm)}</textPath></text></g>`;
   }
   return s;
 }

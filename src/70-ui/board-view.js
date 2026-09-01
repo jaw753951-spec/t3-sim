@@ -158,7 +158,7 @@ function nodeMarks(S, n){
       + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
       + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
       }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
-    `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
+    `<span class="m"${tip((n.diagRound>=1 ? KWTIP['재진'] : KWTIP['진단']) + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
       + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
     n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
     n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',

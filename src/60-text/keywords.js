@@ -40,12 +40,20 @@ get '사혈2'(){ return TT('사혈 2단',
   `최대 체력의 <b>${pctOf(R.BLEED_PAY[2])}</b>를 지불한다.<br>사는 값 = 억제 14 · 안정화 10 · 진단 3 · 드로우 5.<br>지불 후 체력이 ${R.BLEED_FLOOR} 이상 남아야 낼 수 있다. 한 턴 지불 총량은 ${pctOf(R.BLEED_TURN_CAP)}까지.`) },
 get '사혈3'(){ return TT('사혈 3단',
   `최대 체력의 <b>${pctOf(R.BLEED_PAY[3])}</b>를 지불한다.<br>사는 값 = 억제 23 · 안정화 10+추가 · 진단 3+추가.<br>한 턴에 이것 하나면 상한을 다 쓴다. 지불 직후 정신이 한 단계 무너진다.`) },
+/* 진단은 두 벌로 나뉜다 — 1회차와 2회차 이상.
+   한 벌로 두면 아직 한 번도 안 연 자리의 시약관에 「재진 없이는 2회차로 들어갈
+   수 없다」와 3회차 요구 스택까지 다 뜬다. 지금 할 수 없는 일을 먼저 읽게 된다.
+   시약관 배지는 회차를 보고 고르고(무대.배지), 재진 쪽은 키워드로도 뜬다. */
+get '진단'(){ return TT('진단 · 전 분과',
+  `자리 하나를 <b>처음</b> 여는 일. 진단 카드가 스택을 쌓아 <b>${R.DIAG_NEED}</b>이 차면 1회차가 끝난다.`
+  +'<br>여는 카드에 제한이 없다 — 전 분과가 낼 수 있다.'
+  +'<br><br>1회차로 얻는 것 — 이 자리의 <b>연결선</b>과 <b>진화 카운터</b>가 드러난다.'
+  +'<br><br>2회차부터는 <b>재진</b> 태그가 붙은 카드라야 열 수 있다.') },
 get '재진'(){ return TT('재진 · 내과',
-  '진단이 완료된 자리를 다시 여는 태그. 재진 없이는 2회차로 들어갈 수 없다.'
-  +'<table><tr><th>회차</th><th>요구 스택</th><th>여는 카드</th><th>얻는 것</th></tr>'
-  +`<tr><td>1</td><td>${R.DIAG_NEED}</td><td>전 분과</td><td>연결선 · 진화 카운터 노출</td></tr>`
-  +`<tr><td>2</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP}</td><td><b>재진</b></td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
-  +`<tr><td>3 이상</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP*2}, ${R.DIAG_NEED + R.DIAG_NEED_UP*3}, …</td><td><b>재진</b></td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
+  '진단이 끝난 자리를 <b>다시</b> 여는 태그. 재진 없이는 2회차로 들어갈 수 없다.'
+  +'<table><tr><th>회차</th><th>요구 스택</th><th>얻는 것</th></tr>'
+  +`<tr><td>2</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP}</td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
+  +`<tr><td>3 이상</td><td>${R.DIAG_NEED + R.DIAG_NEED_UP*2}, ${R.DIAG_NEED + R.DIAG_NEED_UP*3}, …</td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
 '관해': TT('관해 · 내과',
   '매 턴 관해도를 지불하고 전장을 멈춘다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b><br>특정 내과 카드는 관해가 지속된 턴 수에 따라 강해진다.'),
 get '관해도'(){ return TT('관해도 · 내과',

@@ -303,7 +303,10 @@ function badgeSVG(S, n, sz){
     const [gx,gy]=P(143,RB), tw=15, th=36, tx=gx-tw/2, ty=gy-13;
     const need=Math.max(1,n.diagNeed||R.DIAG_NEED), cur=Math.min(n.diagAcc||0,need);
     const f=cur/need, ih=th-3.4, left=Math.max(0,Math.ceil(need-cur));
-    s += `<g${tip(KWTIP['재진'] + `<br><br>이 자리 — <b>${n.diagRound}회차</b> 완료 · `
+    /* 아직 한 번도 안 연 자리에는 1회차 문안만, 한 번이라도 연 자리에는
+       재진 문안을 단다 — 지금 할 수 없는 일을 먼저 읽게 하지 않는다 */
+    s += `<g${tip((n.diagRound>=1 ? KWTIP['재진'] : KWTIP['진단'])
+          + `<br><br>이 자리 — <b>${n.diagRound}회차</b> 완료 · `
           + `다음 회차 요구 <b>${need}</b> · 쌓은 값 ${n.diagAcc||0}`)}>`
       + `<rect x="${tx}" y="${ty}" width="${tw}" height="${th}" rx="2" fill="#14181C" stroke="#4DD4C8" stroke-width="1.6"/>`
       + `<rect x="${tx+1.7}" y="${ty+th-1.7-ih*f}" width="${tw-3.4}" height="${ih*f}" fill="#4DD4C8" opacity=".85"/>`;

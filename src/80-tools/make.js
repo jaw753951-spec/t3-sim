@@ -29,6 +29,28 @@ function mkDelNode(i){ CUSTOM.nodes.splice(i,1); renderMake() }
 
 function mkAddEnh(){ CUSTOM.enh.push({a:'감염', b:'발열', k:'가속'}); renderMake() }
 
+/* 배선 하나에 기본형 하나 + 강화형 여럿. 강화형만 든 배선도 판이 받는다
+   (명부의 d2_3 감염→통증 불응이 그 꼴이다) — 그래서 기본형에 「없음」이 있다.
+
+   강화형이 없으면 문자열 하나로 도로 눕힌다. 늘 배열로 적으면 옛 JSON 을
+   내보내고 되읽는 자리가 갈리고, 명부·저장판이 아직 문자열을 쓴다. */
+function mkKwSet(i, base, mods){
+  const ks = [...(base && base!=='없음' ? [base] : []), ...mods];
+  /* 하나도 안 고른 상태를 '가속' 으로 되밀지 않는다. 되밀면 「없음」을 고른 뒤
+     강화형을 켜는 순간 기본형이 되살아나 **강화형만 든 배선**(명부 d2_3 의
+     감염→통증 불응)을 작업대에서 만들 길이 없어진다. 빈 배선은 커널이 그냥
+     아무 일도 안 하고 지나가므로 그대로 두고, 표에서 눈에 띄게 적는다 */
+  CUSTOM.enh[i].k = ks.length===1 ? ks[0] : ks;
+  renderMake();
+}
+function mkKwBase(i, v){ mkKwSet(i, v, linkKws(CUSTOM.enh[i]).filter(isEnhKw)) }
+function mkKwMod(i, k, on){
+  const ks = linkKws(CUSTOM.enh[i]);
+  const mods = ks.filter(x => isEnhKw(x) && x!==k);
+  if(on) mods.push(k);
+  mkKwSet(i, ks.find(x => !isEnhKw(x)) || '없음', mods);
+}
+
 function mkDelEnh(i){ CUSTOM.enh.splice(i,1); renderMake() }
 
 function mkToggleDis(){
@@ -49,7 +71,7 @@ function mkLoadFrom(){
   const p=SCRIPT[id], b=makePatient(id, +$('seed').value);
   CUSTOM = {name:p.name, hp:b.hp, level:p.lv, core:p.core, talk:p.talk??3, tags:(p.tags||[]).slice(),
     nodes:b.nodes.map(n=>({sym:n.sym, init:n.init, evo:n.evo, shielded:n.shielded, grow:n.grow})),
-    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:e.k})), dis:null};
+    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:Array.isArray(e.k)?e.k.slice():e.k})), dis:null};
   $('mk_note').textContent = `${p.name} 을(를) 본으로 가져왔다.`;
   renderMake();
 }
@@ -143,12 +165,19 @@ function renderMake(){
         <td><button class="mini" onclick="mkDelNode(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">강화형 연결선 — 이 환자만 <span class="right"><button class="mini" onclick="mkAddEnh()">+ 연결선</button></span></div>
-     <table><tr><th>from</th><th>to</th><th>키워드</th><th></th></tr>`
-    + CUSTOM.enh.map((e,i)=>`<tr>
+     <div class="note">강화형은 <b>같은 배선의 기본형에 얹힌다</b> — 연쇄와 확산은 얹힐 것이 없으면 아무 일도 안 한다.
+       만개와 불응은 혼자서도 걸리므로 기본형을 「없음」으로 둘 수 있다 (명부의 감염→통증 불응이 그 꼴이다).</div>
+     <table><tr><th>from</th><th>to</th><th>기본형</th><th>강화형 (얹는다)</th><th></th></tr>`
+    + CUSTOM.enh.map((e,i)=>{
+        const ks=linkKws(e), base=ks.find(k=>!isEnhKw(k))||'없음', mods=ks.filter(isEnhKw);
+        return `<tr>
         <td><select onchange="mkSet('enh.${i}.a',this.value)">${symOpt(e.a)}</select></td>
         <td><select onchange="mkSet('enh.${i}.b',this.value)">${symOpt(e.b)}</select></td>
-        <td><select onchange="mkSet('enh.${i}.k',this.value)">${['가속','경화','점화'].map(k=>`<option ${k===e.k?'selected':''}>${k}</option>`).join('')}</select></td>
-        <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`).join('')
+        <td><select onchange="mkKwBase(${i},this.value)">${['없음',...BASE_KW].map(k=>`<option ${k===base?'selected':''}>${k}</option>`).join('')}</select></td>
+        <td>${ENH_KW.map(k=>`<label class="mkchk"${tip(LINKTIP[k]||'')}><input type="checkbox" ${mods.includes(k)?'checked':''} onchange="mkKwMod(${i},'${k}',this.checked)">${k}</label>`).join('')}`
+        + (ks.length ? '' : '<span class="mkchk" style="color:var(--red)">키워드가 없다 — 이 배선은 아무 일도 안 한다</span>')
+        + `</td>
+        <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`
     + (CUSTOM.dis ? `<div class="note">악보(분화·고유·진행)는 고른 보스의 것을 빌려 쓴다. 병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.</div>

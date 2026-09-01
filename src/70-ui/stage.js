@@ -505,6 +505,8 @@ function fxPlanLog(log, before, plan){
         break;
       case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade), [nk(e.from), nk(e.to)]); break;
       case 'spawn':      fxq(()=>FXE.spawn(e.from, n), [nk(e.from), nk(n)]); sayEmit('spawn', {key:n.sym, node:n}); break;
+      /* 부설이 놓은 배선. e.n 이 없는 사건이라 nk(n) 이 아니라 출발 자리를 잡는다 */
+      case 'lay':        fxq(()=>FXE.lay(e.from, kwLabel({k:e.kind})), [nk(e.from)]); break;
       case 'sup':        fxq(()=>FXE.suppress(n, e.amt), [nk(n)]); break;
       case 'stab':       fxq(()=>FXE.stabilize(n, e.amt), [nk(n)]); break;
       case 'shBreak':    fxq(()=>FXE.shieldBreak(n), [nk(n)]); sayEmit('shield', {key:n.sym, node:n}); break;

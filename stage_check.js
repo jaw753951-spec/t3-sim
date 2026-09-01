@@ -245,6 +245,60 @@ const BOARDS = {
     await pg.close();
   }
 
+  /* ── 여럿 든 배선 ── 배선 하나가 키워드를 넷까지 든다. 실제 진행에 기대면
+     못 본다 — 강화형 배선은 생성기가 드물게 놓고, 드러나기(revealed)까지 해야
+     한 줄이라도 그려진다. 그래서 배선을 손으로 얹고 잰다.
+
+     재는 것은 「위성 메달이 본 메달과 안 겹치는가 · SVG 밖으로 안 나가는가 ·
+     설명이 키워드를 다 말하는가」다. 앞의 정직성 검사는 .wirem 하나에 설명이
+     붙었는지만 보므로, 얹힌 키워드가 설명에서 통째로 빠져도 통과한다. */
+  {
+    const pg = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+    const errs = []; pg.on('pageerror', e => errs.push(String(e)));
+    await pg.goto('file://' + file);
+    await pg.waitForTimeout(300);
+    const r = await pg.evaluate(() => {
+      setMode('one'); document.getElementById('lv').value = '5';
+      document.getElementById('seed').value = '42'; newGame(); eval('stageOpen()');
+      const TIPMAP = eval('TIPS');
+      const syms = eval('alive(S)').map(n => n.sym);
+      /* 드러나야 그려진다 — 한 자리만 진단해 두면 강화형 줄이 전부 나온다 */
+      eval('alive(S)')[0].revealed = true;
+      S.enh = [{ a: syms[0], b: syms[1], k: ['가속', '만개', '연쇄', '확산'] },
+               { a: syms[1], b: syms[0], k: '불응' }];
+      eval('stageSync()');
+      const out = [];
+      for (const g of document.querySelectorAll('#sg_links .wirem')) {
+        const cs = [...g.querySelectorAll('circle')].map(c =>
+          ({ x: +c.getAttribute('cx'), y: +c.getAttribute('cy'), r: +c.getAttribute('r') }));
+        out.push({ n: cs.length, cs, tip: TIPMAP[g.getAttribute('data-tip')] || '' });
+      }
+      const svg = document.getElementById('sg_links');
+      const vb = (svg.getAttribute('viewBox') || '0 0 1210 744').split(/\s+/).map(Number);
+      return { out, vb };
+    });
+    const [, , VW, VH] = r.vb;
+    const four = r.out.find(w => w.n === 4);      // 가속 + 강화형 셋 = 메달 1 + 위성 3
+    const one  = r.out.find(w => w.n === 1);      // 불응 하나 = 메달 1
+    if (!four) bad.push(`여럿 든 배선 — 키워드 넷짜리 줄에 메달이 4개가 아니다 (${r.out.map(w=>w.n).join('/')})`);
+    if (!one)  bad.push('여럿 든 배선 — 키워드 하나짜리 줄에 위성이 붙었다');
+    for (const w of r.out) {
+      for (let i = 0; i < w.cs.length; i++) {
+        const c = w.cs[i];
+        if (c.x - c.r < 0 || c.x + c.r > VW || c.y - c.r < 0 || c.y + c.r > VH)
+          bad.push(`여럿 든 배선 — 메달이 판 밖으로 나간다 (x${c.x.toFixed(0)} y${c.y.toFixed(0)} r${c.r})`);
+        for (let j = i + 1; j < w.cs.length; j++) {
+          const d = Math.hypot(c.x - w.cs[j].x, c.y - w.cs[j].y);
+          if (d < c.r + w.cs[j].r) bad.push(`여럿 든 배선 — 메달끼리 겹친다 (사이 ${d.toFixed(1)} < ${c.r + w.cs[j].r})`);
+        }
+      }
+    }
+    if (four) for (const k of ['가속', '만개', '연쇄', '확산'])
+      if (!four.tip.includes(k)) bad.push(`여럿 든 배선 — 설명에 「${k}」가 없다`);
+    for (const e of errs) bad.push('여럿 든 배선 — 오류 ' + e);
+    await pg.close();
+  }
+
   await browser.close();
   if (bad.length) {
     console.log('\n걸린 것:');
@@ -253,5 +307,6 @@ const BOARDS = {
   }
   console.log(`\n무대는 제자리다 — 판 ${boards}개 · 배지 ${badges}개 · `
     + `${turns}턴에서 칩 합 = 「턴 끝 −N」 · 칩과 딱지 ${chips}개 · 배선 메달 ${wires}개가 전부 설명을 달고 `
-    + `증상 문안이 진화 전 · 임박 · 후로 갈리며 떨림과 어긋나지 않는다 · 오류 0`);
+    + `증상 문안이 진화 전 · 임박 · 후로 갈리며 떨림과 어긋나지 않는다 · `
+    + `여럿 든 배선이 안 겹치고 설명이 키워드를 다 말한다 · 오류 0`);
 })();

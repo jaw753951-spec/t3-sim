@@ -198,6 +198,10 @@ summary{font:11px var(--mono);letter-spacing:.1em;color:var(--dim);cursor:pointe
 .mini{width:auto;margin:0;padding:3px 8px;font-size:10px}
 .mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:10px 0}
 label.mk{display:block;margin:0;text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim)}
+
+label.mkchk{display:inline-flex;align-items:center;gap:3px;margin:0 7px 0 0;
+  text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim);cursor:help}
+label.mkchk input{width:auto;margin:0}
 label.mk input,label.mk select{margin-top:4px}
 label.mk input[type=checkbox]{width:auto}
 td input[type=number],td input[type=text],td select{padding:4px 6px;font-size:12px}
@@ -1651,16 +1655,28 @@ function basicLines(syms){
   return out;
 }
 
-//@ 커널.배선종류 — 종류 이름 → 촉발 · 전이
-let LINK_KIND = null;
-function linkKind(k){
-  if(!LINK_KIND){
-    LINK_KIND = {'불응':'trig'};                       // 표에 없는 강화형
-    for(const [,,x] of TRIG)  LINK_KIND[x] = 'trig';
-    for(const [,,x] of TRANS) LINK_KIND[x] = 'trans';
+//@ 커널.배선키워드 — 여럿 드는 배선 · 촉발과 전이 가르기
+const ENH_KW = ['만개','연쇄','불응','확산'];
+const isEnhKw = k => ENH_KW.includes(k);
+const BASE_KW = [...new Set([...TRIG.map(t=>t[2]), ...TRANS.map(t=>t[2]), '점화', '부설'])];
+const linkKws = L => Array.isArray(L.k) ? L.k : [L.k];
+
+let KIND_OF = null;
+function kindOf(k){
+  if(!KIND_OF){
+    KIND_OF = {'부설':'trans'};                        // 표에 없는 전이
+    for(const x of ENH_KW) KIND_OF[x] = 'trig';        // 강화형은 대상 자리가 필요하다
+    for(const [,,x] of TRIG)  KIND_OF[x] = 'trig';
+    for(const [,,x] of TRANS) KIND_OF[x] = 'trans';
   }
-  return LINK_KIND[k] || 'trig';
+  return KIND_OF[k] || 'trig';
 }
+function linkKind(L){
+  if(L.kind) return L.kind;
+  const base = linkKws(L).find(k => !isEnhKw(k));
+  return base ? kindOf(base) : 'trig';
+}
+const linkHead = L => linkKws(L).find(k => !isEnhKw(k)) || linkKws(L)[0];
 
 function sp(n, sym){
   const d = SYMPARAM[sym||n.sym]; if(!d) return 0;
@@ -1939,34 +1955,119 @@ function fireReactions(S,src,grade){
   const strong = grade==='strong';
   const syms = [...new Set([src.sym, ...S.nodes.filter(n=>!n.dead).map(n=>n.sym)])];
   const lines = [...basicLines(syms), ...S.enh];
-  for(const L of lines){
-    if(L.a!==src.sym) continue;
-    const tgt = alive(S).find(n=>n.sym===L.b && n!==src);
-    const kind = L.kind || linkKind(L.k);
-    if(kind==='trig'){
-      if(!tgt) continue;
-      const LK = R.LINK;
-      if(L.k==='가속'){ tgt.grow += strong?LK.가속.강:LK.가속.약; ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
-      if(L.k==='불응'){ tgt.resist = (tgt.resist||0) + 1;
-                        if(strong) tgt.resistBack = true;
-                        ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
-      if(L.k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
-                        ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade}) }
-      if(L.k==='점화'){ if(SYM[tgt.sym].atk){ ev(S,{t:'trigger', from:src, to:tgt, kind:L.k, grade});
-                        hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk', tgt) } }
-    } else {
-      if(tgt) continue;                            // 이미 있으면 생성하지 않는다
-      const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
-      const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-                  grow: L.k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
-                  evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
-                  evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-                  diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
-                  revealed:false, spawned:true, born:S.turn, role:'sym'};
-      S.nodes.push(nn);
-      ev(S,{t:'spawn', from:src, n:nn});
+  for(const L of lines) if(L.a===src.sym) fireLine(S, src, L, strong, lines);
+}
+
+function fireLine(S, src, L, strong, lines){
+  const ks   = linkKws(L);
+  const mods = ks.filter(isEnhKw);
+  const base = ks.filter(k => !isEnhKw(k));
+  const bloom = mods.includes('만개');
+
+  for(const k of base){
+    if(k==='부설'){ layLink(S, src, L, strong); continue }
+    if(kindOf(k)!=='trans') continue;
+    if(alive(S).find(n=>n.sym===L.b && n!==src)) continue;   // 이미 있으면 안 생긴다
+    const nn = transmit(S, src, L, k, strong);
+    if(nn && bloom && strong) bloomNow(S, nn, true);
+  }
+
+  const trig = base.filter(k => kindOf(k)==='trig');
+  const act  = [...trig, ...mods.filter(k => k==='만개' || k==='불응')];
+  if(!act.length) return;
+  const first = alive(S).find(n=>n.sym===L.b && n!==src);
+  if(!first) return;
+
+  if(mods.includes('확산')){
+    if(strong) for(const n of S.nodes){
+      if(n.role==='disease' || n.dead || n.val>0) continue;
+      n.dormT = 0; n.val = n.init; n.shielded = true; n.shReduc = R.SHIELD_CUT; n.stabAcc = 0;
+      ev(S,{t:'revive', n});
+    }
+    for(const n of alive(S)) if(n!==src && n.val>0) applyLine(S, src, n, act, strong);
+  } else {
+    applyLine(S, src, first, act, strong);
+  }
+
+  if(mods.includes('연쇄')){
+    const seen = new Set([src, first]);
+    let cur = first, carry = act, hops = 0;
+    const CAP = strong ? S.nodes.length + 2 : 1;        // 약반응은 한 칸
+    while(hops < CAP){
+      const nx = lines.find(M => M.a===cur.sym && !isEnhKw(linkHead(M)) &&
+                            (n=>n&&!seen.has(n))(alive(S).find(n=>n.sym===M.b)));
+      if(!nx) break;
+      const t = alive(S).find(n=>n.sym===nx.b);
+      carry = [...new Set([...carry, ...linkKws(nx).filter(k=>kindOf(k)==='trig'||isEnhKw(k))])];
+      applyLine(S, src, t, carry, strong);
+      seen.add(t); cur = t; hops++;
     }
   }
+}
+
+function applyLine(S, src, tgt, kws, strong){
+  if(!tgt || tgt.dead || tgt===src) return;
+  const LK = R.LINK;
+  for(const k of kws){
+    if(k==='가속'){ tgt.grow += strong?LK.가속.강:LK.가속.약;
+                    ev(S,{t:'trigger', from:src, to:tgt, kind:k, grade:strong?'strong':'weak'}) }
+    else if(k==='경화'){ tgt.shielded=true; tgt.stabAcc=0; tgt.shReduc = strong?LK.경화.강:R.SHIELD_CUT;
+                    ev(S,{t:'trigger', from:src, to:tgt, kind:k, grade:strong?'strong':'weak'}) }
+    else if(k==='점화'){ if(SYM[tgt.sym] && SYM[tgt.sym].atk){
+                    ev(S,{t:'trigger', from:src, to:tgt, kind:k, grade:strong?'strong':'weak'});
+                    hurtPatient(S, Math.ceil(tgt.val*R.ATK_K*(strong?LK.점화.강:LK.점화.약)), 'atk', tgt) } }
+    else if(k==='만개'){ bloomNow(S, tgt, strong);
+                    ev(S,{t:'trigger', from:src, to:tgt, kind:k, grade:strong?'strong':'weak'}) }
+    else if(k==='불응'){ tgt.resist = (tgt.resist||0) + 1;
+                    if(strong) tgt.resistBack = true;
+                    ev(S,{t:'trigger', from:src, to:tgt, kind:k, grade:strong?'strong':'weak'}) }
+  }
+}
+
+function evolveNow(S, n){
+  n.evolved = true; n.evoLeft = 0;
+  ev(S,{t:'evolve', n});
+  hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo', n);   // 진화 '시점' 수치
+  if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
+  if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
+  if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
+  mind(S,+1);
+  S.evoLog++;
+}
+
+function bloomNow(S, n, strong){
+  if(!n || n.dead || n.role==='disease' || n.evolved) return;
+  if(!strong){ n.evoLeft = Math.max(1, Math.floor(n.evoLeft/2)); return }
+  evolveNow(S, n);
+}
+
+function transmit(S, src, L, k, strong){
+  const init = Math.floor(src.init*(strong?R.LINK.발현.강:R.LINK.발현.약));
+  const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
+              grow: k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
+              evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
+              evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
+              diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
+              revealed:false, spawned:true, born:S.turn, role:'sym'};
+  S.nodes.push(nn);
+  ev(S,{t:'spawn', from:src, n:nn, kind:k, grade:strong?'strong':'weak'});
+  return nn;
+}
+
+function layLink(S, src, L, strong){
+  const rnd = (S.rng || Math.random);
+  const from = L.b;
+  const outs = alive(S).filter(n => n.role!=='disease' && n.sym!==from && n.val>0);
+  if(!outs.length) return;
+  const to = outs[Math.floor(rnd()*outs.length) % outs.length].sym;
+  const pool = BASE_KW.filter(k => k!=='부설');
+  const pick = a => a[Math.floor(rnd()*a.length) % a.length];
+  const base = pick(pool);
+  const k = strong ? [base, pick(ENH_KW)] : base;
+  const has = x => x.a===from && x.b===to && linkKws(x).join()===linkKws({k}).join();
+  if(S.enh.some(has)) return;                              // 같은 것을 두 벌로 안 놓는다
+  S.enh.push({a:from, b:to, k});
+  ev(S,{t:'lay', from:src, a:from, b:to, kind:k, grade:strong?'strong':'weak'});
 }
 
 function infPool(S){
@@ -2059,14 +2160,7 @@ function turnResolve(S){
     if(n.role==='disease' || n.evolved || born(n)) continue;
     n.evoLeft--;
     if(n.evoLeft>0) continue;
-    n.evolved = true;
-    ev(S,{t:'evolve', n});
-    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo', n);   // 진화 '시점' 수치의 50%
-    if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
-    if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
-    if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
-    mind(S,+1);
-    S.evoLog++;
+    evolveNow(S, n);
   }
   if(!S.rem) for(const n of S.nodes){
     if(n.role==='disease' || n.dead || n.val>0) continue;
@@ -3151,8 +3245,8 @@ get '재진'(){ return TT('재진 · 내과',
   +'<table><tr><th>회차</th><th>얻는 것</th></tr>'
   +`<tr><td>2</td><td>반응 1등급 영구 강등 · 수치 −${pctOf(R.DIAG_CUT_R2)}p</td></tr>`
   +`<tr><td>3 이상</td><td>수치 −${pctOf(R.DIAG_CUT_LATE)}p</td></tr></table>`) },
-'관해': TT('관해 · 내과',
-  '매 턴 관해도를 지불하여 관해 상태를 유지한다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b><br>관해 중에는 진단이 <b>+' + R.REM_DIAG_BONUS + '</b> 붙는다.'),
+get '관해'(){ return TT('관해 · 내과',
+  `매 턴 관해도를 지불하여 관해 상태를 유지한다.<br>관해 중에는 증상의 성장과 환자 체력 감소, 휴면 부활이 멈춘다.<br>진화 카운터는 정상적으로 돌아간다.<br><b>관해 중에는 처치가 불가능하다.</b><br>관해 중에는 진단이 <b>+${R.REM_DIAG_BONUS}</b> 붙는다.`) },
 get '관해도'(){ return TT('관해도 · 내과',
   `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 감소하며 부족할 시 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
 get '지연'(){ return TT('지연 · 내과',
@@ -3185,12 +3279,33 @@ get '발현'(){ return TT('발현 · 전이',
 get '무장발현'(){ return TT('무장발현 · 전이',
   '<b>해당 증상을 처치하는 순간</b> 대상 증상이 성장률을 가지고 생성된다.<br>'
   +`약반응 ${numOf(R.LINK.무장발현.약)}, 강반응 ${numOf(R.LINK.무장발현.강)}의 성장률을 가지고 생성된다. `) },
+get '부설'(){ return TT('부설 · 전이',
+  '<b>해당 증상을 처치하는 순간</b> 대상 증상에서 나가는 <b>연결선이 하나 새로 놓인다</b>.<br>'
+  +'약반응은 기본형 연결선, 강반응은 강화형 연결선이 놓인다.<br>'
+  +'도착 자리와 종류는 그때의 판에서 고른다 — 같은 연결선이 이미 있으면 놓이지 않는다.') },
 '불응': TT('불응 · 강화',
   '<b>해당 증상을 처치하는 순간</b> 대상 증상에 <b>처치 저항</b>을 한 번 부여한다.<br>'
   +'저항이 걸린 증상은 다음 처치를 한 번 튕겨 낸다 — 코스트와 손은 나가고 처치는 되지 않는다.<br>'
   +'강반응으로 걸린 저항은 튕겨 낼 때 그 증상을 <b>초기값으로 되돌린다</b>.<br><br>'
   +'<span class="d">이 환자에게만 걸린 강화형 배선이다.</span>'),
+'만개': TT('만개 · 강화',
+  '<b>해당 증상을 처치하는 순간</b> 대상 증상의 <b>진화 시계가 반으로</b> 줄어든다 (4→2 · 2→1).<br>'
+  +'1턴 남은 증상은 더 줄지 않는다.<br>'
+  +'강반응이면 그 자리에서 <b>즉시 진화</b>한다 — 같은 연결선의 전이로 생겨난 증상이라면 진화한 채로 나타난다.<br><br>'
+  +'<span class="d">이 환자에게만 걸린 강화형 배선이다.</span>'),
+'연쇄': TT('연쇄 · 강화',
+  '같은 연결선의 효과가 대상 증상에서 멈추지 않고 <b>연결선을 타고 다음 증상까지</b> 이어진다.<br>'
+  +'지나온 연결선의 키워드가 <b>기존 효과에 더해져</b> 함께 걸린다.<br>'
+  +'약반응은 한 칸, 강반응은 <b>더 갈 연결선이 없을 때까지</b> 간다.<br><br>'
+  +'<span class="d">이 환자에게만 걸린 강화형 배선이다.</span>'),
+'확산': TT('확산 · 강화',
+  '같은 연결선의 효과가 대상 증상 하나가 아니라 <b>판의 모든 증상</b>에 걸린다.<br>'
+  +'강반응이면 <b>휴면 중인 증상을 먼저 깨운 뒤</b> 걸린다.<br><br>'
+  +'<span class="d">이 환자에게만 걸린 강화형 배선이다.</span>'),
 };
+
+const kwLabel = L => linkKws(L).join(' · ');
+const kwTip   = L => linkKws(L).map(k => LINKTIP[k] || TT(k, '')).join('<br><br>');
 
 const BEATTIP = {
 '분화': TT('분화', '부수 증상 하나를 생성한다. 증상 자리 상한에 닿아 있으면 아무 일도 일어나지 않는다.'),
@@ -4161,9 +4276,9 @@ function renderInto(h){
   const shown=ns.some(n=>n.revealed);
   $(h+'_wires').innerHTML=
     (bl.length||(BOARD.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
-    + bl.map(l=>`<span class="wire"${tip(LINKTIP[l.k])}>${l.a} 처치 시 → ${l.b} <em>${l.k}</em></span>`).join('')
+    + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
     +(BOARD.enh||[]).map(e=>shown
-        ?`<span class="wire enh"${tip((LINKTIP[e.k]||'')+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${e.k}</em></span>`
+        ?`<span class="wire enh"${tip(kwTip(e)+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${kwLabel(e)}</em></span>`
         :`<span class="wire hid"${tip(TT('감춰진 배선','이 환자에게만 걸린 강화형 연결선이다.<br>진단 1회차나 문진 「어쩌다 다치셨어요」로 드러난다.'))}>? → ? <em>진단 필요</em></span>`).join('');
 
   const st = $(h+'_state'); if(st) st.innerHTML = stateHTML();
@@ -5129,7 +5244,7 @@ function renderSess(){
 
   const p=BOARD.script;
   const chips = alive(S).map(n=>`<span class="chip">${n.sym}</span>`).join('')
-    + basicLines(alive(S).map(n=>n.sym)).map(l=>`<span class="chip">${l.a}→${l.b} ${l.k}</span>`).join('');
+    + basicLines(alive(S).map(n=>n.sym)).map(l=>`<span class="chip">${l.a}→${l.b} ${kwLabel(l)}</span>`).join('');
   let head=`<div class="pat" id="se_patient"></div>`;
   if(S.phase==='intake'){
     head=`<div class="chart">접수 — ${p.name}${roundTag}</div><div class="chips" style="margin-bottom:12px">${chips}</div>`
@@ -5517,6 +5632,13 @@ const FXE = {
     FX.float(el, back ? '불응 · 초기값' : '불응', 'dn big');
     await fxWait(back ? 620 : 420);
   },
+  async lay(a, k){
+    const A = stageEl(a); if(!A) return;
+    FX.pulse(A, '#C8B79A');
+    FX.float(A, `부설 · ${k}`, 'up big');
+    FX.steam(A, 7, 'rgba(200,183,154,.7)');
+    await fxWait(520);
+  },
   async stageUp(n, stage){
     const el = stageEl(n); if(!el) return;
     fxDarkOn();
@@ -5726,8 +5848,13 @@ const ICO = {
   bHard:  'M3.6 5h12.8v10H3.6zM3.6 10h12.8M8.4 5v5M12 10v5',
   bFast:  'M3.4 5.6 8 10l-4.6 4.4M11 5.6 15.6 10 11 14.4',
   flame:  'M10 2.6c3.2 4 5.2 6.2 5.2 9.2a5.2 5.2 0 0 1-10.4 0c0-3 2-5.2 5.2-9.2zM10 11.4c1.2 1.5 2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1.8-2 2-3.5z',
+  kwLay:  'M3.4 16.6 16.6 3.4M13.6 3.4h3v3M3.4 13.6v3h3',
+  kwBloom:'M10 3.6v12.8M3.6 10h12.8M5.5 5.5l9 9M14.5 5.5l-9 9',
+  kwChain:'M8.2 11.8 6 14a3 3 0 0 1-4.2-4.2l2.2-2.2M11.8 8.2 14 6a3 3 0 0 1 4.2 4.2L16 12.4M7.4 12.6l5.2-5.2',
+  kwBack: 'M16.6 10H8.2M8.2 10l3.2-3.2M8.2 10l3.2 3.2M4.4 4.2v11.6',
 };
-const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm'};
+const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm',
+  '부설':'kwLay', '만개':'kwBloom', '연쇄':'kwChain', '불응':'kwBack', '확산':'bSpread'};
 const BEATICO = {
   '분화':'bSpawn', '고유':'bUniq', '성장':'grow', '몰린다':'grow', '치민다':'grow',
   '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
@@ -5786,7 +5913,7 @@ function standingMarks(S, n){
   if(n.demoted)   out.push({ic:'demote', tip:TT('반응 강등',
     '강반응이 영구히 약반응으로 내려간다.<br>')});
   if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
-  if(n.resist>0)  out.push({ic:'bHard', txt:n.resist, tip:TT('처치 저항 · 불응',
+  if(n.resist>0)  out.push({ic:'kwBack', txt:n.resist, tip:TT('처치 저항 · 불응',
     `다음 처치를 <b>${n.resist}번</b> 튕겨 낸다. 코스트와 손은 나가고 처치는 되지 않는다.`
     + (n.resistBack?'<br><b>강반응으로 걸린 저항</b> — 튕겨 낼 때 이 증상이 <b>초기값으로 돌아간다</b>.':''))});
   if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 증상은 이번 턴 아무것도 하지 않는다.')});
@@ -6171,7 +6298,7 @@ function stageLinks(){
   const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
-                 ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
+                 ...((S.enh)||[]).map(e=>({...e, enh:true}))];
 
   let out = '';
 
@@ -6183,9 +6310,9 @@ function stageLinks(){
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
     const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
     const mx=(sx+ex)/2;
-    const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
-    const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
-    const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
+    const hk = linkHead(l), mods = linkKws(l).filter(isEnhKw);
+    const c = linkKind(l)==='trans' ? '#B8776F' : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
+    const lt = kwTip(l) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
     const dir = ex > sx ? 1 : -1;
     const chev = k => `<path d="M${(mx + k - 5*dir).toFixed(1)} ${(ly-6).toFixed(1)} `
@@ -6200,7 +6327,15 @@ function stageLinks(){
       + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
       + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`
       + ` stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">`
-      + `<path d="${ICO[LINKICO[l.k]||'bFast']}"/></g></g>`;
+      + `<path d="${ICO[LINKICO[hk]||'bFast']}"/></g>`
+      + mods.map((k,j)=>{
+          const cx = mx + 23 + j*18;
+          return `<circle cx="${cx.toFixed(1)}" cy="${ly}" r="8" fill="#14181C" stroke="${c}" stroke-width="1.6" opacity=".92"/>`
+            + `<g transform="translate(${(cx-5.5).toFixed(1)},${(ly-5.5).toFixed(1)}) scale(.55)" fill="none"`
+            + ` stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">`
+            + `<path d="${ICO[LINKICO[k]||'bFast']}"/></g>`;
+        }).join('')
+      + `</g>`;
   }
   setHTML($('sg_links'), out);
 }
@@ -6605,6 +6740,7 @@ function fxPlanLog(log, before, plan){
         break;
       case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade), [nk(e.from), nk(e.to)]); break;
       case 'spawn':      fxq(()=>FXE.spawn(e.from, n), [nk(e.from), nk(n)]); sayEmit('spawn', {key:n.sym, node:n}); break;
+      case 'lay':        fxq(()=>FXE.lay(e.from, kwLabel({k:e.kind})), [nk(e.from)]); break;
       case 'sup':        fxq(()=>FXE.suppress(n, e.amt), [nk(n)]); break;
       case 'stab':       fxq(()=>FXE.stabilize(n, e.amt), [nk(n)]); break;
       case 'shBreak':    fxq(()=>FXE.shieldBreak(n), [nk(n)]); sayEmit('shield', {key:n.sym, node:n}); break;
@@ -7275,6 +7411,19 @@ function mkDelNode(i){ CUSTOM.nodes.splice(i,1); renderMake() }
 
 function mkAddEnh(){ CUSTOM.enh.push({a:'감염', b:'발열', k:'가속'}); renderMake() }
 
+function mkKwSet(i, base, mods){
+  const ks = [...(base && base!=='없음' ? [base] : []), ...mods];
+  CUSTOM.enh[i].k = ks.length===1 ? ks[0] : ks;
+  renderMake();
+}
+function mkKwBase(i, v){ mkKwSet(i, v, linkKws(CUSTOM.enh[i]).filter(isEnhKw)) }
+function mkKwMod(i, k, on){
+  const ks = linkKws(CUSTOM.enh[i]);
+  const mods = ks.filter(x => isEnhKw(x) && x!==k);
+  if(on) mods.push(k);
+  mkKwSet(i, ks.find(x => !isEnhKw(x)) || '없음', mods);
+}
+
 function mkDelEnh(i){ CUSTOM.enh.splice(i,1); renderMake() }
 
 function mkToggleDis(){
@@ -7295,7 +7444,7 @@ function mkLoadFrom(){
   const p=SCRIPT[id], b=makePatient(id, +$('seed').value);
   CUSTOM = {name:p.name, hp:b.hp, level:p.lv, core:p.core, talk:p.talk??3, tags:(p.tags||[]).slice(),
     nodes:b.nodes.map(n=>({sym:n.sym, init:n.init, evo:n.evo, shielded:n.shielded, grow:n.grow})),
-    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:e.k})), dis:null};
+    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:Array.isArray(e.k)?e.k.slice():e.k})), dis:null};
   $('mk_note').textContent = `${p.name} 을(를) 본으로 가져왔다.`;
   renderMake();
 }
@@ -7388,12 +7537,19 @@ function renderMake(){
         <td><button class="mini" onclick="mkDelNode(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">강화형 연결선 — 이 환자만 <span class="right"><button class="mini" onclick="mkAddEnh()">+ 연결선</button></span></div>
-     <table><tr><th>from</th><th>to</th><th>키워드</th><th></th></tr>`
-    + CUSTOM.enh.map((e,i)=>`<tr>
+     <div class="note">강화형은 <b>같은 배선의 기본형에 얹힌다</b> — 연쇄와 확산은 얹힐 것이 없으면 아무 일도 안 한다.
+       만개와 불응은 혼자서도 걸리므로 기본형을 「없음」으로 둘 수 있다 (명부의 감염→통증 불응이 그 꼴이다).</div>
+     <table><tr><th>from</th><th>to</th><th>기본형</th><th>강화형 (얹는다)</th><th></th></tr>`
+    + CUSTOM.enh.map((e,i)=>{
+        const ks=linkKws(e), base=ks.find(k=>!isEnhKw(k))||'없음', mods=ks.filter(isEnhKw);
+        return `<tr>
         <td><select onchange="mkSet('enh.${i}.a',this.value)">${symOpt(e.a)}</select></td>
         <td><select onchange="mkSet('enh.${i}.b',this.value)">${symOpt(e.b)}</select></td>
-        <td><select onchange="mkSet('enh.${i}.k',this.value)">${['가속','경화','점화'].map(k=>`<option ${k===e.k?'selected':''}>${k}</option>`).join('')}</select></td>
-        <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`).join('')
+        <td><select onchange="mkKwBase(${i},this.value)">${['없음',...BASE_KW].map(k=>`<option ${k===base?'selected':''}>${k}</option>`).join('')}</select></td>
+        <td>${ENH_KW.map(k=>`<label class="mkchk"${tip(LINKTIP[k]||'')}><input type="checkbox" ${mods.includes(k)?'checked':''} onchange="mkKwMod(${i},'${k}',this.checked)">${k}</label>`).join('')}`
+        + (ks.length ? '' : '<span class="mkchk" style="color:var(--red)">키워드가 없다 — 이 배선은 아무 일도 안 한다</span>')
+        + `</td>
+        <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`
     + (CUSTOM.dis ? `<div class="note">악보(분화·고유·진행)는 고른 보스의 것을 빌려 쓴다. 병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.</div>

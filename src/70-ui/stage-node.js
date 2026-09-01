@@ -109,9 +109,15 @@ const ICO = {
   bHard:  'M3.6 5h12.8v10H3.6zM3.6 10h12.8M8.4 5v5M12 10v5',
   bFast:  'M3.4 5.6 8 10l-4.6 4.4M11 5.6 15.6 10 11 14.4',
   flame:  'M10 2.6c3.2 4 5.2 6.2 5.2 9.2a5.2 5.2 0 0 1-10.4 0c0-3 2-5.2 5.2-9.2zM10 11.4c1.2 1.5 2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1.8-2 2-3.5z',
+  /* 배선에 얹히는 키워드 넷. 실루엣만 서로 다르면 된다 — 뜻은 LINKTIP 이 든다 */
+  kwLay:  'M3.4 16.6 16.6 3.4M13.6 3.4h3v3M3.4 13.6v3h3',
+  kwBloom:'M10 3.6v12.8M3.6 10h12.8M5.5 5.5l9 9M14.5 5.5l-9 9',
+  kwChain:'M8.2 11.8 6 14a3 3 0 0 1-4.2-4.2l2.2-2.2M11.8 8.2 14 6a3 3 0 0 1 4.2 4.2L16 12.4M7.4 12.6l5.2-5.2',
+  kwBack: 'M16.6 10H8.2M8.2 10l3.2-3.2M8.2 10l3.2 3.2M4.4 4.2v11.6',
 };
 /* 배선 종류 → 그림. 메달에 글자를 안 쓰는 까닭은 아래 stageLinks 에 적었다 */
-const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm'};
+const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm',
+  '부설':'kwLay', '만개':'kwBloom', '연쇄':'kwChain', '불응':'kwBack', '확산':'bSpread'};
 /* 박자 이름 → 그림. 없는 박자는 고유 표로 떨어진다 (새 보스가 새 박자를 들고
    와도 화면이 안 깨진다) */
 const BEATICO = {
@@ -195,7 +201,7 @@ function standingMarks(S, n){
     '강반응이 영구히 약반응으로 내려간다.<br>')});
   if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
   /* 불응이 걸어 둔 처치 저항. 걸린 줄 모르면 처치 한 번을 헛되이 쓴다 */
-  if(n.resist>0)  out.push({ic:'bHard', txt:n.resist, tip:TT('처치 저항 · 불응',
+  if(n.resist>0)  out.push({ic:'kwBack', txt:n.resist, tip:TT('처치 저항 · 불응',
     `다음 처치를 <b>${n.resist}번</b> 튕겨 낸다. 코스트와 손은 나가고 처치는 되지 않는다.`
     + (n.resistBack?'<br><b>강반응으로 걸린 저항</b> — 튕겨 낼 때 이 증상이 <b>초기값으로 돌아간다</b>.':''))});
   /* TT 는 (제목, 본문) 두 벌이다. 한 인자로 부르면 본문이 undefined 로 찍힌다 */
@@ -751,8 +757,11 @@ function stageLinks(){
      한 벌이라 거기가 바뀌면 여기도 바뀐다. */
   const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
+  /* 강화형 배선은 **판(S)** 에서 읽는다. BOARD.enh 를 읽고 있었는데, 그것은
+     처음 만들어진 판의 것이라 부설이 싸움 중에 놓은 줄(S.enh.push)이 화면에
+     한 줄도 안 나왔다. 되돌리기가 판을 갈아 끼우면 둘이 아예 다른 배열이 된다 */
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
-                 ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
+                 ...((S.enh)||[]).map(e=>({...e, enh:true}))];
 
   let out = '';
 
@@ -773,12 +782,15 @@ function stageLinks(){
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
     const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
     const mx=(sx+ex)/2;
-    /* 전이는 새 자리를 낳고 촉발은 있는 자리를 건드린다 — 색으로 가른다 */
-    const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
-    const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
+    /* 배선 하나가 키워드를 여럿 든다 — 색과 그림은 **기본형**이 정하고
+       얹힌 강화형은 메달 옆에 작은 위성으로 붙는다. 갈래도 커널의 linkKind 로
+       묻는다: 여기서 '발현'·'무장발현' 을 손으로 세던 때는 부설이 촉발 색으로
+       나왔다 (전이인데). 종류 표를 두 벌로 적으면 곧 한쪽이 거짓말을 한다 */
+    const hk = linkHead(l), mods = linkKws(l).filter(isEnhKw);
+    const c = linkKind(l)==='trans' ? '#B8776F' : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
     /* 메달에 설명을 단다. 글은 작업대가 쓰는 LINKTIP 그대로다 —
        배선 규칙을 두 벌로 적으면 한쪽이 곧 거짓말을 한다 */
-    const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
+    const lt = kwTip(l) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
     /* 방향은 글자가 아니라 **흐르는 화살표**가 말한다.
        한때 메달에 「통증 → 발열」을 적었는데, 줄이 서넛이면 그 글이 레인마다
@@ -803,7 +815,20 @@ function stageLinks(){
       + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
       + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`
       + ` stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">`
-      + `<path d="${ICO[LINKICO[l.k]||'bFast']}"/></g></g>`;
+      + `<path d="${ICO[LINKICO[hk]||'bFast']}"/></g>`
+      /* 얹힌 강화형 — 메달 오른쪽에 작은 것으로 잇는다. 이름을 글로 적지 않는
+         까닭은 위와 같다 (레인이 서넛이면 글자밭이 된다). 뜻은 툴팁이 든다 */
+      + mods.map((k,j)=>{
+          /* 23 과 18 은 눈으로 고른 값이 아니다 — 본 메달 반지름 12.5 에 위성
+             8 을 더하면 20.5 이라 20 에서는 실제로 겹쳤고 (stage_check 가 잡았다),
+             위성끼리도 16 이 바닥이라 17 은 아슬아슬했다 */
+          const cx = mx + 23 + j*18;
+          return `<circle cx="${cx.toFixed(1)}" cy="${ly}" r="8" fill="#14181C" stroke="${c}" stroke-width="1.6" opacity=".92"/>`
+            + `<g transform="translate(${(cx-5.5).toFixed(1)},${(ly-5.5).toFixed(1)}) scale(.55)" fill="none"`
+            + ` stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">`
+            + `<path d="${ICO[LINKICO[k]||'bFast']}"/></g>`;
+        }).join('')
+      + `</g>`;
   }
   setHTML($('sg_links'), out);
 }

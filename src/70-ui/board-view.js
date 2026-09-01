@@ -239,9 +239,9 @@ function renderInto(h){
   const shown=ns.some(n=>n.revealed);
   $(h+'_wires').innerHTML=
     (bl.length||(BOARD.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
-    + bl.map(l=>`<span class="wire"${tip(LINKTIP[l.k])}>${l.a} 처치 시 → ${l.b} <em>${l.k}</em></span>`).join('')
+    + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
     +(BOARD.enh||[]).map(e=>shown
-        ?`<span class="wire enh"${tip((LINKTIP[e.k]||'')+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${e.k}</em></span>`
+        ?`<span class="wire enh"${tip(kwTip(e)+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${kwLabel(e)}</em></span>`
         :`<span class="wire hid"${tip(TT('감춰진 배선','이 환자에게만 걸린 강화형 연결선이다.<br>진단 1회차나 문진 「어쩌다 다치셨어요」로 드러난다.'))}>? → ? <em>진단 필요</em></span>`).join('');
 
   /* ── 우측 상태판 ── */

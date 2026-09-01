@@ -203,6 +203,16 @@ const FXE = {
     FX.float(el, back ? '불응 · 초기값' : '불응', 'dn big');
     await fxWait(back ? 620 : 420);
   },
+  /* 부설 — 판에 없던 배선이 생겼다. 배선은 자리 위쪽 레인에 그려지므로
+     자리에 띄우기만 해서는 어디가 달라졌는지 안 보인다. 출발 자리에서 한 번
+     띄우고, 다음 그리기에서 새 레인이 실제로 들어오는 것으로 마무리한다 */
+  async lay(a, k){
+    const A = stageEl(a); if(!A) return;
+    FX.pulse(A, '#C8B79A');
+    FX.float(A, `부설 · ${k}`, 'up big');
+    FX.steam(A, 7, 'rgba(200,183,154,.7)');
+    await fxWait(520);
+  },
   /* 병기 한 칸 — 진화보다 무거운 소식이라 판을 어둡게 깔고 계기만 남긴다 */
   async stageUp(n, stage){
     const el = stageEl(n); if(!el) return;

@@ -210,6 +210,10 @@ summary{font:11px var(--mono);letter-spacing:.1em;color:var(--dim);cursor:pointe
 .mini{width:auto;margin:0;padding:3px 8px;font-size:10px}
 .mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:10px 0}
 label.mk{display:block;margin:0;text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim)}
+/* 강화형 넷을 한 칸에 눕힌다 — 배선 줄이 늘어나도 표가 세로로만 큰다 */
+label.mkchk{display:inline-flex;align-items:center;gap:3px;margin:0 7px 0 0;
+  text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim);cursor:help}
+label.mkchk input{width:auto;margin:0}
 label.mk input,label.mk select{margin-top:4px}
 label.mk input[type=checkbox]{width:auto}
 td input[type=number],td input[type=text],td select{padding:4px 6px;font-size:12px}

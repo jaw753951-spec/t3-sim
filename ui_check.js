@@ -83,7 +83,8 @@ async function probe(browser, file){
   snap.stuckTips = await page.evaluate(() => {
     /* 옛 파일에는 SYMDOC 도 ovrReset 도 없다 — 그때는 건너뛴다 */
     if (typeof SYMDOC === 'undefined' || typeof ovrSet !== 'function') return [];
-    const RULEFREE = new Set(['KWTIP.관해','KWTIP.개방','LINKTIP.불응',
+    const RULEFREE = new Set(['KWTIP.개방','KWTIP.진단','LINKTIP.불응',
+      'LINKTIP.부설','LINKTIP.만개','LINKTIP.연쇄','LINKTIP.확산',
       'BEATTIP.분화','BEATTIP.같은 박자','BEATTIP.창','BEATTIP.굳는다','BEATTIP.엮는다',
       'BEATTIP.아문다','BEATTIP.고유','UNIQTIP.아이:4','UNIQTIP.아이:5','UNIQTIP.송이:3']);
     const all = () => {

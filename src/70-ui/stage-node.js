@@ -276,19 +276,9 @@ function badgeSVG(S, n, sz){
       +  `</g>`;
   }
 
-  /* 좌상 — 보호막 방패. 남은 칸만큼 아래에서 찬다 */
-  if(n.shielded){
-    const [bx,by]=P(-141,RB), left=Math.max(0, R.SHIELD_MAX-Math.floor(n.stabAcc));
-    const f=left/Math.max(1,R.SHIELD_MAX), id='sgcl'+S.nodes.indexOf(n);
-    s += `<g transform="translate(${bx-16},${by-17})"${tip(TT('보호막',
-          `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.`
-          + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
-      + `<clipPath id="${id}"><rect x="0" y="${34-34*f}" width="32" height="${34*f}"/></clipPath>`
-      + `<path d="M16 1 1 6.8V18.4C1 25.7 8 31 16 33.5 24 31 31 25.7 31 18.4V6.8Z" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`
-      + `<path d="M16 1 1 6.8V18.4C1 25.7 8 31 16 33.5 24 31 31 25.7 31 18.4V6.8Z" fill="#7AA8B2" clip-path="url(#${id})" opacity=".85"/>`
-      + `<text x="16" y="22" text-anchor="middle" font-size="13" font-weight="800"`
-      + ` font-family="ui-monospace,monospace" fill="${f>.55?'#14181C':'#7AA8B2'}">${left}</text></g>`;
-  }
+  /* 보호막은 배지가 아니라 계기 안에서 말한다 (dialSVG 의 서리 테).
+     테 밖 왼쪽 위에 방패를 매달고 있었는데, 정작 그 값(남은 안정화)은
+     계기를 보면서 재야 하는 값이라 눈이 안팎을 오갔다. 자리도 하나 먹었다 */
 
   /* 우상 — 진화 시계. 병 노드는 병기라 여기 안 쓴다 (아래 링이 맡는다).
 
@@ -457,6 +447,36 @@ function dialSVG(S, n){
   s += `<polygon points="${tx},${ty} ${c+px*w0},${piv+py*w0} ${lx+px*w0*0.8},${ly+py*w0*0.8} `
      + `${lx-px*w0*0.8},${ly-py*w0*0.8} ${c-px*w0},${piv-py*w0}" fill="#1f1815"/>`;
   s += `<circle cx="${c}" cy="${piv}" r="7" fill="#1f1815"/>`;
+
+  /* ── 보호막 ── 문자판 가장자리에 낀 서리 ────────────────────
+     유리(.glass)가 「막이 있다」를, 이 테가 「얼마나 남았다」를 말한다.
+     전에는 계기 밖 방패 배지가 남은 수를 들고 있었는데, 그 수를 읽는 목적이
+     「이 계기를 언제 열 수 있나」라서 눈이 계기와 배지를 오갔다.
+
+     차오르는 쪽이 **쌓은 안정화**다 (남은 것이 아니다). 눈금이 다 차면 깨진다 —
+     차가 오르는 것이 곧 진척이라 이쪽이 손에 맞는다.
+     위쪽 140°만 쓴다. 아래는 이름이, 가운데는 수치판이 차지한다. */
+  if(n.shielded){
+    const RS = 93, A0 = 200, SPAN = 140, rad = d => Math.PI*d/180;
+    const PS = (a,r) => [c+Math.cos(rad(a))*r, c+Math.sin(rad(a))*r];
+    const f = Math.max(0, Math.min(1, (n.stabAcc||0) / Math.max(1, R.SHIELD_MAX)));
+    const left = Math.max(0, R.SHIELD_MAX - Math.floor(n.stabAcc||0));
+    const arcS = (a0,a1,w,col,op) => {
+      if(a1<=a0) return '';
+      const [x0,y0]=PS(a0,RS), [x1,y1]=PS(a1,RS);
+      return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${RS} ${RS} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}"`
+           + ` fill="none" stroke="${col}" stroke-width="${w}" opacity="${op}" stroke-linecap="round"/>`;
+    };
+    s += `<g class="shg"${tip(TT('보호막',
+          `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
+          + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
+          + `<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.`
+          + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
+      + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
+      + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)
+      + `<text x="${c}" y="42" text-anchor="middle" font-size="21" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="#9FD4DE">${left}</text></g>`;
+  }
 
   /* ── 이름 ── 아래 호를 따라 새긴다 ────────────────────────
      전에는 계기 밑에 검은 이름표 상자(.info)가 따로 달려 있었다. 상자가 62px 를

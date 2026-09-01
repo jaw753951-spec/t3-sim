@@ -118,6 +118,22 @@ const BOARDS = {
       say(`배지 간격이 자리마다 다르다 (${[...new Set(flat.map(x => x.gap))].join('/')})`);
     if (o.gz.length > 1 && bySize.size > o.gz[0].b.length + 2)
       say(`배지 크기가 자리마다 다르다 (${[...bySize].join(' ')})`);
+    /* 차트를 붙박이로 열었을 때 계기를 덮지 않는가. 스쳐 보는 것(hover)은
+       덮어도 되지만 열어 둔 채로 카드를 내려면 오른쪽 계기가 보여야 한다.
+       차트는 0.26초에 걸쳐 미끄러진다 — 곧바로 재면 아직 화면 밖이라
+       무엇과도 안 겹친 것으로 나온다. 전이가 끝나길 기다려서 잰다 */
+    await pg.evaluate(() => chartPin());
+    await pg.waitForTimeout(420);
+    const pin = await pg.evaluate(() => {
+      const st = document.getElementById('sg_stage').getBoundingClientRect(), k = st.width / 1920;
+      const R2 = e => { const r = e.getBoundingClientRect();
+        return { x: (r.x - st.x) / k, y: (r.y - st.y) / k, w: r.width / k, h: r.height / k } };
+      const ch = R2(document.getElementById('sg_chartwrap'));
+      return [...document.querySelectorAll('#sg .gz')].map(R2)
+        .filter(g => !(g.x + g.w <= ch.x || ch.x + ch.w <= g.x || g.y + g.h <= ch.y || ch.y + ch.h <= g.y)).length;
+    });
+    await pg.evaluate(() => chartPin());
+    if (pin) say(`차트를 열면 계기 ${pin}개가 덮인다`);
     for (const e of errs) say('오류 ' + e);
     boards++;
     console.log(`  ${name.padEnd(10)} 자리 ${o.gz.map(g => g.sz).join('/')} · 카드 ${o.cards.length}장 · 배지 ${flat.length}개`);

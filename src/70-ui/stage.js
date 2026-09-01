@@ -139,8 +139,12 @@ function stageChart(){
       <div class="big">${Math.max(0,SESS.budget)}</div>
       <div class="body d">다음 환자 ${Math.max(0, sessList().length-SESS.idx-1)}명</div></div>`);
   } else if(MODE==='story' && S.act===3){
-    rows.push(`<div class="sec"><div class="lab">병 노드</div>
-      <div class="body"${tip(policyTip(S.policy))}>${winNote(S)}</div></div>`);
+    /* 방침을 머리에 세운다. 전에는 「병 노드」라는 이름표 아래 이기는 조건만
+       적혀 있었는데, 그 조건이 무엇인지를 정하는 것이 방침이라 이름표가
+       한 겹 잘못 걸려 있었다. 방침 이름이 크게 오고 그 아래가 이기는 조건이다 */
+    rows.push(`<div class="sec"><div class="lab">방침</div>
+      <div class="big"${tip(policyTip(S.policy))}>${esc(S.policy||'—')}</div>
+      <div class="body">${winNote(S)}</div></div>`);
   }
 
   const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
@@ -168,8 +172,9 @@ function stagePatient(){
   const hp = Math.max(0, S.hp), pct = hp/Math.max(1,S.hpMax)*100;
   const gone = Math.min(hp, f.dmg)/Math.max(1,S.hpMax)*100;
 
+  /* 정신이 바뀔 때만 다시 그린다 — 매 수마다 SVG 를 다시 파싱하지 않는다 */
   const bust = $('sg_bust');
-  if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
+  if(bust.dataset.mind !== S.mind){ bust.innerHTML = bustSVG(S.mind); bust.dataset.mind = S.mind }
 
   /* 이름은 차트와 같은 것을 쓴다 (무대.이름) */
   $('sg_pwho').textContent = patientName().who;
@@ -193,9 +198,12 @@ function stagePatient(){
   m.setAttribute('data-tip', tipKey(TT('정신 · '+S.mind, mindTipBody(S))));
 }
 
-/* 차트를 붙박이로 둔다 — 마우스를 올려야만 나오면 카드를 내는 동안 못 본다 */
+/* 차트를 붙박이로 둔다 — 마우스를 올려야만 나오면 카드를 내는 동안 못 본다.
+   판 폭이 같이 줄므로 다시 재고 다시 그린다 (stageFit 이 둘 다 한다).
+   안 재면 계기가 옛 폭으로 앉아 차트 밑에 깔린다 — SG_BW 는 열 때와 창이
+   바뀔 때만 재는 값이라 여기서 손수 불러 줘야 한다 */
 //@ 무대.차트고정 — 등뼈를 누르면 열어 둔다
-function chartPin(){ $('sg').classList.toggle('chartpin') }
+function chartPin(){ $('sg').classList.toggle('chartpin'); stageFit() }
 
 /* ── 의사 자원 ── 기세 · 관해도 ────────────────────────────────
    둘 다 게이트가 있다. 목업은 늘 띄우지만 그러면 규칙이 거짓말을 한다.
@@ -298,15 +306,47 @@ function stageHand(){
 }
 
 /* ── 환자 흉상 ── 그림 파일 없이 실루엣 하나 ─────────────────
-   증상마다 바꾸지 않는다. 나중에 그림이 들어올 자리이기도 하다. */
-function bustSVG(){
+   증상마다 바꾸지 않는다. 나중에 그림이 들어올 자리이기도 하다.
+
+   정신 상태만은 얼굴에 싣는다. 전에는 넉 상태가 전부 같은 얼굴이었고,
+   달라지는 것은 아래 「정신 · 공황」 글자뿐이라 왼쪽 칸을 봐도 이 사람이
+   어떤지 알 수 없었다. 눈썹 · 눈 · 입 셋만 바꾼다 — 실루엣과 어깨선은
+   그대로라 같은 사람으로 읽힌다.
+
+   MIND_FACE 의 열쇠는 커널이 쓰는 정신 이름 그대로다. 모르는 이름이 오면
+   평정으로 떨어진다 (상태가 늘어도 화면이 안 깨진다). */
+const MIND_FACE = {
+  /* 평정 — 감은 눈, 다문 입 */
+  '평정': `<path d="M84 66q6 4 12 0M104 66q6 4 12 0" stroke="rgba(20,18,16,.5)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>
+           <path d="M88 84h24" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  /* 불안 — 치켜올라간 눈썹, 작게 벌어진 입 */
+  '불안': `<path d="M80 56 96 61M120 56 104 61" stroke="rgba(20,18,16,.55)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>
+           <circle cx="89" cy="68" r="3.4" fill="rgba(20,18,16,.6)"/>
+           <circle cx="111" cy="68" r="3.4" fill="rgba(20,18,16,.6)"/>
+           <ellipse cx="100" cy="85" rx="6" ry="4.5" fill="rgba(20,18,16,.5)"/>`,
+  /* 공황 — 크게 뜬 눈, 벌어진 입, 관자놀이의 땀 */
+  '공황': `<path d="M78 54 97 62M122 54 103 62" stroke="rgba(20,18,16,.6)" stroke-width="3.4"
+             fill="none" stroke-linecap="round"/>
+           <circle cx="88" cy="69" r="5.4" fill="rgba(20,18,16,.72)"/>
+           <circle cx="112" cy="69" r="5.4" fill="rgba(20,18,16,.72)"/>
+           <ellipse cx="100" cy="87" rx="8.5" ry="7.5" fill="rgba(20,18,16,.62)"/>
+           <path d="M126 60q5 7 0 11t-5-11z" fill="rgba(190,215,225,.75)"/>`,
+  /* 의식불명 — 감긴 눈 위의 가로줄, 늘어진 입 */
+  '의식불명': `<path d="M82 68h14M104 68h14" stroke="rgba(20,18,16,.55)" stroke-width="3.4"
+             fill="none" stroke-linecap="round"/>
+           <path d="M88 88q12-6 24 0" stroke="rgba(20,18,16,.45)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>`,
+};
+function bustSVG(mind){
   return `<svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">
     <defs><linearGradient id="sgbust" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#8d8377"/><stop offset="1" stop-color="#3a352f"/></linearGradient></defs>
     <path d="M100 44c-15 0-26 12-26 28 0 11 4 20 10 26-18 7-32 20-38 38-2 6 2 12 8 12h92c6 0 10-6 8-12
              -6-18-20-31-38-38 6-6 10-15 10-26 0-16-11-28-26-28z" fill="url(#sgbust)"/>
     <path d="M74 148h52" stroke="rgba(20,18,16,.5)" stroke-width="3" fill="none"/>
-    <path d="M86 72q14 8 28 0" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    ${MIND_FACE[mind] || MIND_FACE['평정']}
   </svg>`;
 }
 

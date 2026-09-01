@@ -148,16 +148,16 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .cost{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:2px solid var(--cd-rule);
   display:grid;place-items:center;background:rgba(255,252,240,.30);
   font:700 17px/1 var(--mono);color:var(--cd-ink);min-width:0}
-#sg_hand .chead b{display:block;font:700 14.5px/1.25 var(--sans);color:var(--cd-ink)}
+#sg_hand .chead b{display:block;font:700 15.5px/1.25 var(--sans);color:var(--cd-ink)}
 #sg_hand .bl{align-self:flex-start;color:#F2E6CE;border-color:#6E211C}
 
-#sg_hand .cart{display:grid;flex:0 0 116px;border:1px solid var(--cd-line);
+#sg_hand .cart{display:grid;flex:0 0 62px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
-  font:10.5px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+  font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
   padding:7px 9px}
-#sg_hand .ctext{font:11.5px/1.5 var(--sans);color:var(--cd-ink)}
-#sg_hand .keep{margin-top:5px;font:10px var(--mono);color:var(--cd-mut)}
+#sg_hand .ctext{font:14px/1.55 var(--sans);color:var(--cd-ink)}
+#sg_hand .keep{margin-top:6px;font:11.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}
 #sg_hand .keep.why{color:var(--blood)}
 
@@ -423,6 +423,8 @@ body.sgon{overflow:hidden}
 #sg_chartwrap{position:absolute;right:0;top:32px;width:344px;height:788px;z-index:20;
   display:flex;transform:translateX(300px);transition:transform .26s cubic-bezier(.3,.9,.3,1)}
 #sg_chartwrap:hover,#sg.chartpin #sg_chartwrap{transform:none}
+
+#sg.chartpin #sg_board{width:1212px}
 #sg_chartwrap .spine{flex:0 0 44px;background:var(--steelD);border:2px solid var(--steelL);
   border-right:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 #sg_chartwrap .spine span{writing-mode:vertical-rl;font:800 14px/1 var(--sans);
@@ -460,6 +462,7 @@ body.sgon{overflow:hidden}
   box-shadow:inset 0 3px 9px rgba(50,38,18,.45)}
 #sg .gz .stg{position:absolute;inset:0}
 #sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
+#sg .gz .dial .shg{cursor:help}
 #sg .gz .dring{position:absolute;inset:0;overflow:visible;z-index:5;pointer-events:none}
 #sg .gz .glass{position:absolute;inset:8%;border-radius:50%;z-index:4;pointer-events:none;
   background:linear-gradient(133deg,rgba(255,255,255,.32) 5%,transparent 32% 60%,rgba(255,255,255,.12) 88%);
@@ -472,14 +475,16 @@ body.sgon{overflow:hidden}
 #sg .gz .atts{position:absolute;inset:-30%;z-index:7;overflow:visible;pointer-events:none}
 #sg .gz .atts g{pointer-events:auto;cursor:pointer}
 
-#sg .gz.warn{animation:trem 1.9s ease-in-out infinite}
+#sg .gz.warn{animation:trem 1.25s ease-in-out infinite}
 @keyframes trem{
-  0%,60%,100%{transform:translate(-50%,-50%)}
-  64%{transform:translate(calc(-50% - 3px),calc(-50% + 1px)) rotate(-.7deg)}
-  68%{transform:translate(calc(-50% + 3px),calc(-50% - 1px)) rotate(.7deg)}
-  72%{transform:translate(calc(-50% - 2.5px),-50%) rotate(-.5deg)}
-  76%{transform:translate(calc(-50% + 2.5px),-50%) rotate(.5deg)}
-  80%{transform:translate(-50%,-50%)}}
+  0%,44%,100%{transform:translate(-50%,-50%)}
+  49%{transform:translate(calc(-50% - 6px),calc(-50% + 2px)) rotate(-1.4deg)}
+  55%{transform:translate(calc(-50% + 6px),calc(-50% - 2px)) rotate(1.4deg)}
+  61%{transform:translate(calc(-50% - 5px),calc(-50% + 1px)) rotate(-1deg)}
+  67%{transform:translate(calc(-50% + 5px),calc(-50% - 1px)) rotate(1deg)}
+  73%{transform:translate(calc(-50% - 3px),-50%) rotate(-.6deg)}
+  79%{transform:translate(calc(-50% + 3px),-50%) rotate(.6deg)}
+  85%{transform:translate(-50%,-50%)}}
 
 #sg .gz.dorm{filter:saturate(.3) brightness(.6)}
 #sg .gz.ready .bezel{box-shadow:0 0 0 3px var(--t3b),0 0 22px rgba(77,212,200,.5),0 6px 15px rgba(0,0,0,.65)}
@@ -5755,19 +5760,6 @@ function badgeSVG(S, n, sz){
       +  `</g>`;
   }
 
-  if(n.shielded){
-    const [bx,by]=P(-141,RB), left=Math.max(0, R.SHIELD_MAX-Math.floor(n.stabAcc));
-    const f=left/Math.max(1,R.SHIELD_MAX), id='sgcl'+S.nodes.indexOf(n);
-    s += `<g transform="translate(${bx-16},${by-17})"${tip(TT('보호막',
-          `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.`
-          + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
-      + `<clipPath id="${id}"><rect x="0" y="${34-34*f}" width="32" height="${34*f}"/></clipPath>`
-      + `<path d="M16 1 1 6.8V18.4C1 25.7 8 31 16 33.5 24 31 31 25.7 31 18.4V6.8Z" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`
-      + `<path d="M16 1 1 6.8V18.4C1 25.7 8 31 16 33.5 24 31 31 25.7 31 18.4V6.8Z" fill="#7AA8B2" clip-path="url(#${id})" opacity=".85"/>`
-      + `<text x="16" y="22" text-anchor="middle" font-size="13" font-weight="800"`
-      + ` font-family="ui-monospace,monospace" fill="${f>.55?'#14181C':'#7AA8B2'}">${left}</text></g>`;
-  }
-
   if(n.role!=='disease' && (n.evolved || n.revealed)){
     const [ex,ey]=P(-39,RB);
     if(n.evolved){
@@ -5905,6 +5897,28 @@ function dialSVG(S, n){
   s += `<polygon points="${tx},${ty} ${c+px*w0},${piv+py*w0} ${lx+px*w0*0.8},${ly+py*w0*0.8} `
      + `${lx-px*w0*0.8},${ly-py*w0*0.8} ${c-px*w0},${piv-py*w0}" fill="#1f1815"/>`;
   s += `<circle cx="${c}" cy="${piv}" r="7" fill="#1f1815"/>`;
+
+  if(n.shielded){
+    const RS = 93, A0 = 200, SPAN = 140, rad = d => Math.PI*d/180;
+    const PS = (a,r) => [c+Math.cos(rad(a))*r, c+Math.sin(rad(a))*r];
+    const f = Math.max(0, Math.min(1, (n.stabAcc||0) / Math.max(1, R.SHIELD_MAX)));
+    const left = Math.max(0, R.SHIELD_MAX - Math.floor(n.stabAcc||0));
+    const arcS = (a0,a1,w,col,op) => {
+      if(a1<=a0) return '';
+      const [x0,y0]=PS(a0,RS), [x1,y1]=PS(a1,RS);
+      return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${RS} ${RS} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}"`
+           + ` fill="none" stroke="${col}" stroke-width="${w}" opacity="${op}" stroke-linecap="round"/>`;
+    };
+    s += `<g class="shg"${tip(TT('보호막',
+          `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
+          + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
+          + `<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.`
+          + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
+      + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
+      + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)
+      + `<text x="${c}" y="42" text-anchor="middle" font-size="21" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="#9FD4DE">${left}</text></g>`;
+  }
 
   const ix = S.nodes.indexOf(n);
   const isCore = !(MODE==='sess' && !S.coreShown) && !!BOARD && n.sym===BOARD.core;
@@ -6195,8 +6209,9 @@ function stageChart(){
       <div class="big">${Math.max(0,SESS.budget)}</div>
       <div class="body d">다음 환자 ${Math.max(0, sessList().length-SESS.idx-1)}명</div></div>`);
   } else if(MODE==='story' && S.act===3){
-    rows.push(`<div class="sec"><div class="lab">병 노드</div>
-      <div class="body"${tip(policyTip(S.policy))}>${winNote(S)}</div></div>`);
+    rows.push(`<div class="sec"><div class="lab">방침</div>
+      <div class="big"${tip(policyTip(S.policy))}>${esc(S.policy||'—')}</div>
+      <div class="body">${winNote(S)}</div></div>`);
   }
 
   const asked = (S.asked && !Array.isArray(S.asked)) ? Object.keys(S.asked).filter(k=>S.asked[k]) : [];
@@ -6223,7 +6238,7 @@ function stagePatient(){
   const gone = Math.min(hp, f.dmg)/Math.max(1,S.hpMax)*100;
 
   const bust = $('sg_bust');
-  if(!bust.dataset.drawn){ bust.innerHTML = bustSVG(); bust.dataset.drawn = '1' }
+  if(bust.dataset.mind !== S.mind){ bust.innerHTML = bustSVG(S.mind); bust.dataset.mind = S.mind }
 
   $('sg_pwho').textContent = patientName().who;
 
@@ -6246,7 +6261,7 @@ function stagePatient(){
 }
 
 //@ 무대.차트고정 — 등뼈를 누르면 열어 둔다
-function chartPin(){ $('sg').classList.toggle('chartpin') }
+function chartPin(){ $('sg').classList.toggle('chartpin'); stageFit() }
 
 //@ 무대.의사자원 — 기세 · 관해도. 켜진 것만 뜬다
 function stageDoc(){
@@ -6327,14 +6342,34 @@ function stageHand(){
     }).join('') || '<div class="empty">손이 비었다.</div>';
 }
 
-function bustSVG(){
+const MIND_FACE = {
+  '평정': `<path d="M84 66q6 4 12 0M104 66q6 4 12 0" stroke="rgba(20,18,16,.5)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>
+           <path d="M88 84h24" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  '불안': `<path d="M80 56 96 61M120 56 104 61" stroke="rgba(20,18,16,.55)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>
+           <circle cx="89" cy="68" r="3.4" fill="rgba(20,18,16,.6)"/>
+           <circle cx="111" cy="68" r="3.4" fill="rgba(20,18,16,.6)"/>
+           <ellipse cx="100" cy="85" rx="6" ry="4.5" fill="rgba(20,18,16,.5)"/>`,
+  '공황': `<path d="M78 54 97 62M122 54 103 62" stroke="rgba(20,18,16,.6)" stroke-width="3.4"
+             fill="none" stroke-linecap="round"/>
+           <circle cx="88" cy="69" r="5.4" fill="rgba(20,18,16,.72)"/>
+           <circle cx="112" cy="69" r="5.4" fill="rgba(20,18,16,.72)"/>
+           <ellipse cx="100" cy="87" rx="8.5" ry="7.5" fill="rgba(20,18,16,.62)"/>
+           <path d="M126 60q5 7 0 11t-5-11z" fill="rgba(190,215,225,.75)"/>`,
+  '의식불명': `<path d="M82 68h14M104 68h14" stroke="rgba(20,18,16,.55)" stroke-width="3.4"
+             fill="none" stroke-linecap="round"/>
+           <path d="M88 88q12-6 24 0" stroke="rgba(20,18,16,.45)" stroke-width="3"
+             fill="none" stroke-linecap="round"/>`,
+};
+function bustSVG(mind){
   return `<svg viewBox="0 0 200 200" preserveAspectRatio="xMidYMid slice">
     <defs><linearGradient id="sgbust" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#8d8377"/><stop offset="1" stop-color="#3a352f"/></linearGradient></defs>
     <path d="M100 44c-15 0-26 12-26 28 0 11 4 20 10 26-18 7-32 20-38 38-2 6 2 12 8 12h92c6 0 10-6 8-12
              -6-18-20-31-38-38 6-6 10-15 10-26 0-16-11-28-26-28z" fill="url(#sgbust)"/>
     <path d="M74 148h52" stroke="rgba(20,18,16,.5)" stroke-width="3" fill="none"/>
-    <path d="M86 72q14 8 28 0" stroke="rgba(20,18,16,.45)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    ${MIND_FACE[mind] || MIND_FACE['평정']}
   </svg>`;
 }
 

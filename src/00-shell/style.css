@@ -160,16 +160,16 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .chead b{display:block;font:700 15.5px/1.25 var(--sans);color:var(--cd-ink)}
 #sg_hand .bl{align-self:flex-start;color:#F2E6CE;border-color:#6E211C}
 /* 카드 그림이 들어올 칸 */
-/* 그림칸을 116 → 62 로 줄이고 그만큼 본문에 준다. 손패 줄이 통째로 0.8배라
+/* 그림칸을 116 → 40 으로 줄이고 그만큼 본문에 준다. 손패 줄이 통째로 0.8배라
    본문 11.5px 은 화면에서 9.2px 이었다 — 정작 카드에서 읽어야 하는 것이
    그림 자리가 아니라 이 글이다. 그림이 실제로 들어오면 다시 저울질한다 */
-#sg_hand .cart{display:grid;flex:0 0 62px;border:1px solid var(--cd-line);
+#sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
   font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
   padding:7px 9px}
-#sg_hand .ctext{font:14px/1.55 var(--sans);color:var(--cd-ink)}
-#sg_hand .keep{margin-top:6px;font:11.5px var(--mono);color:var(--cd-mut)}
+#sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
+#sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}
 #sg_hand .keep.why{color:var(--blood)}
 

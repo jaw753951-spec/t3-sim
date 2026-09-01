@@ -151,13 +151,13 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .chead b{display:block;font:700 15.5px/1.25 var(--sans);color:var(--cd-ink)}
 #sg_hand .bl{align-self:flex-start;color:#F2E6CE;border-color:#6E211C}
 
-#sg_hand .cart{display:grid;flex:0 0 62px;border:1px solid var(--cd-line);
+#sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
   font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
   padding:7px 9px}
-#sg_hand .ctext{font:14px/1.55 var(--sans);color:var(--cd-ink)}
-#sg_hand .keep{margin-top:6px;font:11.5px var(--mono);color:var(--cd-mut)}
+#sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
+#sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}
 #sg_hand .keep.why{color:var(--blood)}
 
@@ -408,8 +408,9 @@ body.sgon{overflow:hidden}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
 
-#sg_links .spread{stroke-dasharray:3 10;animation:spd 1.5s linear infinite}
-@keyframes spd{to{stroke-dashoffset:-26}}
+#sg_links .wf{stroke-dasharray:16 9;animation:wfl 1.1s linear infinite}
+#sg_links .wf.enh{stroke-dasharray:7 11;animation-duration:1.5s}
+@keyframes wfl{to{stroke-dashoffset:-25}}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
 #sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;
@@ -486,10 +487,20 @@ body.sgon{overflow:hidden}
   79%{transform:translate(calc(-50% + 3px),-50%) rotate(.6deg)}
   85%{transform:translate(-50%,-50%)}}
 
+#sg .gz .halo{position:absolute;inset:0;z-index:0;pointer-events:none}
+#sg .gz.emit .halo::before,#sg .gz.emit .halo::after{content:"";position:absolute;inset:0;
+  border-radius:50%;border:3px solid var(--emit,#9BB2A6);animation:halo 3s ease-out infinite}
+#sg .gz.emit .halo::after{animation-delay:1.5s}
+@keyframes halo{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.34);opacity:0}}
+
 #sg .gz.dorm{filter:saturate(.3) brightness(.6)}
 #sg .gz.ready .bezel{box-shadow:0 0 0 3px var(--t3b),0 0 22px rgba(77,212,200,.5),0 6px 15px rgba(0,0,0,.65)}
 
 #sg .gz.warn .bezel{box-shadow:0 0 0 3px rgba(152,48,42,.9),0 0 20px rgba(152,48,42,.55),0 6px 15px rgba(0,0,0,.65)}
+
+#sg .gz.lit .bezel{box-shadow:0 0 0 4px var(--lit,#9BB2A6),0 0 26px var(--lit,#9BB2A6),
+  0 6px 15px rgba(0,0,0,.65)}
+#sg .stack.lit .top{border-color:var(--lit,#9BB2A6);box-shadow:0 0 0 3px var(--lit,#9BB2A6)}
 
 #sg .gz.evo .bezel{background:conic-gradient(from 215deg,#2a2018,#8a6626 18%,#3a2c14 45%,#75571f 70%,#2a2018)}
 #sg .gz.evo .face{background:radial-gradient(circle at 40% 32%,#e9d3a2,#c1a473 70%,#8a7042)}
@@ -5643,7 +5654,9 @@ const ICO = {
   bSame:  'M5 8.6a5 5 0 0 1 9.4-1M15 11.4a5 5 0 0 1-9.4 1M4.4 5.6v3h3M15.6 14.4v-3h-3',
   bHard:  'M3.6 5h12.8v10H3.6zM3.6 10h12.8M8.4 5v5M12 10v5',
   bFast:  'M3.4 5.6 8 10l-4.6 4.4M11 5.6 15.6 10 11 14.4',
+  flame:  'M10 2.6c3.2 4 5.2 6.2 5.2 9.2a5.2 5.2 0 0 1-10.4 0c0-3 2-5.2 5.2-9.2zM10 11.4c1.2 1.5 2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1.8-2 2-3.5z',
 };
+const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm'};
 const BEATICO = {
   '분화':'bSpawn', '고유':'bUniq', '성장':'grow', '몰린다':'grow', '치민다':'grow',
   '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
@@ -5703,6 +5716,27 @@ function standingMarks(S, n){
   if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
   if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 자리는 이번 턴 아무것도 하지 않는다.')});
   return out;
+}
+
+//@ 무대.방사 — 판 전체에 거는 자리와 그 대상
+const EMIT = {
+  '감염':     {col:'#9BB2A6', tgt:(S,n)=>[...infPool(S).keys()].filter(x=>x!==n)},
+  '통증':     {col:'#C2705F', tgt:(S)=>alive(S).filter(x=>x.role!=='disease')},
+  '탈수':     {col:'#B99A5E', tgt:(S)=>alive(S).filter(x=>x.shielded)},
+  '호흡곤란':  {col:'#8FA6AE', tgt:()=>[], pile:true},
+};
+function emitOn(S, n){
+  return !!EMIT[n.sym] && n.role!=='disease' && !n.dead && !n.muted && n.val>0;
+}
+function emitLight(n, on){
+  const B = $('sg'); if(!B) return;
+  for(const x of [...document.querySelectorAll('#sg .lit')]) x.classList.remove('lit');
+  const e = n && EMIT[n.sym];
+  if(!on || !e || !S || !emitOn(S, n)) return;
+  B.style.setProperty('--lit', e.col);
+  const self = stageEl(n);
+  for(const t of e.tgt(S, n)){ const el = stageEl(t); if(el && el!==self) el.classList.add('lit') }
+  if(e.pile){ const d = document.querySelector('#sg .res .stack.go'); if(d) d.classList.add('lit') }
 }
 
 function stgArt(n){
@@ -6005,8 +6039,10 @@ function stageSync(){
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
       + '<svg class="atts" viewBox="0 0 200 200"></svg>'
-      + '<div class="chips"></div>';
+      + '<div class="halo"></div><div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
+      el.onmouseenter = () => emitLight(S.nodes[ix], true);
+      el.onmouseleave = () => emitLight(S.nodes[ix], false);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
     }
     const sz = n.sz || SZ;
@@ -6025,6 +6061,9 @@ function stageSync(){
     el.classList.toggle('imm',   imm);
     el.classList.toggle('evo',   !!n.evolved);
     el.classList.toggle('held',  n.growHold>0 || n.delayed>0);
+    const em = EMIT[n.sym];
+    el.classList.toggle('emit', emitOn(S, n));
+    if(em) el.style.setProperty('--emit', em.col);
 
     setHTML(el.querySelector('.stg'),   stgArt(n));
     setHTML(el.querySelector('.dial'),  dialSVG(S, n));
@@ -6059,21 +6098,6 @@ function stageLinks(){
 
   let out = '';
 
-  const pool = infPool(S);
-  if(pool.size){
-    for(const f of alive(S)){
-      if(f.sym!=='감염' || f.val<=0 || f.muted) continue;
-      const fx0=f.px/W*1210, fy0=f.py/H*744;
-      for(const [n] of pool){
-        if(n===f || n.dead || n.px===undefined) continue;
-        const tx=n.px/W*1210, ty=n.py/H*744;
-        const my=(fy0+ty)/2 + 52;
-        out += `<path class="spread" d="M${fx0} ${fy0} Q${(fx0+tx)/2} ${my} ${tx} ${ty}"`
-             + ` fill="none" stroke="rgba(150,178,170,.75)" stroke-width="2.4" stroke-linecap="round"/>`;
-      }
-    }
-  }
-
   let lane = 0;
   for(const l of lines){
     if(l.enh && !shown) continue;
@@ -6086,20 +6110,20 @@ function stageLinks(){
     const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
     const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
-    const cap = `${l.a} → ${l.b}`;
-    const pw = cap.length*12 + 34, ph = 25;
+    const dir = ex > sx ? 1 : -1;
+    const chev = k => `<path d="M${(mx + k - 5*dir).toFixed(1)} ${(ly-6).toFixed(1)} `
+      + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
+      + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="7" stroke-linejoin="round"/>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="${c}" stroke-width="3"${dash} stroke-linejoin="round"/>`
+      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
+      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none"`
+      + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
-      + `<rect x="${(mx-pw/2).toFixed(1)}" y="${(ly-ph/2).toFixed(1)}" width="${pw}" height="${ph}" rx="3"`
-      + ` fill="#14181C" stroke="${c}" stroke-width="2"/>`
-      + `<circle cx="${(mx-pw/2+14).toFixed(1)}" cy="${ly}" r="8.5" fill="${c}"/>`
-      + `<text x="${(mx-pw/2+14).toFixed(1)}" y="${(ly+3.6).toFixed(1)}" text-anchor="middle"`
-      + ` font-family="var(--sans)" font-size="10" font-weight="800" fill="#14181C">${l.k[0]}</text>`
-      + `<text x="${(mx+13).toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle"`
-      + ` font-family="var(--sans)" font-size="12" font-weight="700" fill="${c}">${esc(cap)}</text>`
-      + `</g>`;
+      + chev(34*dir) + chev(56*dir)
+      + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
+      + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`
+      + ` stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">`
+      + `<path d="${ICO[LINKICO[l.k]||'bFast']}"/></g></g>`;
   }
   setHTML($('sg_links'), out);
 }

@@ -108,7 +108,10 @@ const ICO = {
   bSame:  'M5 8.6a5 5 0 0 1 9.4-1M15 11.4a5 5 0 0 1-9.4 1M4.4 5.6v3h3M15.6 14.4v-3h-3',
   bHard:  'M3.6 5h12.8v10H3.6zM3.6 10h12.8M8.4 5v5M12 10v5',
   bFast:  'M3.4 5.6 8 10l-4.6 4.4M11 5.6 15.6 10 11 14.4',
+  flame:  'M10 2.6c3.2 4 5.2 6.2 5.2 9.2a5.2 5.2 0 0 1-10.4 0c0-3 2-5.2 5.2-9.2zM10 11.4c1.2 1.5 2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1.8-2 2-3.5z',
 };
+/* 배선 종류 → 그림. 메달에 글자를 안 쓰는 까닭은 아래 stageLinks 에 적었다 */
+const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm'};
 /* 박자 이름 → 그림. 없는 박자는 고유 표로 떨어진다 (새 보스가 새 박자를 들고
    와도 화면이 안 깨진다) */
 const BEATICO = {
@@ -189,6 +192,44 @@ function standingMarks(S, n){
   if(n.chronic)   out.push({ic:'chron', tip:TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.')});
   if(n.muted)     out.push({ic:'mute',  tip:TT('이번 턴 잠잠','이 자리는 이번 턴 아무것도 하지 않는다.')});
   return out;
+}
+
+/* ── 판 전체에 거는 자리 ── 제 자리를 넘어 남에게 손을 대는 증상 넷 ──
+   전에는 감염만 배선(퍼짐 선)으로 그렸는데, 감염 하나가 자리 넷을 먹이면
+   선이 넷 깔려서 계기 뒤로 지나가고 의도 칩을 가로질렀다. 「지저분하다」는
+   말이 나온 자리다. 선을 걷고 자리 자체에 조용한 파문을 두른다.
+
+   늘 보이는 것은 「이 자리가 판에 손을 대고 있다」 하나뿐이다. 마우스를
+   올리면 그제야 **무엇에** 대는지가 켜진다 — 넷을 늘 켜 두면 자리 넷이
+   동시에 빛나서 처음의 지저분함과 같은 꼴이 된다.
+
+   대상은 커널에 물어본다. 손으로 고르면 감염이 둘일 때 · 성장 정지일 때 ·
+   보호막이 없는 자리 · 병 노드를 하나씩 다 빠뜨린다.
+     감염     infPool 의 열쇠 (성장을 나눠 받는 자리)
+     통증     병 노드를 뺀 모든 자리 — killLine 이 painShare 를 타는데
+              병 노드는 그 식을 안 탄다 (0에 무엇을 곱해도 0이라 뜻이 없다)
+     탈수     보호막이 있는 자리 — stabAmt 가 막이 있어야 도는 값이다
+     호흡곤란 자리가 아니라 덱이다 (drawCount) */
+//@ 무대.방사 — 판 전체에 거는 자리와 그 대상
+const EMIT = {
+  '감염':     {col:'#9BB2A6', tgt:(S,n)=>[...infPool(S).keys()].filter(x=>x!==n)},
+  '통증':     {col:'#C2705F', tgt:(S)=>alive(S).filter(x=>x.role!=='disease')},
+  '탈수':     {col:'#B99A5E', tgt:(S)=>alive(S).filter(x=>x.shielded)},
+  '호흡곤란':  {col:'#8FA6AE', tgt:()=>[], pile:true},
+};
+function emitOn(S, n){
+  return !!EMIT[n.sym] && n.role!=='disease' && !n.dead && !n.muted && n.val>0;
+}
+/* 마우스를 올린 동안만 대상을 켠다 */
+function emitLight(n, on){
+  const B = $('sg'); if(!B) return;
+  for(const x of [...document.querySelectorAll('#sg .lit')]) x.classList.remove('lit');
+  const e = n && EMIT[n.sym];
+  if(!on || !e || !S || !emitOn(S, n)) return;
+  B.style.setProperty('--lit', e.col);
+  const self = stageEl(n);
+  for(const t of e.tgt(S, n)){ const el = stageEl(t); if(el && el!==self) el.classList.add('lit') }
+  if(e.pile){ const d = document.querySelector('#sg .res .stack.go'); if(d) d.classList.add('lit') }
 }
 
 /* ── 문자판 그림 ── 증상마다 다르게, 수치에 비례해서 ──────── */
@@ -478,17 +519,6 @@ function dialSVG(S, n){
       + ` font-family="ui-monospace,monospace" fill="#9FD4DE">${left}</text></g>`;
   }
 
-  /* ── 이름 ── 아래 호를 따라 새긴다 ────────────────────────
-     전에는 계기 밑에 검은 이름표 상자(.info)가 따로 달려 있었다. 상자가 62px 를
-     먹어서 의도 칩이 그만큼 더 내려갔고, 자리가 여섯이면 상자끼리 붙었다.
-     얼굴 안으로 들이면 줄이 그만큼 촘촘해진다 — 눈금이 비워 둔 아래 110°가
-     원래 계기의 명찰 자리다.
-
-     핵심 증상은 주묵으로 한 치수 커진다. 그런데 「무엇이 핵심인가」는 외래에서
-     문진 「어떻게 아프십니까」가 파는 물건이다. 그래서 체력 태그와 같은 잣대로
-     가린다 (MODE==='sess' && !S.coreShown) — 안 그러면 계기가 문진을 공짜로
-     흘리고, 그 칸을 사는 이유가 없어진다. 스토리는 병 노드가 곧 핵심(core:'병')
-     이라 감출 것이 없고, 단판은 문진 자체가 없다. */
   const ix = S.nodes.indexOf(n);
   const isCore = !(MODE==='sess' && !S.coreShown) && !!BOARD && n.sym===BOARD.core;
 
@@ -623,8 +653,11 @@ function stageSync(){
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
       + '<svg class="atts" viewBox="0 0 200 200"></svg>'
-      + '<div class="chips"></div>';
+      + '<div class="halo"></div><div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
+      /* 판 전체에 거는 자리라면, 올려 놓은 동안만 대상을 켠다 (무대.방사) */
+      el.onmouseenter = () => emitLight(S.nodes[ix], true);
+      el.onmouseleave = () => emitLight(S.nodes[ix], false);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
     }
     /* 자리마다 제 크기를 쓴다 — 병 노드는 줄의 부수 증상보다 크게 앉는다.
@@ -645,6 +678,10 @@ function stageSync(){
     el.classList.toggle('imm',   imm);
     el.classList.toggle('evo',   !!n.evolved);
     el.classList.toggle('held',  n.growHold>0 || n.delayed>0);
+    /* 판 전체에 거는 자리는 제 색으로 파문을 두른다 (무대.방사) */
+    const em = EMIT[n.sym];
+    el.classList.toggle('emit', emitOn(S, n));
+    if(em) el.style.setProperty('--emit', em.col);
 
     /* 그림은 안 바뀌었으면 다시 꽂지 않는다. SVG 를 매 수마다 새로 파싱하는
        것이 그리기 비용의 절반이었다 — 문자열이 같으면 손대지 않는다 */
@@ -699,28 +736,10 @@ function stageLinks(){
 
   let out = '';
 
-  /* 감염이 지금 누구를 먹이고 있는가 (4). 「판 +N」 칩을 걷은 자리를 이 선이
-     대신한다 — 숫자는 받는 자리의 「성장 +N」에 이미 들어 있고, 이 선이
-     말하는 것은 「누구에게」다.
-     받는 자리를 여기서 고르지 않는다. infPool 이 낸 Map 의 열쇠가 곧 받는
-     자리다 — 손으로 고르면 감염 둘일 때 · 성장 정지일 때 · 병 노드일 때를
-     하나씩 다 빠뜨린다. 커널이 이미 아는 것을 다시 묻지 않는다. */
-  const pool = infPool(S);
-  if(pool.size){
-    for(const f of alive(S)){
-      if(f.sym!=='감염' || f.val<=0 || f.muted) continue;
-      const fx0=f.px/W*1210, fy0=f.py/H*744;
-      for(const [n] of pool){
-        if(n===f || n.dead || n.px===undefined) continue;
-        const tx=n.px/W*1210, ty=n.py/H*744;
-        /* 아래로 휜다. 자리들이 한 줄에 서 있어 제어점을 가운데에 두면
-           직선이 되고, 그러면 흐르는 선이 아니라 붙박이 난간으로 읽힌다 */
-        const my=(fy0+ty)/2 + 52;
-        out += `<path class="spread" d="M${fx0} ${fy0} Q${(fx0+tx)/2} ${my} ${tx} ${ty}"`
-             + ` fill="none" stroke="rgba(150,178,170,.75)" stroke-width="2.4" stroke-linecap="round"/>`;
-      }
-    }
-  }
+  /* 감염의 퍼짐 선은 걷었다 — 자리 넷을 먹이면 선이 넷 깔려 계기 뒤로
+     지나가고 의도 칩을 가로질렀다. 지금은 자리 자체의 파문이 말한다
+     (무대.방사). 되살릴 거면 대상을 손으로 고르지 말고 infPool 의 열쇠를
+     쓴다 — 감염 둘 · 성장 정지 · 병 노드를 그 함수가 이미 가린다. */
 
   let lane = 0;
   for(const l of lines){
@@ -741,25 +760,30 @@ function stageLinks(){
        배선 규칙을 두 벌로 적으면 한쪽이 곧 거짓말을 한다 */
     const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
-    /* 어디서 어디로 가는지를 메달에 적는다. 전에는 종류 첫 글자 하나(「가」「경」)
-       뿐이라, 줄이 서넛 겹치면 어느 줄이 어느 짝인지 선을 눈으로 따라가야 했다.
-       화살촉만으로는 부족했다 — 도착점은 알아도 출발점이 어느 줄인지 모른다.
-       viewBox 가 preserveAspectRatio="none" 라 글자가 가로로 1.25배 늘어난다.
-       폭을 넉넉히 잡는 까닭이다 (글자당 12, 화살표 12, 종류 표 30). */
-    const cap = `${l.a} → ${l.b}`;
-    const pw = cap.length*12 + 34, ph = 25;
+    /* 방향은 글자가 아니라 **흐르는 화살표**가 말한다.
+       한때 메달에 「통증 → 발열」을 적었는데, 줄이 서넛이면 그 글이 레인마다
+       하나씩 떠서 판 위쪽이 글자밭이 됐다. 선 자체가 A 에서 B 로 흐르면
+       읽을 것이 없어도 방향이 보인다.
+
+       흐름은 대시를 미는 것으로 낸다. 경로를 A→B 순으로 그으므로 dashoffset 을
+       음수로 밀면 대시가 A 에서 B 로 간다 — 경로를 거꾸로 그으면 화살표도
+       거꾸로 흐른다. 가로 구간 가운데에는 진행 방향을 가리키는 갈매기를 둘
+       박아, 멈춰 있는 그림(갈무리 · 인쇄)에서도 방향이 남게 한다.
+       메달에는 종류 그림 하나만 남긴다 — 설명은 툴팁이 든다. */
+    const dir = ex > sx ? 1 : -1;
+    const chev = k => `<path d="M${(mx + k - 5*dir).toFixed(1)} ${(ly-6).toFixed(1)} `
+      + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
+      + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="7" stroke-linejoin="round"/>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="${c}" stroke-width="3"${dash} stroke-linejoin="round"/>`
+      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
+      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none"`
+      + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
-      + `<rect x="${(mx-pw/2).toFixed(1)}" y="${(ly-ph/2).toFixed(1)}" width="${pw}" height="${ph}" rx="3"`
-      + ` fill="#14181C" stroke="${c}" stroke-width="2"/>`
-      + `<circle cx="${(mx-pw/2+14).toFixed(1)}" cy="${ly}" r="8.5" fill="${c}"/>`
-      + `<text x="${(mx-pw/2+14).toFixed(1)}" y="${(ly+3.6).toFixed(1)}" text-anchor="middle"`
-      + ` font-family="var(--sans)" font-size="10" font-weight="800" fill="#14181C">${l.k[0]}</text>`
-      + `<text x="${(mx+13).toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle"`
-      + ` font-family="var(--sans)" font-size="12" font-weight="700" fill="${c}">${esc(cap)}</text>`
-      + `</g>`;
+      + chev(34*dir) + chev(56*dir)
+      + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
+      + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`
+      + ` stroke="${c}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">`
+      + `<path d="${ICO[LINKICO[l.k]||'bFast']}"/></g></g>`;
   }
   setHTML($('sg_links'), out);
 }

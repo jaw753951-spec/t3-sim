@@ -112,9 +112,13 @@ body.sgon{overflow:hidden}
 /* 배선 자체는 손이 안 닿지만 메달에는 설명이 붙는다 — 그 자리만 되살린다 */
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
-/* 감염이 지금 먹이고 있는 자리로 흐르는 선. 도는 점선이라 「지금 일어나는 중」으로 읽힌다 */
-#sg_links .spread{stroke-dasharray:3 10;animation:spd 1.5s linear infinite}
-@keyframes spd{to{stroke-dashoffset:-26}}
+/* 배선은 A 에서 B 로 흐른다. 경로를 A→B 순으로 그으므로 dashoffset 을 음수로
+   밀면 대시가 그 방향으로 간다 — 경로를 거꾸로 그으면 화살표도 거꾸로 흐른다.
+   강화형은 대시를 더 띄엄띄엄 둬서 기본형과 갈린다 (전에는 stroke-dasharray
+   하나로만 갈랐는데 흐름을 주면서 그 자리가 겹쳤다) */
+#sg_links .wf{stroke-dasharray:16 9;animation:wfl 1.1s linear infinite}
+#sg_links .wf.enh{stroke-dasharray:7 11;animation-duration:1.5s}
+@keyframes wfl{to{stroke-dashoffset:-25}}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
 #sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;
@@ -223,11 +227,25 @@ body.sgon{overflow:hidden}
   79%{transform:translate(calc(-50% + 3px),-50%) rotate(.6deg)}
   85%{transform:translate(-50%,-50%)}}
 
+/* 판 전체에 거는 자리의 파문 (무대.방사). 레이더 핑 둘을 반 박자 엇갈려 둔다 —
+   하나면 끊긴 것처럼 보이고 셋이면 다시 지저분해진다. 3초는 「거기 있다」를
+   알리되 눈이 붙잡히지 않는 선이다 */
+#sg .gz .halo{position:absolute;inset:0;z-index:0;pointer-events:none}
+#sg .gz.emit .halo::before,#sg .gz.emit .halo::after{content:"";position:absolute;inset:0;
+  border-radius:50%;border:3px solid var(--emit,#9BB2A6);animation:halo 3s ease-out infinite}
+#sg .gz.emit .halo::after{animation-delay:1.5s}
+@keyframes halo{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.34);opacity:0}}
+
 #sg .gz.dorm{filter:saturate(.3) brightness(.6)}
 #sg .gz.ready .bezel{box-shadow:0 0 0 3px var(--t3b),0 0 22px rgba(77,212,200,.5),0 6px 15px rgba(0,0,0,.65)}
 /* 진화가 코앞인 자리는 테가 붉게 선다. .ready 뒤에 적어 이쪽이 이긴다 —
    끊을 수 있다는 것보다 곧 진화한다는 것이 먼저 눈에 들어와야 한다 */
 #sg .gz.warn .bezel{box-shadow:0 0 0 3px rgba(152,48,42,.9),0 0 20px rgba(152,48,42,.55),0 6px 15px rgba(0,0,0,.65)}
+/* 방사하는 자리에 마우스를 올린 동안, 그 손이 닿는 것들이 켜진다. 맨 뒤에
+   적어 .ready · .warn 을 이긴다 — 지금 묻고 있는 것이 그것이기 때문이다 */
+#sg .gz.lit .bezel{box-shadow:0 0 0 4px var(--lit,#9BB2A6),0 0 26px var(--lit,#9BB2A6),
+  0 6px 15px rgba(0,0,0,.65)}
+#sg .stack.lit .top{border-color:var(--lit,#9BB2A6);box-shadow:0 0 0 3px var(--lit,#9BB2A6)}
 
 /* 진화한 자리는 겉이 달라진다 (되짚기 10) — 전에는 이름 옆 ✦ 하나뿐이라
    판을 훑을 때 어느 자리가 진화했는지가 안 잡혔다. 황동 테에 짙은 문자판이다 */

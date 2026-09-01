@@ -5284,7 +5284,10 @@ let STAGE_QUIET = false;
 const FX_PARTICLE_CAP = 140;
 let FX_PARTICLES = 0;
 
-const fxWait = ms => new Promise(r=>setTimeout(r, FX_ON ? ms : 0));
+//@ 연출.배속 — 기다림을 한 곳에서 줄인다
+const FX_RATE = 0.5;
+const fxDur = ms => Math.round(ms * FX_RATE);
+const fxWait = ms => new Promise(r=>setTimeout(r, FX_ON ? fxDur(ms) : 0));
 
 function fxSpawn(el, cls, css, life){
   if(!el || FX_PARTICLES >= FX_PARTICLE_CAP) return null;
@@ -5331,7 +5334,7 @@ const FX = {
     const f = el && el.querySelector('.face'); if(!f) return;
     const s = document.createElement('div'); s.className='sweep';
     s.innerHTML = '<i style="animation:swf 600ms ease-in-out forwards"></i>';
-    f.appendChild(s); setTimeout(()=>s.remove(), 700);
+    f.appendChild(s); setTimeout(()=>s.remove(), fxDur(700));
   },
   float(el, text, cls){
     const d = fxSpawn(el, 'fnum '+(cls||''),
@@ -5341,11 +5344,11 @@ const FX = {
   pulse(el, color){
     if(!el) return;
     el.style.setProperty('--pulse', color||'var(--t3b)');
-    el.classList.add('pls'); setTimeout(()=>el.classList.remove('pls'), 620);
+    el.classList.add('pls'); setTimeout(()=>el.classList.remove('pls'), fxDur(620));
   },
   shake(el){
     if(!el) return;
-    el.classList.add('shk'); setTimeout(()=>el.classList.remove('shk'), 340);
+    el.classList.add('shk'); setTimeout(()=>el.classList.remove('shk'), fxDur(340));
   },
 };
 
@@ -5400,7 +5403,7 @@ const FXE = {
     const el = stageEl(n); if(!el) return;
     FX.sweep(el);
     const f = el.querySelector('.face');
-    if(f){ f.style.filter='brightness(2.4)'; setTimeout(()=>f.style.filter='brightness(1)', 80) }
+    if(f){ f.style.filter='brightness(2.4)'; setTimeout(()=>f.style.filter='brightness(1)', fxDur(80)) }
     await fxWait(820);
     FX.rays(el, 10);
     if(round) FX.float(el, '진단 '+round+'회', 'up');
@@ -5414,22 +5417,22 @@ const FXE = {
   },
   async evolve(n){
     const el = stageEl(n); if(!el) return;
-    const bd = stageBoard(); if(bd) bd.classList.add('dark');
+    fxDarkOn();
     el.classList.add('evoing');
-    el.style.transition = 'transform .9s cubic-bezier(.2,1.4,.4,1)';
+    el.style.transition = `transform ${fxDur(520)}ms cubic-bezier(.2,1.4,.4,1)`;
     el.style.transform = 'translate(-50%,-50%) scale(1.2)';
     FX.steam(el, 10, 'rgba(150,160,150,.65)');
-    await fxWait(400);
+    await fxWait(300);
     el.style.transform = 'translate(-50%,-50%) scale(1.06)';
-    await fxWait(900);
+    await fxWait(520);
     el.style.transform = 'translate(-50%,-50%) scale(1)';
-    if(bd) bd.classList.remove('dark');
+    fxDarkOff();
     el.classList.remove('evoing');
-    await fxWait(280);
+    await fxWait(180);
   },
   async stageUp(n, stage){
     const el = stageEl(n); if(!el) return;
-    const bd = stageBoard(); if(bd) bd.classList.add('dark');
+    fxDarkOn();
     el.classList.add('stgup');
     FX.shake(el);
     FX.steam(el, 12, 'rgba(201,164,74,.7)');
@@ -5438,7 +5441,7 @@ const FXE = {
     FX.shards(el, 8, 'rgba(201,164,74,.9)');
     await fxWait(520);
     el.classList.remove('stgup');
-    if(bd) bd.classList.remove('dark');
+    fxDarkOff();
     await fxWait(160);
   },
   async weaken(n, add){
@@ -5462,7 +5465,7 @@ const FXE = {
   async immune(n){
     const el = stageEl(n); if(!el) return;
     el.classList.add('bounce'); FX.rays(el, 5, 'rgba(180,180,180,.7)');
-    setTimeout(()=>el.classList.remove('bounce'), 420);
+    setTimeout(()=>el.classList.remove('bounce'), fxDur(420));
     await fxWait(440);
   },
   async trigger(a, b, kind){
@@ -5472,7 +5475,7 @@ const FXE = {
     const d = document.createElement('div'); d.className='bead';
     d.style.color = kind==='strong' ? '#c9524a' : '#6fc4b4';
     d.style.left = a.px+'px'; d.style.top = a.py+'px';
-    d.style.transition = `left ${ms}ms ease-in-out,top ${ms}ms ease-in-out`;
+    d.style.transition = `left ${fxDur(ms)}ms ease-in-out,top ${fxDur(ms)}ms ease-in-out`;
     bd.appendChild(d);
     await fxWait(30);
     d.style.left = b.px+'px'; d.style.top = b.py+'px';
@@ -5487,7 +5490,7 @@ const FXE = {
     const d = document.createElement('div'); d.className='bead';
     d.style.color = '#C8B79A';
     d.style.left = from.px+'px'; d.style.top = from.py+'px';
-    d.style.transition = 'left 800ms cubic-bezier(.3,.1,.3,1),top 800ms cubic-bezier(.3,.1,.3,1)';
+    d.style.transition = `left ${fxDur(800)}ms cubic-bezier(.3,.1,.3,1),top ${fxDur(800)}ms cubic-bezier(.3,.1,.3,1)`;
     bd.appendChild(d);
     await fxWait(30);
     d.style.left = (to.px||from.px)+'px'; d.style.top = (to.py||from.py)+'px';
@@ -5497,7 +5500,7 @@ const FXE = {
   },
   async patHit(amt){
     const p = $('sg_pat'); if(!p) return;
-    p.classList.add('hurt'); setTimeout(()=>p.classList.remove('hurt'), 480);
+    p.classList.add('hurt'); setTimeout(()=>p.classList.remove('hurt'), fxDur(480));
     if(amt) FX.float(p, '−'+amt, 'dn big');
     await fxWait(320);
   },
@@ -5521,7 +5524,7 @@ const FXE = {
   },
   async deny(sel){
     const c = document.querySelector(sel); if(!c) return;
-    c.classList.add('deny'); setTimeout(()=>c.classList.remove('deny'), 360);
+    c.classList.add('deny'); setTimeout(()=>c.classList.remove('deny'), fxDur(360));
     await fxWait(120);
   },
   async dealHand(){
@@ -5535,15 +5538,31 @@ const FXE = {
 //@ 연출.줄 — 하나씩 차례로
 const FXQ = [];
 
-function fxq(fn){ if(FX_ON) FXQ.push(fn) }
+function fxq(fn, keys){ if(FX_ON) FXQ.push({fn, keys: keys || null}) }
+
+const FX_BATCH = 4;
+
+let FX_DARK = 0;
+function fxDarkOn(){ const bd = stageBoard(); if(bd && FX_DARK++===0) bd.classList.add('dark') }
+function fxDarkOff(){ const bd = stageBoard(); if(bd && --FX_DARK<=0){ FX_DARK=0; bd.classList.remove('dark') } }
 
 async function fxFlush(after){
   if(!FX_ON){ FXQ.length = 0; if(after) after(); stageRender(); return }
   FX_BUSY = true; document.body.classList.add('fxbusy');
   while(FXQ.length){
     if(!STAGE_ON){ FXQ.length = 0; break }   // 한창일 때 나갔다 — 남은 줄은 버린다
-    const f = FXQ.shift();
-    try{ await f() }catch(e){ /* 연출이 깨져도 판은 이미 옳다 */ }
+    const batch = [FXQ.shift()];
+    if(batch[0].keys){
+      const used = new Set(batch[0].keys);
+      while(FXQ.length && FXQ[0].keys && batch.length < FX_BATCH
+            && FXQ[0].keys.every(k=>!used.has(k))){
+        const it = FXQ.shift();
+        for(const k of it.keys) used.add(k);
+        batch.push(it);
+      }
+    }
+    await Promise.all(batch.map(b=>{ try{ return Promise.resolve(b.fn()).catch(()=>{}) }
+                                     catch(e){ return Promise.resolve() } }));
     stageSync();
   }
   FX_BUSY = false; document.body.classList.remove('fxbusy');
@@ -6019,7 +6038,8 @@ function stageLinks(){
   const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
   const shown = alive(S).some(n=>n.revealed);
-  const rowTop = ns.length ? Math.min(...ns.map(n=>(n.py - n.sz*0.56)/H*744)) : 120;
+  const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
+  const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
                  ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
 
@@ -6046,19 +6066,25 @@ function stageLinks(){
     const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 24 - lane*26); lane++;
+    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
     const mx=(sx+ex)/2;
     const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
     const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
     const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
+    const cap = `${l.a} → ${l.b}`;
+    const pw = cap.length*12 + 34, ph = 25;
     out += `<g class="wirem"${tip(lt)}>`
       + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="7" stroke-linejoin="round"/>`
       + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="${c}" stroke-width="3"${dash} stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
-      + `<circle cx="${mx}" cy="${ly}" r="13" fill="#14181C" stroke="${c}" stroke-width="2"/>`
-      + `<text x="${mx}" y="${ly+4.5}" text-anchor="middle" font-family="var(--sans)" font-size="11"`
-      + ` font-weight="700" fill="${c}">${l.k[0]}</text>`
+      + `<rect x="${(mx-pw/2).toFixed(1)}" y="${(ly-ph/2).toFixed(1)}" width="${pw}" height="${ph}" rx="3"`
+      + ` fill="#14181C" stroke="${c}" stroke-width="2"/>`
+      + `<circle cx="${(mx-pw/2+14).toFixed(1)}" cy="${ly}" r="8.5" fill="${c}"/>`
+      + `<text x="${(mx-pw/2+14).toFixed(1)}" y="${(ly+3.6).toFixed(1)}" text-anchor="middle"`
+      + ` font-family="var(--sans)" font-size="10" font-weight="800" fill="#14181C">${l.k[0]}</text>`
+      + `<text x="${(mx+13).toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle"`
+      + ` font-family="var(--sans)" font-size="12" font-weight="700" fill="${c}">${esc(cap)}</text>`
       + `</g>`;
   }
   setHTML($('sg_links'), out);
@@ -6325,7 +6351,7 @@ function stageNodeClick(ix){
 function stageCardClick(id){
   if(FX_BUSY || !S) return;
   const c = CARDS[id];
-  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`)); fxFlush(); stageToast('지금은 낼 수 없다'); return }
+  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`), ['hand']); fxFlush(); stageToast('지금은 낼 수 없다'); return }
   if(c.target==='node'){
     if(alive(S)[SEL]){ stagePlay(id); return }
     STAGE_MODE = (STAGE_MODE==='card' && STAGE_CARD===id) ? null : 'card';
@@ -6430,37 +6456,43 @@ function fxMark(S){
 function fxPlanLog(log, before, plan){
   plan = plan || {};
   const cur = fxMark(S);
-  let killed = false, turned = false;
+  let killed = false, turned = false, turnHp = 0;
+  const nk = n => 'n' + S.nodes.indexOf(n);
 
   for(const e of (log||[])){
     const n = e.n;
     switch(e.t){
       case 'kill':
         killed = true;
-        fxq(()=>FXE.treat(n, e.grade));
+        fxq(()=>FXE.treat(n, e.grade), [nk(n)]);
         sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
         break;
-      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade)); break;
-      case 'spawn':      fxq(()=>FXE.spawn(e.from, n)); sayEmit('spawn', {key:n.sym, node:n}); break;
-      case 'sup':        fxq(()=>FXE.suppress(n, e.amt)); break;
-      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt)); break;
-      case 'shBreak':    fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}); break;
-      case 'weak':       fxq(()=>FXE.weaken(n, e.add)); break;
-      case 'rig':        fxq(()=>FXE.rig(n, e.amt)); break;
-      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt)); break;
-      case 'diag':       fxq(()=>FXE.diagnose(n, e.round));
+      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade), [nk(e.from), nk(e.to)]); break;
+      case 'spawn':      fxq(()=>FXE.spawn(e.from, n), [nk(e.from), nk(n)]); sayEmit('spawn', {key:n.sym, node:n}); break;
+      case 'sup':        fxq(()=>FXE.suppress(n, e.amt), [nk(n)]); break;
+      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt), [nk(n)]); break;
+      case 'shBreak':    fxq(()=>FXE.shieldBreak(n), [nk(n)]); sayEmit('shield', {key:n.sym, node:n}); break;
+      case 'weak':       fxq(()=>FXE.weaken(n, e.add), [nk(n)]); break;
+      case 'rig':        fxq(()=>FXE.rig(n, e.amt), [nk(n)]); break;
+      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt), [nk(n)]); break;
+      case 'diag':       fxq(()=>FXE.diagnose(n, e.round), [nk(n)]);
                          sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
-      case 'demote':     fxq(()=>FXE.demote(n)); break;
-      case 'evolve':     fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}); break;
-      case 'dorm':       fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}); break;
-      case 'revive':     fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}); break;
+      case 'demote':     fxq(()=>FXE.demote(n), [nk(n)]); break;
+      case 'evolve':     fxq(()=>FXE.evolve(n), [nk(n)]); sayEmit('evolve', {key:n.sym, node:n}); break;
+      case 'dorm':       fxq(()=>FXE.dormant(n), [nk(n)]); sayEmit('dormant', {key:n.sym, node:n}); break;
+      case 'revive':     fxq(()=>FXE.revive(n), [nk(n)]); sayEmit('revive', {key:n.sym, node:n}); break;
       case 'immune':
-      case 'calmBounce': fxq(()=>FXE.immune(n)); break;
-      case 'delay':      fxq(()=>FXE.stabilize(n, 0)); break;
-      case 'hp':         e.why==='bleed' ? fxq(()=>FXE.patPay(e.amt)) : fxq(()=>FXE.patHit(e.amt)); break;
+      case 'calmBounce': fxq(()=>FXE.immune(n), [nk(n)]); break;
+      case 'delay':      fxq(()=>FXE.stabilize(n, 0), [nk(n)]); break;
+      case 'hp':
+        if(e.why==='bleed') fxq(()=>FXE.patPay(e.amt), ['pat']);
+        else                turnHp += e.amt;
+        break;
       case 'turn':       turned = true; break;
     }
   }
+
+  if(turnHp>0) fxq(()=>FXE.patHit(turnHp), ['pat']);
 
   if(plan.verb==='kill' && plan.killIx!=null && !killed){
     const el = STAGE_ELS.get(plan.killIx);
@@ -6470,26 +6502,26 @@ function fxPlanLog(log, before, plan){
   if(cur.mind !== before.mind){
     const M = ['평정','불안','공황','의식불명'];
     const worse = M.indexOf(cur.mind) > M.indexOf(before.mind);
-    fxq(()=>FXE.mind(cur.mind, worse));
+    fxq(()=>FXE.mind(cur.mind, worse), ['mind']);
     sayEmit(worse?'mind':'mindUp', {key:cur.mind});
   }
 
-  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush));
-  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush), ['doc']);
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge), ['doc']);
   if(cur.stage !== before.stage){
     const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
-    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage));
-    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false));
+    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage), [nk(dz)]);
+    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false), ['chart']);
     sayEmit('stage', {key:String(cur.stage)});
   }
-  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
+  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true), ['chart']);
 
   for(let i=0;i<cur.react.length;i++){
     const a = before.react[i], c = cur.react[i];
-    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c));
+    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c), [nk(S.nodes[i])]);
   }
 
-  if(turned) fxq(()=>FXE.dealHand());
+  if(turned) fxq(()=>FXE.dealHand(), ['hand']);
   sayHpCheck();
 }
 

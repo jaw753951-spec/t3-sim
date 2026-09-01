@@ -324,7 +324,7 @@ function stageNodeClick(ix){
 function stageCardClick(id){
   if(FX_BUSY || !S) return;
   const c = CARDS[id];
-  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`)); fxFlush(); stageToast('지금은 낼 수 없다'); return }
+  if(!canPlay(S,id)){ fxq(()=>FXE.deny(`#sg_hand .card`), ['hand']); fxFlush(); stageToast('지금은 낼 수 없다'); return }
   if(c.target==='node'){
     if(alive(S)[SEL]){ stagePlay(id); return }
     STAGE_MODE = (STAGE_MODE==='card' && STAGE_CARD===id) ? null : 'card';
@@ -449,35 +449,55 @@ function fxMark(S){
 function fxPlanLog(log, before, plan){
   plan = plan || {};
   const cur = fxMark(S);
-  let killed = false, turned = false;
+  let killed = false, turned = false, turnHp = 0;
+  /* 연출이 무엇을 건드리는지 적어 준다 — 겹치지 않는 것끼리 한꺼번에 나간다
+     (연출.배속 옆의 fxFlush). 자리는 번호로 센다. 이름으로 세면 같은 증상이
+     둘일 때 서로 겹친 것으로 보고 줄을 세운다 */
+  const nk = n => 'n' + S.nodes.indexOf(n);
 
   for(const e of (log||[])){
     const n = e.n;
     switch(e.t){
       case 'kill':
         killed = true;
-        fxq(()=>FXE.treat(n, e.grade));
+        fxq(()=>FXE.treat(n, e.grade), [nk(n)]);
         sayEmit('kill', {key:n.role==='disease'?'병':n.sym, node:n});
         break;
-      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade)); break;
-      case 'spawn':      fxq(()=>FXE.spawn(e.from, n)); sayEmit('spawn', {key:n.sym, node:n}); break;
-      case 'sup':        fxq(()=>FXE.suppress(n, e.amt)); break;
-      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt)); break;
-      case 'shBreak':    fxq(()=>FXE.shieldBreak(n)); sayEmit('shield', {key:n.sym, node:n}); break;
-      case 'weak':       fxq(()=>FXE.weaken(n, e.add)); break;
-      case 'rig':        fxq(()=>FXE.rig(n, e.amt)); break;
-      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt)); break;
-      case 'diag':       fxq(()=>FXE.diagnose(n, e.round));
+      case 'trigger':    fxq(()=>FXE.trigger(e.from, e.to, e.grade), [nk(e.from), nk(e.to)]); break;
+      case 'spawn':      fxq(()=>FXE.spawn(e.from, n), [nk(e.from), nk(n)]); sayEmit('spawn', {key:n.sym, node:n}); break;
+      case 'sup':        fxq(()=>FXE.suppress(n, e.amt), [nk(n)]); break;
+      case 'stab':       fxq(()=>FXE.stabilize(n, e.amt), [nk(n)]); break;
+      case 'shBreak':    fxq(()=>FXE.shieldBreak(n), [nk(n)]); sayEmit('shield', {key:n.sym, node:n}); break;
+      case 'weak':       fxq(()=>FXE.weaken(n, e.add), [nk(n)]); break;
+      case 'rig':        fxq(()=>FXE.rig(n, e.amt), [nk(n)]); break;
+      case 'rigOpen':    fxq(()=>FXE.rigOpen(n, e.amt), [nk(n)]); break;
+      case 'diag':       fxq(()=>FXE.diagnose(n, e.round), [nk(n)]);
                          sayEmit('diag', {key:n.sym, node:n, round:e.round}); break;
-      case 'demote':     fxq(()=>FXE.demote(n)); break;
-      case 'evolve':     fxq(()=>FXE.evolve(n)); sayEmit('evolve', {key:n.sym, node:n}); break;
-      case 'dorm':       fxq(()=>FXE.dormant(n)); sayEmit('dormant', {key:n.sym, node:n}); break;
-      case 'revive':     fxq(()=>FXE.revive(n)); sayEmit('revive', {key:n.sym, node:n}); break;
+      case 'demote':     fxq(()=>FXE.demote(n), [nk(n)]); break;
+      /* 진화는 자리 이름표를 붙인다. 판을 어둡게 까는 것은 맞지만 그 어둠을
+         세어서 겹쳐 쓰므로(fxDarkOn), 같은 턴에 둘이 진화하면 한 번 어두워진
+         채로 둘이 같이 부푼다. 전에는 어둠을 각자 걷어서 한 자리씩 차례로
+         어두워졌다 밝아졌다 했다 */
+      case 'evolve':     fxq(()=>FXE.evolve(n), [nk(n)]); sayEmit('evolve', {key:n.sym, node:n}); break;
+      case 'dorm':       fxq(()=>FXE.dormant(n), [nk(n)]); sayEmit('dormant', {key:n.sym, node:n}); break;
+      case 'revive':     fxq(()=>FXE.revive(n), [nk(n)]); sayEmit('revive', {key:n.sym, node:n}); break;
       /* 손은 닿았는데 판이 안 움직인 자리 — 되짚기로는 볼 수 없던 것들 */
       case 'immune':
-      case 'calmBounce': fxq(()=>FXE.immune(n)); break;
-      case 'delay':      fxq(()=>FXE.stabilize(n, 0)); break;
-      case 'hp':         e.why==='bleed' ? fxq(()=>FXE.patPay(e.amt)) : fxq(()=>FXE.patHit(e.amt)); break;
+      case 'calmBounce': fxq(()=>FXE.immune(n), [nk(n)]); break;
+      case 'delay':      fxq(()=>FXE.stabilize(n, 0), [nk(n)]); break;
+      /* 환자가 맞는 것은 한 손에 여러 번 온다 — 자리마다 오는 턴 공격, 진화
+         즉발, 점화. 그때마다 띄우면 320ms 가 그 수만큼 쌓이고, 넷 다 같은
+         환자칸을 건드리므로 겹쳐 낼 수도 없다. 총합으로 한 번만 띄운다.
+
+         「이 자리가 냈다」를 잃는 것 아니냐 — 아니다. patHit 은 환자 위에
+         숫자만 띄우지 어느 자리가 냈는지는 원래 안 보여 준다. 자리별 몫은
+         계기 아래 의도 칩이 이미 말하고 있고, 이렇게 해야 뜨는 숫자가
+         환자칸의 「턴 끝 −N」과 같아진다.
+         사혈(bleed)만 따로 둔다 — 의사가 스스로 낸 값이라 색과 글이 다르다 */
+      case 'hp':
+        if(e.why==='bleed') fxq(()=>FXE.patPay(e.amt), ['pat']);
+        else                turnHp += e.amt;
+        break;
       /* 정신은 여기서 띄우지 않는다 — 한 손에 두세 번 흔들리는 일이 흔해서
          (억제로 악화 → 휴면 도달로 호전 …) 사건마다 띄우면 배너가 겹친다.
          결과만 아래에서 한 번 알린다. 게이지를 결과 한 번으로 내는 것과 같다. */
@@ -485,6 +505,9 @@ function fxPlanLog(log, before, plan){
       /* 성장 · 뽑기 · 성장 정지는 계기판이 그리므로 연출을 따로 내지 않는다 */
     }
   }
+
+  /* 환자가 이번 손에 맞은 총합 — 자리별 연출이 다 지나간 뒤 한 번 */
+  if(turnHp>0) fxq(()=>FXE.patHit(turnHp), ['pat']);
 
   /* 처치를 걸었는데 사건이 안 왔다 — 못 끊었다. 표를 도로 뗀다 */
   if(plan.verb==='kill' && plan.killIx!=null && !killed){
@@ -496,7 +519,7 @@ function fxPlanLog(log, before, plan){
   if(cur.mind !== before.mind){
     const M = ['평정','불안','공황','의식불명'];
     const worse = M.indexOf(cur.mind) > M.indexOf(before.mind);
-    fxq(()=>FXE.mind(cur.mind, worse));
+    fxq(()=>FXE.mind(cur.mind, worse), ['mind']);
     sayEmit(worse?'mind':'mindUp', {key:cur.mind});
   }
 
@@ -505,25 +528,25 @@ function fxPlanLog(log, before, plan){
      있었는데, 그때는 sg_pat 이 위쪽 머리띠라 기세 · 관해 · 병기가 다 거기
      있었다. 네 구역으로 가르면서 기세 · 관해는 의사 패널로, 병기는 병 노드
      계기의 배지로 옮겨 갔다 — 가리키는 곳도 같이 옮긴다 */
-  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush));
-  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
+  if(cur.rush !== before.rush)         fxq(()=>FXE.gauge('sg_doc', `기세 ${cur.rush}`, cur.rush>before.rush), ['doc']);
+  if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge), ['doc']);
   if(cur.stage !== before.stage){
     const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
     /* 병기는 뜨는 숫자 하나로 넘기지 않는다 — 판이 통째로 한 단 더 나빠지는
        사건이고, 계기 겉모습(무쇠 → 녹 → 숯)도 그때 바뀐다 */
-    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage));
-    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false));
+    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage), [nk(dz)]);
+    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false), ['chart']);
     sayEmit('stage', {key:String(cur.stage)});
   }
-  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));
+  if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true), ['chart']);
 
   /* 구간을 새로 넘어선 자리는 마지막에 한 번씩 김을 뿜는다 */
   for(let i=0;i<cur.react.length;i++){
     const a = before.react[i], c = cur.react[i];
-    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c));
+    if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c), [nk(S.nodes[i])]);
   }
 
-  if(turned) fxq(()=>FXE.dealHand());
+  if(turned) fxq(()=>FXE.dealHand(), ['hand']);
   sayHpCheck();
 }
 

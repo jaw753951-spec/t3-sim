@@ -68,12 +68,16 @@ const BOARDS = {
     await pg.waitForTimeout(700);
     const o = await pg.evaluate(() => {
       const st = document.getElementById('sg_stage').getBoundingClientRect(), k = st.width / 1920;
-      const R = s => { const e = document.querySelector(s); if (!e) return null;
-        const r = e.getBoundingClientRect();
+      const R2 = e => { const r = e.getBoundingClientRect();
         return { x: (r.x - st.x) / k, y: (r.y - st.y) / k, w: r.width / k, h: r.height / k } };
+      const R = s => { const e = document.querySelector(s); return e ? R2(e) : null };
       return {
         zone: R('#sg_handzone'), pat: R('#sg_pat'), doc: R('#sg_doc'),
         board: R('#sg_board'), exit: R('#sg_exit'), chart: R('#sg_chartwrap'),
+        /* 배선은 L 자라 외곽 상자가 제 노드를 반드시 품는다 — 상자로 재면 늘
+           겹친 것으로 나온다. 레인 높이에 정확히 앉는 메달(rect)을 자로 쓴다.
+           가로 구간이 계기나 배지를 지나면 메달도 지난다 */
+        meds: [...document.querySelectorAll('#sg_links .wirem rect')].map(R2),
         cards: [...document.querySelectorAll('#sg_hand .card')].map(e => {
           const r = e.getBoundingClientRect();
           return { t: (r.y - st.y) / k, b: (r.bottom - st.y) / k } }),
@@ -81,7 +85,8 @@ const BOARDS = {
           const g = el.getBoundingClientRect();
           const cx = (g.x + g.width / 2 - st.x) / k, cy = (g.y + g.height / 2 - st.y) / k;
           const rad = g.width / 2 / k;
-          return { sz: Math.round(g.width / k),
+          return { sz: Math.round(g.width / k), box: R2(el),
+            b2: [...el.querySelectorAll('.atts > g:not(.ring)')].map(R2),
             /* 링(.ring)은 뺀다 — 테를 두르는 물건이라 지름이 자리를 따라가는
                것이 맞고, 호의 외곽 상자 한가운데는 테 안쪽에 찍힌다 */
             b: [...el.querySelectorAll('.atts > g:not(.ring)')].map(bb => {
@@ -101,6 +106,10 @@ const BOARDS = {
     if (o.doc.h > 0 && o.doc.y + o.doc.h > zt + 0.5) say('의사 패널이 손패 줄을 파고든다');
     if (o.pat.y + o.pat.h > (o.doc.h > 0 ? o.doc.y : zt) + 0.5) say('환자칸이 아래를 파고든다');
     for (const g of o.gz) if (g.x < o.pat.x + o.pat.w) say('계기가 환자칸을 침범한다');
+    for (const m of o.meds) for (const g of o.gz) {
+      if (ov(m, g.box)) say('배선 레인이 계기를 지난다');
+      for (const a of g.b2) if (ov(m, a)) say('배선 레인이 배지를 지난다');
+    }
     /* 배지 — 자리 크기가 달라도 크기와 간격이 같아야 한다 */
     const flat = o.gz.flatMap(g => g.b.map(x => ({ sz: g.sz, ...x })));
     badges += flat.length;

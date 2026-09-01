@@ -665,8 +665,15 @@ function stageLinks(){
   const ns = alive(S).filter(n=>n.role!=='disease');
   const shown = alive(S).some(n=>n.revealed);
   /* 레인은 줄 바로 위에 깐다. 판 꼭대기(34)에 못 박아 두었더니 스토리에서
-     증상이 아래로 내려간 순간 배선이 병 노드를 가로질러 올라갔다 */
-  const rowTop = ns.length ? Math.min(...ns.map(n=>(n.py - n.sz*0.56)/H*744)) : 120;
+     증상이 아래로 내려간 순간 배선이 병 노드를 가로질러 올라갔다.
+
+     높이는 계기 테가 아니라 **배지 머리**에서 잡는다. 테(sz*0.56)로 잡았더니
+     첫 레인이 배지 꼭대기와 같은 높이에 깔려 아홉 줄이 배지와 28곳, 계기와
+     23곳에서 겹쳤다. 배지는 테 밖 58px 에 앉고 자체 반높이가 24 이므로
+     꼭대기가 py − sz/2 − 82 다. 세 값(58 · 24 · 레인 간격)은 무대.배지와
+     한 벌이라 거기가 바뀌면 여기도 바뀐다. */
+  const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
+  const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
   const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
                  ...((BOARD.enh)||[]).map(e=>({...e, enh:true}))];
 
@@ -705,22 +712,33 @@ function stageLinks(){
     const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 24 - lane*26); lane++;
+    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
     const mx=(sx+ex)/2;
     /* 전이는 새 자리를 낳고 촉발은 있는 자리를 건드린다 — 색으로 가른다 */
     const c = (l.k==='발현'||l.k==='무장발현') ? '#B8776F' : (l.k==='경화' ? '#4DD4C8' : '#C8B79A');
     const dash = l.enh ? ' stroke-dasharray="7 6"' : '';
-    /* 메달에 설명을 단다 (6). 글은 작업대가 쓰는 LINKTIP 그대로다 —
+    /* 메달에 설명을 단다. 글은 작업대가 쓰는 LINKTIP 그대로다 —
        배선 규칙을 두 벌로 적으면 한쪽이 곧 거짓말을 한다 */
     const lt = (LINKTIP[l.k] || TT(l.k, '')) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
+    /* 어디서 어디로 가는지를 메달에 적는다. 전에는 종류 첫 글자 하나(「가」「경」)
+       뿐이라, 줄이 서넛 겹치면 어느 줄이 어느 짝인지 선을 눈으로 따라가야 했다.
+       화살촉만으로는 부족했다 — 도착점은 알아도 출발점이 어느 줄인지 모른다.
+       viewBox 가 preserveAspectRatio="none" 라 글자가 가로로 1.25배 늘어난다.
+       폭을 넉넉히 잡는 까닭이다 (글자당 12, 화살표 12, 종류 표 30). */
+    const cap = `${l.a} → ${l.b}`;
+    const pw = cap.length*12 + 34, ph = 25;
     out += `<g class="wirem"${tip(lt)}>`
       + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="7" stroke-linejoin="round"/>`
       + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="${c}" stroke-width="3"${dash} stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
-      + `<circle cx="${mx}" cy="${ly}" r="13" fill="#14181C" stroke="${c}" stroke-width="2"/>`
-      + `<text x="${mx}" y="${ly+4.5}" text-anchor="middle" font-family="var(--sans)" font-size="11"`
-      + ` font-weight="700" fill="${c}">${l.k[0]}</text>`
+      + `<rect x="${(mx-pw/2).toFixed(1)}" y="${(ly-ph/2).toFixed(1)}" width="${pw}" height="${ph}" rx="3"`
+      + ` fill="#14181C" stroke="${c}" stroke-width="2"/>`
+      + `<circle cx="${(mx-pw/2+14).toFixed(1)}" cy="${ly}" r="8.5" fill="${c}"/>`
+      + `<text x="${(mx-pw/2+14).toFixed(1)}" y="${(ly+3.6).toFixed(1)}" text-anchor="middle"`
+      + ` font-family="var(--sans)" font-size="10" font-weight="800" fill="#14181C">${l.k[0]}</text>`
+      + `<text x="${(mx+13).toFixed(1)}" y="${(ly+4).toFixed(1)}" text-anchor="middle"`
+      + ` font-family="var(--sans)" font-size="12" font-weight="700" fill="${c}">${esc(cap)}</text>`
       + `</g>`;
   }
   setHTML($('sg_links'), out);

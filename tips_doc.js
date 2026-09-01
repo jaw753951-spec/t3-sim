@@ -20,9 +20,17 @@ for (const f of ['src/60-text/keywords.js', 'src/70-ui/stage-node.js',
 function block(f, from, to) {
   const t = SRC[f], i = t.indexOf(from);
   if (i < 0) throw new Error(`${f} 에서 「${from}」 를 못 찾았다`);
-  const j = t.indexOf(to, i + from.length);
+  /* to 가 null 이면 파일 끝까지 — 잘라 올 덩이가 파일 마지막에 있는 경우다 */
+  const j = to === null ? t.length : t.indexOf(to, i + from.length);
   if (j < 0) throw new Error(`${f} 에서 「${to}」 를 못 찾았다`);
-  return t.slice(i, j).replace(/\s+$/, '');
+  return guard(t.slice(i, j).replace(/\s+$/, ''), `${f} 「${from}」`);
+}
+/* 잘라 온 덩이가 너무 짧으면 선다. 표지는 그대로인데 알맹이가 딴 데로 옮겨 간
+   일이 실제로 있었다 — SYMTIP 이 파생물이 되면서 `const SYMTIP = {}` 만 잘려
+   문서의 증상 칸이 통째로 비었다. 「못 찾았다」로는 안 걸리는 자리라 길이도 본다 */
+function guard(s, what) {
+  if (s.split('\n').length < 3) throw new Error(`${what} 에서 잘라 온 덩이가 ${s.split('\n').length}줄뿐이다 — 알맹이가 딴 데로 옮겨 갔는지 본다`);
+  return s;
 }
 /* const 이름 = { … } 를 짝 맞는 괄호까지 */
 function table(f, name) {
@@ -33,7 +41,7 @@ function table(f, name) {
     if (t[k] === '{') d++;
     else if (t[k] === '}' && --d === 0) break;
   }
-  return t.slice(i, k + 1);
+  return guard(t.slice(i, k + 1), `${f} ${name}`);
 }
 const js = s => '```js\n' + s + '\n```\n';
 
@@ -76,7 +84,8 @@ w(`# 전투 화면 툴팁 문안
 | 계기 · 설치통 | \`설치물\` | \`stage-node.js\` · \`badgeSVG\` |
 | 병 노드 · 병기 링 · 병기 판 | \`병기\` | \`stage-node.js\` · \`badgeSVG\` |
 | 병 노드 · 다음 박자 | 박자 이름 | \`BEATTIP\` · \`UNIQTIP\` |
-| 계기 아래 · 의도 칩 | \`{한 일}\` + 증상 설명 | \`stage-node.js\` · \`chipHTML\` → \`SYMTIP\` · \`KWTIP\` |
+| 계기 · 증상 이름 | \`{증상}\` — 진화 전 · 임박 · 후 셋 | \`SYMBODY\` → \`symTip(n)\` |
+| 계기 아래 · 의도 칩 | \`{한 일}\` + 증상 설명 | \`stage-node.js\` · \`chipHTML\` → \`symTip\` · \`KWTIP\` |
 | 계기 아래 · 딱지 | 무적 · 약화 · 지연 · 성장 정지 · 반응 강등 · 만성 · 잠잠 | \`stage-node.js\` · \`standingMarks\` |
 | 배선 메달 | 배선 종류 + \`{A} 처치 시 → {B}\` | \`LINKTIP\` |
 | 차트 · 체력 태그 | \`{태그}\` | \`stage.js\` · \`stageChart\` |
@@ -94,9 +103,35 @@ w('## 1. 키워드 — `src/60-text/keywords.js` · `KWTIP`\n');
 w('카드 본문의 밑줄 친 키워드, 의사 패널, 계기 딱지가 함께 쓴다.\n');
 w(js(table('src/60-text/keywords.js', 'KWTIP')));
 
-w('## 2. 증상 — `src/60-text/keywords.js` · `SYMTIP`\n');
-w('의도 칩(성장 · 공격 · 안정화 ÷ · 처치선 × · 드로우 −)에 붙는다.\n');
-w(js(table('src/60-text/keywords.js', 'SYMTIP')));
+w('## 2. 증상 — `src/60-text/keywords.js` · `SYMBODY`\n');
+w(`계기 얼굴의 **증상 이름**과, 상시 의도 칩(안정화 ÷ · 처치선 × · 드로우 −)에 붙는다.
+
+**조각 셋으로 적고 세 상태가 그것을 조합한다.** 상태마다 문안을 통째로 적으면
+「지금 하는 일」이 세 벌이 되고, 한 줄 고칠 때 셋을 다 고쳐야 한다.
+
+| 조각 | 무엇을 적나 |
+|---|---|
+| \`now\` | 이 증상이 **늘** 하는 일. 진화와 무관하게 참인 것 |
+| \`will\` | 진화하면 **바뀔** 것. 미래형으로 적는다 |
+| \`done\` | 진화한 **뒤의 상태**. 그 자체로 한 문장이 되게 적는다 — 임박과 진화 후 두 자리에 그대로 들어간다 |
+
+| 상태 | 언제 | 무엇이 뜨나 |
+|---|---|---|
+| 진화 전 | 그 밖의 모든 때 | \`now\` + 흐리게 「진화하면 — \`will\`」 |
+| 진화 임박 | \`evoSoon\` — **진단한** 자리이고 남은 턴 1 | \`now\` + 「다음 턴에 진화한다 — 그 뒤에는」 + \`done\` |
+| 진화 후 | \`n.evolved\` | \`now\` + 「진화함」 + \`done\` |
+
+임박에는 \`will\` 을 안 붙인다 — \`done\` 이 같은 사실을 더 구체적으로 말해서
+한 툴팁 안에 같은 말이 두 번 뜬다.
+
+**\`evoSoon\` 은 떨림 연출도 같이 본다.** 이 조건을 고치면 계기가 떠는 시점도 함께
+움직인다. 둘을 따로 두면 판은 떠는데 설명은 아직 「진화하면」이라 한다 —
+\`stage_check\` 가 남은 턴 1~5 를 훑어 그 어긋남을 잡는다.
+
+옛 이름 \`SYMTIP\` · \`SYMTIP_EVO\` 는 이 조각들로 지어 내는 파생물이다. 작업대와
+이 문서가 그 이름으로 읽으므로 남겨 두었다 — **고칠 곳은 \`SYMBODY\` 다.**
+`);
+w(js(block('src/60-text/keywords.js', '//@ 문안.증상 — 조각 셋', null)));
 
 w('## 3. 배선 — `src/60-text/keywords.js` · `LINKTIP`\n');
 w('배선 메달에 뜬다. 꼬리로 `{A} 처치 시 → {B}` 가 붙는다 (`stage-node.js` · `stageLinks`).\n');

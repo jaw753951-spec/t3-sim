@@ -509,7 +509,10 @@ function fxPlanLog(log, before, plan){
   if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
   if(cur.stage !== before.stage){
     const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
-    fxq(()=>FXE.gauge((dz && stageEl(dz)) || 'sg_chart', `병기 ${cur.stage}`, false));
+    /* 병기는 뜨는 숫자 하나로 넘기지 않는다 — 판이 통째로 한 단 더 나빠지는
+       사건이고, 계기 겉모습(무쇠 → 녹 → 숯)도 그때 바뀐다 */
+    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage));
+    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
   if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));

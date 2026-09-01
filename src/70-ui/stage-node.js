@@ -98,6 +98,23 @@ const ICO = {
   mute:  'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM5 5l10 10',
   imm:   'M10 2.6 3.8 5.8v4.7c0 3.5 2.7 5.8 6.2 6.9 3.5-1.1 6.2-3.4 6.2-6.9V5.8z',
   chron: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM10 5.8v4.6l3.1 2.1',
+  /* 병 노드의 다음 박자. 실루엣이 서로 다른 것이 뜻이 정확한 것보다 낫다 —
+     정확한 뜻은 툴팁(BEATTIP)이 말하고, 여기는 「또 그거군」을 곁눈으로 잡는 자리다 */
+  bSpawn: 'M10 17.5v-5.2M10 12.3 4.6 6M10 12.3 15.4 6',
+  bUniq:  'M10 2.4 17.6 10 10 17.6 2.4 10z',
+  bSpread:'M10 12.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8M4.8 15.2a7.4 7.4 0 0 1 0-10.4M15.2 4.8a7.4 7.4 0 0 1 0 10.4',
+  bDown:  'M10 3v11M5.4 9.4 10 14l4.6-4.6M4 17h12',
+  bWin:   'M3.6 3.6h12.8v12.8H3.6zM10 3.6v12.8M3.6 10h12.8',
+  bSame:  'M5 8.6a5 5 0 0 1 9.4-1M15 11.4a5 5 0 0 1-9.4 1M4.4 5.6v3h3M15.6 14.4v-3h-3',
+  bHard:  'M3.6 5h12.8v10H3.6zM3.6 10h12.8M8.4 5v5M12 10v5',
+  bFast:  'M3.4 5.6 8 10l-4.6 4.4M11 5.6 15.6 10 11 14.4',
+};
+/* 박자 이름 → 그림. 없는 박자는 고유 표로 떨어진다 (새 보스가 새 박자를 들고
+   와도 화면이 안 깨진다) */
+const BEATICO = {
+  '분화':'bSpawn', '고유':'bUniq', '성장':'grow', '몰린다':'grow', '치민다':'grow',
+  '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
+  '창':'bWin', '같은 박자':'bSame', '굳는다':'bHard', '진행':'bFast', '가속':'bFast',
 };
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 
@@ -273,8 +290,13 @@ function badgeSVG(S, n, sz){
       + ` font-family="ui-monospace,monospace" fill="${f>.55?'#14181C':'#7AA8B2'}">${left}</text></g>`;
   }
 
-  /* 우상 — 진화 파이. 병 노드는 병기라 여기 안 쓴다 (.evc 가 맡는다) */
-  if(n.role!=='disease'){
+  /* 우상 — 진화 시계. 병 노드는 병기라 여기 안 쓴다 (아래 링이 맡는다).
+
+     진단 전에는 **아무것도 안 그린다**. 전에는 점선 원에 물음표를 띄웠는데,
+     그러면 「모른다」를 알리려고 자리를 하나 먹고 옆자리 방패와 붙어 버렸다.
+     모르는 것은 비워 두는 편이 맞다 — 진단 1회차나 문진 「언제부터」가 열면
+     그때 나타나는 것 자체가 알림이 된다. */
+  if(n.role!=='disease' && (n.evolved || n.revealed)){
     const [ex,ey]=P(-39,RB);
     if(n.evolved){
       s += `<g${tip(TT('진화함', EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):''))}>`
@@ -291,11 +313,54 @@ function badgeSVG(S, n, sz){
         +  (p>0?`<path d="M${ex} ${ey} L${ex} ${ey-17} A17 17 0 ${p>.5?1:0} 1 ${px} ${py} Z" fill="${col}" opacity=".25"/>`:'')
         +  `<text x="${ex}" y="${ey+5.5}" text-anchor="middle" font-size="15" font-weight="800"`
         +  ` font-family="ui-monospace,monospace" fill="${col}">${n.evoLeft}</text></g>`;
-    } else {
-      s += `<g${tip(TT('진화까지','아직 모른다. 문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.'))}>`
-        +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="#8d8377" stroke-width="1.6" stroke-dasharray="4 4"/>`
-        +  `<text x="${ex}" y="${ey+6}" text-anchor="middle" font-size="16" font-weight="800"`
-        +  ` font-family="var(--sans)" fill="#8d8377">?</text></g>`;
+    }
+  }
+
+  /* ── 병 노드 — 병기 시계 링과 다음 박자 (9) ──────────────
+     전에는 병기가 오른쪽 위 작은 원 하나였고 시계와 다음 박자는 자리를 눌러야
+     뜨는 줄에만 있었다. 그 줄을 걷었으므로 계기 얼굴로 올라온다.
+
+     링은 위쪽 140°(200°~340°)만 쓴다. 아래 대각선은 시약관과 설치통 자리다.
+     칸 수는 SR.STAGE_TURNS 하나에서 나온다 — 목업은 단계마다 3·4·5 로 달랐는데
+     규칙은 단계와 무관하게 한 값이다. 두 벌로 적으면 계기가 거짓말을 한다. */
+  if(n.role==='disease'){
+    const RR = sz/2.816 + 19, seg = Math.max(1, SR.STAGE_TURNS), left = Math.max(0, n.stageClock);
+    const A0 = 200, SPAN = 140, gap = 2.6;
+    const arc = (a0,a1,r,w,col,op) => {
+      const [x0,y0]=P(a0,r), [x1,y1]=P(a1,r);
+      return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 `
+           + `${x1.toFixed(1)} ${y1.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${w}"`
+           + ` opacity="${op}" stroke-linecap="butt"/>`;
+    };
+    s += `<g${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
+          + `<br>병기 시계 <b>${left}</b> — 0이 되면 병기가 한 칸 오른다.`
+          + `<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>`;
+    for(let i=0;i<seg;i++){
+      const a0 = A0 + SPAN*i/seg + gap/2, a1 = A0 + SPAN*(i+1)/seg - gap/2;
+      s += arc(a0, a1, RR, 9, i<left ? '#C9A44A' : '#2b2b2c', i<left ? 0.95 : 0.85);
+    }
+    s += `</g>`;
+
+    /* 병기 숫자 — 링 왼쪽에 판 하나. 링(시계)과 값이 다르므로 자리를 가른다.
+       전에는 오른쪽 위 .evc 원이 맡았는데 링을 두르면서 그 위에 겹쳐 앉았다 */
+    {
+      const [sx2,sy2]=P(180, RR+25);
+      s += `<g${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
+            + `<br>병기 시계 <b>${left}</b> — 0이 되면 병기가 한 칸 오른다.`))}>`
+        + `<circle cx="${sx2.toFixed(1)}" cy="${sy2.toFixed(1)}" r="17" fill="#C9A44A" stroke="#14181C" stroke-width="1.8"/>`
+        + `<text x="${sx2.toFixed(1)}" y="${(sy2+6).toFixed(1)}" text-anchor="middle" font-size="17"`
+        + ` font-weight="800" font-family="ui-monospace,monospace" fill="#241a08">${n.stage}</text></g>`;
+    }
+
+    /* 다음 박자 — 링 꼭대기에 그림 하나. 글은 beatTip 이 말한다 */
+    const bt = (typeof nextBeat==='function' && S.board && S.board.boss) ? nextBeat(S, n) : null;
+    if(bt){
+      const [bx,by]=P(270, RR+25), r=17;
+      s += `<g${tip(beatTip(S,n) || TT('다음 박자', esc(bt)))}>`
+        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="1.8"/>`
+        + `<g transform="translate(${(bx-10).toFixed(1)},${(by-10).toFixed(1)})" fill="none" stroke="#C9A44A"`
+        + ` stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">`
+        + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g></g>`;
     }
   }
 
@@ -500,7 +565,9 @@ function stageLayout(){
   });
   /* 병 노드는 줄에 끼지 않고 위 가운데에 앉는다. 부수 증상보다 크되 전처럼
      판을 다 먹지는 않는다 — 330 은 배지까지 합쳐 판 높이의 절반을 넘었다 */
-  if(dis){ dis.px = W/2; dis.py = H*0.235; dis.sz = Math.min(262, W*0.185) }
+  /* 0.30 은 배지에서 거꾸로 잡은 값이다 — 병기 링 위 다음 박자 badge 가
+     테에서 62px 더 나가므로 0.235 에 앉히면 그 badge 가 화면 위로 잘렸다 */
+  if(dis){ dis.px = W/2; dis.py = H*0.30; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
 
@@ -531,7 +598,7 @@ function stageSync(){
         '<div class="bezel"></div>'
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
-      + '<div class="evc"></div><svg class="atts" viewBox="0 0 200 200"></svg>'
+      + '<svg class="atts" viewBox="0 0 200 200"></svg>'
       + '<div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
@@ -574,9 +641,11 @@ function stageSync(){
 
     /* 오른쪽 위 뱃지 — 증상은 진화 시계, 병 노드는 병기 */
     /* 우상 뱃지는 병 노드의 병기 전용이다 — 증상의 진화 시계는 배지(파이)가 맡는다 */
-    const ev = el.querySelector('.evc');
-    if(n.role==='disease'){ ev.textContent = n.stage; ev.className = 'evc stg2' }
-    else { ev.textContent = ''; ev.className = 'evc off' }
+    /* 병기가 오르면 무쇠가 한 겹씩 더 탄다 — 숫자만 바뀌면 오른 줄을 모른다.
+       숫자 자체는 배지(무대.배지)의 왼쪽 판이 맡는다. 전에는 오른쪽 위 .evc
+       원이 맡았는데, 병기 링을 두르면서 그 위에 겹쳐 앉아 걷었다 */
+    if(n.role==='disease') el.dataset.stg = n.stage;
+    else delete el.dataset.stg;
 
     if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
   });

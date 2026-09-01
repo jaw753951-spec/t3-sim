@@ -196,23 +196,53 @@ body.sgon{overflow:hidden}
 #sg .gz .atts{position:absolute;inset:-30%;z-index:7;overflow:visible;pointer-events:none}
 #sg .gz .atts g{pointer-events:auto;cursor:pointer}
 
-#sg .gz .evc.off{display:none}
-#sg .gz .evc{position:absolute;top:-3%;right:-3%;width:27px;height:27px;border-radius:50%;z-index:6;
-  background:linear-gradient(180deg,#c9a44a,#8a6a30);color:#241a08;display:flex;
-  align-items:center;justify-content:center;font:900 12.5px/1 var(--mono);
-  box-shadow:0 2px 6px rgba(0,0,0,.55)}
-#sg .gz .evc.stg2{background:linear-gradient(180deg,#8fb2a8,#3A7570);color:#0d1a17}
-#sg .gz.warn .evc{animation:evw 1.1s ease infinite}
-@keyframes evw{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.55)}
-  50%{box-shadow:0 0 0 5px rgba(158,43,43,.5),0 2px 6px rgba(0,0,0,.55)}}
+/* 오른쪽 위 뱃지(.evc)는 걷었다. 증상의 진화 시계는 배지(파이)가, 병 노드의
+   병기는 링 왼쪽 판이 맡는다 — 링을 두르면서 뱃지가 그 위에 겹쳐 앉았다 */
+/* 진화 한 턴 전 — 계기가 떤다 (되짚기 10). 전에는 오른쪽 위 뱃지(.evc)만
+   깜빡이게 해 두었는데, 배지 개편에서 .evc 가 병 노드 전용이 되면서 증상 쪽은
+   아무 신호도 안 났다. 「곧 진화한다」는 판을 통째로 흔드는 소식이라 계기가 떤다.
+   떨림은 6분의 1 박자만 짧게 온다 — 계속 떨면 눈이 곧 무시한다.
+   .pop · .bounce 보다 **앞에** 적는다. 셋 다 transform 을 애니메이션하므로
+   뒤에 적힌 쪽이 통째로 이긴다 — 자리가 나거나 튈 때는 그쪽이 이겨야 한다 */
+#sg .gz.warn{animation:trem 1.9s ease-in-out infinite}
+@keyframes trem{
+  0%,60%,100%{transform:translate(-50%,-50%)}
+  64%{transform:translate(calc(-50% - 3px),calc(-50% + 1px)) rotate(-.7deg)}
+  68%{transform:translate(calc(-50% + 3px),calc(-50% - 1px)) rotate(.7deg)}
+  72%{transform:translate(calc(-50% - 2.5px),-50%) rotate(-.5deg)}
+  76%{transform:translate(calc(-50% + 2.5px),-50%) rotate(.5deg)}
+  80%{transform:translate(-50%,-50%)}}
 
 #sg .gz.dorm{filter:saturate(.3) brightness(.6)}
 #sg .gz.ready .bezel{box-shadow:0 0 0 3px var(--t3b),0 0 22px rgba(77,212,200,.5),0 6px 15px rgba(0,0,0,.65)}
+/* 진화가 코앞인 자리는 테가 붉게 선다. .ready 뒤에 적어 이쪽이 이긴다 —
+   끊을 수 있다는 것보다 곧 진화한다는 것이 먼저 눈에 들어와야 한다 */
+#sg .gz.warn .bezel{box-shadow:0 0 0 3px rgba(152,48,42,.9),0 0 20px rgba(152,48,42,.55),0 6px 15px rgba(0,0,0,.65)}
+
+/* 진화한 자리는 겉이 달라진다 (되짚기 10) — 전에는 이름 옆 ✦ 하나뿐이라
+   판을 훑을 때 어느 자리가 진화했는지가 안 잡혔다. 황동 테에 짙은 문자판이다 */
+#sg .gz.evo .bezel{background:conic-gradient(from 215deg,#2a2018,#8a6626 18%,#3a2c14 45%,#75571f 70%,#2a2018)}
+#sg .gz.evo .face{background:radial-gradient(circle at 40% 32%,#e9d3a2,#c1a473 70%,#8a7042)}
+#sg .gz.evo .glass{border-color:rgba(201,164,74,.55)}
 #sg .gz.sel{filter:drop-shadow(0 0 16px rgba(201,164,74,.95))}
 #sg .gz.tgt{filter:drop-shadow(0 0 14px rgba(77,212,200,.9))}
 #sg .gz.held .face{filter:saturate(.5) brightness(1.12)}
 /* 병 노드 — 황동이 아니라 검은 무쇠다 */
+/* 병기가 오르면 무쇠가 한 겹씩 더 탄다 (되짚기 9). 숫자만 바뀌면 올랐다는 것을
+   놓친다 — 1~2 는 성한 무쇠, 3~4 는 녹, 5 는 숯이다. 명부에 없는 단계는
+   아래 기본 무쇠로 떨어진다 (보스가 늘어도 화면이 안 깨진다) */
 #sg .gz.dis .bezel{background:conic-gradient(from 215deg,#141414,#3a3a3c 18%,#1c1c1e 45%,#2e2e30 70%,#141414)}
+#sg .gz.dis[data-stg="3"] .bezel,#sg .gz.dis[data-stg="4"] .bezel{
+  background:conic-gradient(from 215deg,#1a1210,#5a3a2a 18%,#241715 45%,#4a2f22 70%,#1a1210)}
+#sg .gz.dis[data-stg="5"] .bezel{
+  background:conic-gradient(from 215deg,#0d0b0b,#4a2320 18%,#1a1010 45%,#3a1a17 70%,#0d0b0b)}
+#sg .gz.dis[data-stg="3"] .face,#sg .gz.dis[data-stg="4"] .face{
+  background:radial-gradient(circle at 40% 32%,#b0a086,#877a66 70%,#584f42)}
+#sg .gz.dis[data-stg="5"] .face{
+  background:radial-gradient(circle at 40% 32%,#a3907a,#7a6c5b 70%,#4c443a)}
+/* 병기가 오르는 순간 — 테가 황동빛으로 터진다 */
+#sg .gz.stgup .bezel{box-shadow:0 0 0 7px rgba(201,164,74,.85),0 0 44px rgba(201,164,74,.6),
+  0 6px 15px rgba(0,0,0,.65)}
 #sg .gz.dis .face{background:radial-gradient(circle at 40% 32%,#b9ac93,#8e8272 70%,#5f574a)}
 #sg .gz.imm .bezel{box-shadow:0 0 0 3px #6a6a68,0 6px 15px rgba(0,0,0,.65)}
 #sg .gz.imm .face{filter:grayscale(.6) brightness(.86)}

@@ -178,6 +178,21 @@ const FXE = {
     el.classList.remove('evoing');
     await fxWait(280);
   },
+  /* 병기 한 칸 — 진화보다 무거운 소식이라 판을 어둡게 깔고 계기만 남긴다 */
+  async stageUp(n, stage){
+    const el = stageEl(n); if(!el) return;
+    const bd = stageBoard(); if(bd) bd.classList.add('dark');
+    el.classList.add('stgup');
+    FX.shake(el);
+    FX.steam(el, 12, 'rgba(201,164,74,.7)');
+    FX.float(el, '병기 '+stage, 'dn big');
+    await fxWait(580);
+    FX.shards(el, 8, 'rgba(201,164,74,.9)');
+    await fxWait(520);
+    el.classList.remove('stgup');
+    if(bd) bd.classList.remove('dark');
+    await fxWait(160);
+  },
   /* 약화 한 스택 — 처치선 눈금이 실제로 위로 밀린다 */
   async weaken(n, add){
     const el = stageEl(n); if(!el) return;

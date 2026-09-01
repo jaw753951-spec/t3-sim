@@ -472,23 +472,39 @@ body.sgon{overflow:hidden}
 #sg .gz .atts{position:absolute;inset:-30%;z-index:7;overflow:visible;pointer-events:none}
 #sg .gz .atts g{pointer-events:auto;cursor:pointer}
 
-#sg .gz .evc.off{display:none}
-#sg .gz .evc{position:absolute;top:-3%;right:-3%;width:27px;height:27px;border-radius:50%;z-index:6;
-  background:linear-gradient(180deg,#c9a44a,#8a6a30);color:#241a08;display:flex;
-  align-items:center;justify-content:center;font:900 12.5px/1 var(--mono);
-  box-shadow:0 2px 6px rgba(0,0,0,.55)}
-#sg .gz .evc.stg2{background:linear-gradient(180deg,#8fb2a8,#3A7570);color:#0d1a17}
-#sg .gz.warn .evc{animation:evw 1.1s ease infinite}
-@keyframes evw{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.55)}
-  50%{box-shadow:0 0 0 5px rgba(158,43,43,.5),0 2px 6px rgba(0,0,0,.55)}}
+#sg .gz.warn{animation:trem 1.9s ease-in-out infinite}
+@keyframes trem{
+  0%,60%,100%{transform:translate(-50%,-50%)}
+  64%{transform:translate(calc(-50% - 3px),calc(-50% + 1px)) rotate(-.7deg)}
+  68%{transform:translate(calc(-50% + 3px),calc(-50% - 1px)) rotate(.7deg)}
+  72%{transform:translate(calc(-50% - 2.5px),-50%) rotate(-.5deg)}
+  76%{transform:translate(calc(-50% + 2.5px),-50%) rotate(.5deg)}
+  80%{transform:translate(-50%,-50%)}}
 
 #sg .gz.dorm{filter:saturate(.3) brightness(.6)}
 #sg .gz.ready .bezel{box-shadow:0 0 0 3px var(--t3b),0 0 22px rgba(77,212,200,.5),0 6px 15px rgba(0,0,0,.65)}
+
+#sg .gz.warn .bezel{box-shadow:0 0 0 3px rgba(152,48,42,.9),0 0 20px rgba(152,48,42,.55),0 6px 15px rgba(0,0,0,.65)}
+
+#sg .gz.evo .bezel{background:conic-gradient(from 215deg,#2a2018,#8a6626 18%,#3a2c14 45%,#75571f 70%,#2a2018)}
+#sg .gz.evo .face{background:radial-gradient(circle at 40% 32%,#e9d3a2,#c1a473 70%,#8a7042)}
+#sg .gz.evo .glass{border-color:rgba(201,164,74,.55)}
 #sg .gz.sel{filter:drop-shadow(0 0 16px rgba(201,164,74,.95))}
 #sg .gz.tgt{filter:drop-shadow(0 0 14px rgba(77,212,200,.9))}
 #sg .gz.held .face{filter:saturate(.5) brightness(1.12)}
 
 #sg .gz.dis .bezel{background:conic-gradient(from 215deg,#141414,#3a3a3c 18%,#1c1c1e 45%,#2e2e30 70%,#141414)}
+#sg .gz.dis[data-stg="3"] .bezel,#sg .gz.dis[data-stg="4"] .bezel{
+  background:conic-gradient(from 215deg,#1a1210,#5a3a2a 18%,#241715 45%,#4a2f22 70%,#1a1210)}
+#sg .gz.dis[data-stg="5"] .bezel{
+  background:conic-gradient(from 215deg,#0d0b0b,#4a2320 18%,#1a1010 45%,#3a1a17 70%,#0d0b0b)}
+#sg .gz.dis[data-stg="3"] .face,#sg .gz.dis[data-stg="4"] .face{
+  background:radial-gradient(circle at 40% 32%,#b0a086,#877a66 70%,#584f42)}
+#sg .gz.dis[data-stg="5"] .face{
+  background:radial-gradient(circle at 40% 32%,#a3907a,#7a6c5b 70%,#4c443a)}
+
+#sg .gz.stgup .bezel{box-shadow:0 0 0 7px rgba(201,164,74,.85),0 0 44px rgba(201,164,74,.6),
+  0 6px 15px rgba(0,0,0,.65)}
 #sg .gz.dis .face{background:radial-gradient(circle at 40% 32%,#b9ac93,#8e8272 70%,#5f574a)}
 #sg .gz.imm .bezel{box-shadow:0 0 0 3px #6a6a68,0 6px 15px rgba(0,0,0,.65)}
 #sg .gz.imm .face{filter:grayscale(.6) brightness(.86)}
@@ -5411,6 +5427,20 @@ const FXE = {
     el.classList.remove('evoing');
     await fxWait(280);
   },
+  async stageUp(n, stage){
+    const el = stageEl(n); if(!el) return;
+    const bd = stageBoard(); if(bd) bd.classList.add('dark');
+    el.classList.add('stgup');
+    FX.shake(el);
+    FX.steam(el, 12, 'rgba(201,164,74,.7)');
+    FX.float(el, '병기 '+stage, 'dn big');
+    await fxWait(580);
+    FX.shards(el, 8, 'rgba(201,164,74,.9)');
+    await fxWait(520);
+    el.classList.remove('stgup');
+    if(bd) bd.classList.remove('dark');
+    await fxWait(160);
+  },
   async weaken(n, add){
     const el = stageEl(n); if(!el) return;
     FX.pulse(el, 'var(--anno)');
@@ -5581,6 +5611,19 @@ const ICO = {
   mute:  'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM5 5l10 10',
   imm:   'M10 2.6 3.8 5.8v4.7c0 3.5 2.7 5.8 6.2 6.9 3.5-1.1 6.2-3.4 6.2-6.9V5.8z',
   chron: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM10 5.8v4.6l3.1 2.1',
+  bSpawn: 'M10 17.5v-5.2M10 12.3 4.6 6M10 12.3 15.4 6',
+  bUniq:  'M10 2.4 17.6 10 10 17.6 2.4 10z',
+  bSpread:'M10 12.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8M4.8 15.2a7.4 7.4 0 0 1 0-10.4M15.2 4.8a7.4 7.4 0 0 1 0 10.4',
+  bDown:  'M10 3v11M5.4 9.4 10 14l4.6-4.6M4 17h12',
+  bWin:   'M3.6 3.6h12.8v12.8H3.6zM10 3.6v12.8M3.6 10h12.8',
+  bSame:  'M5 8.6a5 5 0 0 1 9.4-1M15 11.4a5 5 0 0 1-9.4 1M4.4 5.6v3h3M15.6 14.4v-3h-3',
+  bHard:  'M3.6 5h12.8v10H3.6zM3.6 10h12.8M8.4 5v5M12 10v5',
+  bFast:  'M3.4 5.6 8 10l-4.6 4.4M11 5.6 15.6 10 11 14.4',
+};
+const BEATICO = {
+  '분화':'bSpawn', '고유':'bUniq', '성장':'grow', '몰린다':'grow', '치민다':'grow',
+  '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
+  '창':'bWin', '같은 박자':'bSame', '굳는다':'bHard', '진행':'bFast', '가속':'bFast',
 };
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 
@@ -5706,7 +5749,7 @@ function badgeSVG(S, n, sz){
       + ` font-family="ui-monospace,monospace" fill="${f>.55?'#14181C':'#7AA8B2'}">${left}</text></g>`;
   }
 
-  if(n.role!=='disease'){
+  if(n.role!=='disease' && (n.evolved || n.revealed)){
     const [ex,ey]=P(-39,RB);
     if(n.evolved){
       s += `<g${tip(TT('진화함', EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):''))}>`
@@ -5723,11 +5766,44 @@ function badgeSVG(S, n, sz){
         +  (p>0?`<path d="M${ex} ${ey} L${ex} ${ey-17} A17 17 0 ${p>.5?1:0} 1 ${px} ${py} Z" fill="${col}" opacity=".25"/>`:'')
         +  `<text x="${ex}" y="${ey+5.5}" text-anchor="middle" font-size="15" font-weight="800"`
         +  ` font-family="ui-monospace,monospace" fill="${col}">${n.evoLeft}</text></g>`;
-    } else {
-      s += `<g${tip(TT('진화까지','아직 모른다. 문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.'))}>`
-        +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="#8d8377" stroke-width="1.6" stroke-dasharray="4 4"/>`
-        +  `<text x="${ex}" y="${ey+6}" text-anchor="middle" font-size="16" font-weight="800"`
-        +  ` font-family="var(--sans)" fill="#8d8377">?</text></g>`;
+    }
+  }
+
+  if(n.role==='disease'){
+    const RR = sz/2.816 + 19, seg = Math.max(1, SR.STAGE_TURNS), left = Math.max(0, n.stageClock);
+    const A0 = 200, SPAN = 140, gap = 2.6;
+    const arc = (a0,a1,r,w,col,op) => {
+      const [x0,y0]=P(a0,r), [x1,y1]=P(a1,r);
+      return `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 `
+           + `${x1.toFixed(1)} ${y1.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${w}"`
+           + ` opacity="${op}" stroke-linecap="butt"/>`;
+    };
+    s += `<g${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
+          + `<br>병기 시계 <b>${left}</b> — 0이 되면 병기가 한 칸 오른다.`
+          + `<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>`;
+    for(let i=0;i<seg;i++){
+      const a0 = A0 + SPAN*i/seg + gap/2, a1 = A0 + SPAN*(i+1)/seg - gap/2;
+      s += arc(a0, a1, RR, 9, i<left ? '#C9A44A' : '#2b2b2c', i<left ? 0.95 : 0.85);
+    }
+    s += `</g>`;
+
+    {
+      const [sx2,sy2]=P(180, RR+25);
+      s += `<g${tip(TT('병기', `지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}`
+            + `<br>병기 시계 <b>${left}</b> — 0이 되면 병기가 한 칸 오른다.`))}>`
+        + `<circle cx="${sx2.toFixed(1)}" cy="${sy2.toFixed(1)}" r="17" fill="#C9A44A" stroke="#14181C" stroke-width="1.8"/>`
+        + `<text x="${sx2.toFixed(1)}" y="${(sy2+6).toFixed(1)}" text-anchor="middle" font-size="17"`
+        + ` font-weight="800" font-family="ui-monospace,monospace" fill="#241a08">${n.stage}</text></g>`;
+    }
+
+    const bt = (typeof nextBeat==='function' && S.board && S.board.boss) ? nextBeat(S, n) : null;
+    if(bt){
+      const [bx,by]=P(270, RR+25), r=17;
+      s += `<g${tip(beatTip(S,n) || TT('다음 박자', esc(bt)))}>`
+        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="1.8"/>`
+        + `<g transform="translate(${(bx-10).toFixed(1)},${(by-10).toFixed(1)})" fill="none" stroke="#C9A44A"`
+        + ` stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">`
+        + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g></g>`;
     }
   }
 
@@ -5869,7 +5945,7 @@ function stageLayout(){
     n.py = cy;
     n.sz = SZ;
   });
-  if(dis){ dis.px = W/2; dis.py = H*0.235; dis.sz = Math.min(262, W*0.185) }
+  if(dis){ dis.px = W/2; dis.py = H*0.30; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
 
@@ -5895,7 +5971,7 @@ function stageSync(){
         '<div class="bezel"></div>'
       + '<div class="body"></div><div class="face"><div class="stg"></div></div>'
       + '<svg class="dial" viewBox="0 0 200 200"></svg><div class="glass"></div>'
-      + '<div class="evc"></div><svg class="atts" viewBox="0 0 200 200"></svg>'
+      + '<svg class="atts" viewBox="0 0 200 200"></svg>'
       + '<div class="chips"></div>';
       el.onclick = () => stageNodeClick(ix);
       B.appendChild(el); STAGE_ELS.set(ix, el); fresh = true;
@@ -5928,9 +6004,8 @@ function stageSync(){
     setHTML(el.querySelector('.chips'),
       (cs.length?`<div class="icr">${cs.join('')}</div>`:'') + (mk.length?`<div class="imr">${mk.join('')}</div>`:''));
 
-    const ev = el.querySelector('.evc');
-    if(n.role==='disease'){ ev.textContent = n.stage; ev.className = 'evc stg2' }
-    else { ev.textContent = ''; ev.className = 'evc off' }
+    if(n.role==='disease') el.dataset.stg = n.stage;
+    else delete el.dataset.stg;
 
     if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
   });
@@ -6403,7 +6478,8 @@ function fxPlanLog(log, before, plan){
   if(cur.remGauge !== before.remGauge) fxq(()=>FXE.gauge('sg_doc', `관해 ${cur.remGauge}`, cur.remGauge>before.remGauge));
   if(cur.stage !== before.stage){
     const dz = S.nodes.find(n=>n.role==='disease' && !n.dead);
-    fxq(()=>FXE.gauge((dz && stageEl(dz)) || 'sg_chart', `병기 ${cur.stage}`, false));
+    if(dz) fxq(()=>FXE.stageUp(dz, cur.stage));
+    else   fxq(()=>FXE.gauge('sg_chart', `병기 ${cur.stage}`, false));
     sayEmit('stage', {key:String(cur.stage)});
   }
   if(cur.evid !== before.evid) fxq(()=>FXE.gauge('sg_act', `증거 ${cur.evid}`, true));

@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>인턴 심 0.2 — 전투 시뮬레이터</title><style>
+<title>인턴 심 0.2.1 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -736,7 +736,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 <div class="wrap">
  <div class="col">
   
-  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.2</span
+  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.2.1</span
       ><button class="pnbtn" onclick="openPatch()" title="패치 노트를 연다">패치</button></h1>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -1009,7 +1009,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 //@ 파일.10-config/version
 
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = '0.2';
+const VERSION = '0.2.1';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -3399,6 +3399,13 @@ const RULE_GROUP = {
 
 //@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
 const PATCH_NOTES = [
+{v:'0.2.1', size:'m', date:'2026-09-01', tag:'편의성 개선', body:`
+시뮬레이터
+
+-전투 화면 재구성
+
+-툴팁 변경
+`},
 {v:'0.2', size:'M', date:'2026-08-27', tag:'편의성 개선', body:`
 시뮬레이터
 

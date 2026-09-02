@@ -45,7 +45,10 @@ function table(vars) {
   const KEYS = [['여백', f2], ['그림자최저', f2], ['그림자총피해', f1], ['최대단타', f1],
                 ['진화중앙', f1], ['진화평균', f2], ['턴수', f1], ['완치율', f2], ['사망률벗김', f2]];
   for (const boss of BOSSES) {
-    console.log(`\n━━ ${boss} ━━ (60시드 × 방침 3 = 180판)`);
+    /* 판 수를 글자로 박아 두면 --seeds 3 으로 돌려도 「180판」이라 적힌다.
+       잰 것에서 읽는다 — 이 저장소의 「값을 글자로 박지 않는다」가 검사 도구에도 걸린다 */
+    const n = D[vars[0]].filter(r => r.boss === boss).length;
+    console.log(`\n━━ ${boss} ━━ (씨앗 ${n / POLS.length} × 방침 ${POLS.length} = ${n}판)`);
     console.log('  ' + '지표'.padEnd(14) + vars.map(v => v.padStart(12)).join(''));
     for (const [k, f] of KEYS)
       console.log('  ' + k.padEnd(14) + vars.map(v => f(stat(D[v], boss)[k]).padStart(12)).join(''));

@@ -356,8 +356,10 @@ function badgeSVG(S, n, sz){
       const col = n.evoLeft<=1 ? '#98302A' : '#E8E2D2';
       const a=-90+360*p, [px,py]=P2(ex,ey,a,17);
       s += `<g${tip(TT('진화까지', `남은 턴 <b>${n.evoLeft}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}`
-            + `<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다.`
-            + `<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.`))}>`
+            /* v26 — EVO_HIT 는 비율이 아니라 고정값이다. 비율로 읽으면 통증 자리에
+               「수치의 2400% · 지금 진화하면 −1680」처럼 두 자리가 통째로 거짓말을 한다.
+               board-view 는 고쳤는데 무대만 옛 식으로 남아 있었다 */
+            + `<br><br>진화하는 턴에 <b>${R.EVO_HIT[n.sym]||0}</b>이 즉시 환자에게 들어간다. 수치를 보지 않는 고정값이다.`))}>`
         +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="${col}" stroke-width="1.8"/>`
         +  (p>0?`<path d="M${ex} ${ey} L${ex} ${ey-17} A17 17 0 ${p>.5?1:0} 1 ${px} ${py} Z" fill="${col}" opacity=".25"/>`:'')
         +  `<text x="${ex}" y="${ey+5.5}" text-anchor="middle" font-size="15" font-weight="800"`

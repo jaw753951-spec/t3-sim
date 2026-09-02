@@ -34,9 +34,13 @@ const tagLabel = t => (BODY_HP[t]!==undefined ? '체격 '+BODY_HP[t] : '')
 //@ 생성기.체격 — 환자 체력의 출발점. 태그가 어느 체격을 볼지 고른다
 const BODY_HP = { '소아':120, '성인':170, '노동자':200, '군인':200 };
 const BODY_DEF = '성인';
+/* 체격 태그가 둘 붙을 수 있다 — 나이 묶음과 신분 묶음은 서로를 안 밀어내므로
+   소아 + 노동자 가 성립한다. 그때 '먼저 적힌 것'을 보면 같은 태그 한 벌인데
+   누른 차례에 따라 체력이 120 이 됐다 200 이 됐다 한다.
+   가장 얇은 체격을 본다 — 차례를 안 타고, 소아 노동자는 노동을 해도 아이 몸이다. */
 const bodyHp = tags => {
-  for(const t of (tags||[])) if(BODY_HP[t]!==undefined) return BODY_HP[t];
-  return BODY_HP[BODY_DEF];
+  const hit = (tags||[]).filter(t => BODY_HP[t]!==undefined).map(t => BODY_HP[t]);
+  return hit.length ? Math.min(...hit) : BODY_HP[BODY_DEF];
 };
 
 /* ── 체력 태그 — 체격을 고른 뒤에 곱한다. 전부 ×0.85 하나로 통일했다.

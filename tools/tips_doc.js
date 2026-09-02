@@ -159,7 +159,10 @@ w(js(block('src/70-ui/stage-node.js', '//@ 무대.배지', '\n/* 파이 조각�
 w('### 7.3 보호막 서리 테 — `dialSVG`\n');
 w(js(block('src/70-ui/stage-node.js', '  /* ── 보호막 ── 문자판 가장자리', '\n  /* ── 이름 ──')));
 
-fs.mkdirSync('docs', { recursive: true });
+/* 쓰는 자리는 __dirname 인데 만드는 자리만 cwd 였다 — 저장소 루트에서 부르면
+   (CLAUDE.md 가 그렇게 부르라고 한다) 루트에 빈 docs/ 가 생기고, 정작 tools/docs 가
+   없는 갈래에서는 ENOENT 로 선다. 둘은 같은 자리를 가리켜야 한다 */
+fs.mkdirSync(path.join(__dirname, 'docs'), { recursive: true });
 const md = out.join('\n');
 fs.writeFileSync(path.join(__dirname, 'docs', '툴팁.md'), md);
 console.log(`docs/툴팁.md — ${md.split('\n').length}줄 · ${Buffer.byteLength(md)}바이트`);

@@ -117,7 +117,10 @@ function stageChart(){
   const tags = hide
     ? '<span class="ktag hid">체력 태그 미상</span>'
     : ((BOARD.tags||[]).length
-        ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, `체력 <b>×${HP_TAG[t]}</b>`))}>${esc(t)} ×${HP_TAG[t]}</span>`).join('')
+        /* v26 — 체격 태그(소아·노동자·군인·상층)는 HP_TAG 에 없다. 곱하는 값이 아니라
+           어느 체격을 볼지 고르는 값이라 BODY_HP 로 옮겼다. 여기가 HP_TAG 만 보고 있어서
+           아이의 칩이 「소아 ×undefined」로 떴다 — 표기는 tagLabel 하나가 낸다 */
+        ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, tagLabel(t)))}>${esc(t)} ${esc(tagLabel(t))}</span>`).join('')
         : '<span class="ktag">특이 없음</span>');
 
   /* 머리 — 턴과 사람. 막·증거는 여기 배지로 붙는다 (연출이 sg_act 를 잡는다) */

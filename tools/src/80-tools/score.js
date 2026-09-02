@@ -35,10 +35,23 @@ function scBase(st){
   return (b.beats[st] || b.beats[b.stage0] || ['분화','고유']).slice();
 }
 
-/* 그 병기의 악보. 아직 손대지 않았으면 밑그림을 그대로 깐다 —
-   「기본값은 고른 병 노드의 악보」가 여기 한 줄이다 */
+/* 그 병기의 악보를 **읽는다**. 손대지 않았으면 밑그림을 돌려주되 적어 두지 않는다.
+   「기본값은 고른 병 노드의 악보」가 여기 한 줄이다.
+
+   ★ 전에는 이 자가 읽으면서 CUSTOM.score 에 적었다. 그리기가 곧 쓰기라,
+     악보 탭을 **열어 보기만 해도** 그 순간의 보스 악보가 굳었다. 그 뒤 만들기에서
+     병 노드를 송이로 바꾸면 판에는 아이의 악보가 실린 채 「고유」만 송이 것이 나갔다 —
+     손으로는 한 번도 안 건드린 악보가 판을 몰았다.
+     이제 굳는 것은 실제로 손댈 때뿐이다 (scEdit). */
 function scLine(st){
   if(!CUSTOM.dis) return [];
+  const own = CUSTOM.score && CUSTOM.score[st];
+  return (own && own.length) ? own : scBase(st);
+}
+
+/* 손댈 때 비로소 제 악보로 굳힌다 — 그때가 밑그림에서 갈라지는 순간이고,
+   scoreFrom 은 「어느 병 노드에서 떠 왔는가」를 그 순간에 적어 둔다 */
+function scEdit(st){
   if(!CUSTOM.score) CUSTOM.score = {};
   if(!CUSTOM.score[st] || !CUSTOM.score[st].length){
     CUSTOM.score[st] = scBase(st);
@@ -47,37 +60,42 @@ function scLine(st){
   return CUSTOM.score[st];
 }
 
-function scSet(st, i, v){ scLine(st)[i] = v; SCORE_AIM = st; renderScore() }
+function scSet(st, i, v){ scEdit(st)[i] = v; SCORE_AIM = st; renderScore() }
 
 /* 앞뒤로 민다. 끝에서 밀면 반대편으로 돈다 — 악보는 돌아가는 것이라 그 결이 맞다 */
 function scMove(st, i, d){
-  const L = scLine(st), j = (i + d + L.length) % L.length;
+  const L = scEdit(st), j = (i + d + L.length) % L.length;
   const x = L[i]; L[i] = L[j]; L[j] = x;
   SCORE_AIM = st; renderScore();
 }
 
 function scDel(st, i){
-  const L = scLine(st);
+  const L = scEdit(st);
   if(L.length <= 1) return;              // 빈 악보는 둘 수 없다 — 병이 할 일이 없어진다
   L.splice(i, 1); SCORE_AIM = st; renderScore();
 }
 
-function scAdd(st, beat){ scLine(st).push(beat || '성장'); SCORE_AIM = st; renderScore() }
+function scAdd(st, beat){ scEdit(st).push(beat || '성장'); SCORE_AIM = st; renderScore() }
 
 /* 길이를 맞춘다. 늘릴 때는 앞에서부터 되풀이해 채운다 */
 function scLen(st, n){
   n = Math.max(1, Math.min(SCORE_MAX, Math.floor(+n) || 1));
-  const L = scLine(st), base = L.length;
+  const L = scEdit(st), base = L.length;
   while(L.length > n) L.pop();
   while(L.length < n) L.push(L[L.length % base]);
   SCORE_AIM = st; renderScore();
 }
 
-function scReset(st){ CUSTOM.score[st] = scBase(st); SCORE_AIM = st; renderScore() }
+/* 밑그림으로 되돌리기 = 손댄 적 없는 상태로 되돌리기다. 밑그림을 베껴 넣는 대신
+   적어 둔 것을 지운다 — 그래야 그 뒤에 병 노드를 바꿔도 새 밑그림을 따라간다 */
+function scReset(st){
+  if(CUSTOM.score) delete CUSTOM.score[st];
+  if(CUSTOM.score && !Object.keys(CUSTOM.score).length){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
+  SCORE_AIM = st; renderScore();
+}
 
 function scResetAll(){
-  CUSTOM.score = {};
-  CUSTOM.scoreFrom = CUSTOM.dis ? CUSTOM.dis.boss : null;
+  CUSTOM.score = null; CUSTOM.scoreFrom = null;   // 손댄 적 없는 상태로
   renderScore();
 }
 

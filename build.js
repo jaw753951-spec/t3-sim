@@ -71,6 +71,7 @@ const ORDER = [
   'src/80-tools/override.js',
   'src/80-tools/batch.js',
   'src/80-tools/make.js',
+  'src/80-tools/score.js',      // CUSTOM 을 읽는다 — make.js 뒤여야 한다
   /* ── 부팅 ── 반드시 마지막 ── */
   'src/90-boot.js',
 ];

@@ -10,6 +10,7 @@
     <div class="tab" data-m="story" onclick="setMode('story')">스토리</div>
     <div class="tab" data-m="batch" onclick="setMode('batch')">배치</div>
     <div class="tab" data-m="make" onclick="setMode('make')">만들기</div>
+    <div class="tab" data-m="score" onclick="setMode('score')">악보</div>
   </div>
 
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
@@ -101,6 +102,12 @@
     <div class="note" id="bnote"></div>
   </div>
 
+  <div id="side-score" style="display:none">
+    <div id="sc_side"></div>
+    <button class="go" onclick="mkStart()">이 환자로 시작</button>
+    <div class="note" id="sc_note"></div>
+  </div>
+
   <div id="side-make" style="display:none">
     <label>불러오기</label>
     <select id="mk_from"><option value="">— 빈 판에서 시작 —</option></select>
@@ -141,6 +148,7 @@
   </div>
   <div id="pane-batch" style="display:none"><div id="bout" class="empty">왼쪽에서 배치를 실행한다.</div></div>
   <div id="pane-make" style="display:none"><div id="mk_body"></div></div>
+  <div id="pane-score" style="display:none"><div id="sc_body"></div></div>
   <div id="pane-deck" style="display:none"><div id="dk_body"></div></div>
  </div>
 

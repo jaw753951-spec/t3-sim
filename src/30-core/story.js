@@ -114,8 +114,48 @@ function growBeat(S){
 //@ 스토리.쉼 — 아무 일도 하지 않는 것이 값인 비트
 const BEAT_REST = {'같은 박자':1};
 
+/* diseaseAct 가 모르는 이름을 받았을 때 돌려주는 줄의 머리.
+   검사기가 이 말로 찾으므로 두 곳에 따로 적지 않는다 */
+const BEAT_UNKNOWN = '모르는 박자';
+
+/* 병이 쓸 수 있는 박자 한 벌 — diseaseAct 가 '이름으로' 다루는 것이 여기 전부다.
+   「만들기 · 악보」가 고를 수 있는 것도 이 목록이고, 불변 조건이 이 목록을 훑는다.
+   「병기 가속」·「가속」은 「진행」과 같은 비트다 — 셋 다 받지만 대표 이름 하나만 여기 둔다.
+   설명문은 화면 것이라 여기 없다 — BEATDOC(60-text)에 있다.
+   이 층은 자름 커널 구간 안이고, 그 구간의 계약은 화면을 쓰지 않는 것이다. */
+//@ 스토리.박자표 — 병이 쓸 수 있는 박자 한 벌
+const BEAT_LIST = ['분화','성장','고유','같은 박자','진행','창','굳는다','몰린다',
+                   '엮는다','번진다','아문다','치민다','가라앉는다'];
+
+/* 이 병기가 따르는 악보. 판에 손으로 짠 악보가 실려 있으면 그것이 먼저다 —
+   「만들기 · 악보」가 board.score 에 넣는다. 없으면 고른 병 노드의 악보를 본다.
+   ★ 예전에는 뒤쪽 폴백이 b[dis.stage0] 이었는데, stage0 은 보스 정의에만 있고
+     병 노드에는 없는 열쇠라 늘 undefined 였다 — 즉 한 번도 돈 적 없는 갈래다.
+     보스의 첫 병기를 보라는 뜻이 분명하므로 BOSS[].stage0 으로 바로잡았다.
+     이 갈래는 악보에 없는 병기로 커스텀 판을 세울 때만 닿는다. */
+//@ 스토리.악보 — 이 병기가 따르는 악보
+function scoreOf(S, stage){
+  const own = S.board && S.board.score;
+  if(own && own[stage] && own[stage].length) return own[stage];
+  const b = BOSS[S.board.boss];
+  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+}
+
 //@ 스토리.박자 — 병이 이번 턴에 무엇을 하는가
-function nextBeat(S,dis){ const b=BOSS[S.board.boss].beats; const sc=b[dis.stage]||b[dis.stage0]||['분화','고유']; return sc[dis.beat % sc.length] }
+function nextBeat(S,dis){ const sc=scoreOf(S,dis.stage); return sc[dis.beat % sc.length] }
+
+/* 손으로 짠 악보를 판에 싣기 전에 훑는다 — 모르는 이름과 빈 병기를 떨군다.
+   화면이 무엇을 넣든 커널에 들어오는 것은 BEAT_LIST 안의 이름뿐이다. */
+//@ 스토리.악보검사 — 손으로 짠 악보를 훑는다
+function scoreClean(sc){
+  if(!sc) return null;
+  const out = {}; let any = false;
+  for(const st in sc){
+    const line = (sc[st]||[]).filter(b=>BEAT_LIST.includes(b));
+    if(line.length){ out[st] = line; any = true }
+  }
+  return any ? out : null;
+}
 
 function diseaseAct(S, dis, act){
   const b = BOSS[S.board.boss];
@@ -209,7 +249,13 @@ function diseaseAct(S, dis, act){
   }
   if(beat==='성장') return growBeat(S);
   if(BEAT_REST[beat]) return beat;                  // 쉬는 비트 — 아무것도 하지 않는 것이 값이다
-  return b.unique(S, dis) || growBeat(S);           // 고유가 헛돌면 성장으로 대신한다
+  if(beat==='고유') return b.unique(S, dis) || growBeat(S);   // 고유가 헛돌면 성장으로 대신한다
+  /* 여기까지 왔다면 이 자가 모르는 이름이다. 악보를 손으로 짤 수 있게 된 뒤로는
+     오타나 옛 이름이 여기 닿을 수 있다 — 전에는 그대로 「고유」로 새서, 병이 엉뚱한
+     한 수를 두고도 아무도 몰랐다. 성장으로 받되 이름을 적어 돌려준다.
+     불변 조건이 이 줄을 찾아 BEAT_LIST 와 diseaseAct 가 갈라졌는지 본다. */
+  growBeat(S);
+  return `${BEAT_UNKNOWN} 「${beat}」 — 성장으로 대신한다`;
 }
 
 function stageUp(S, dis){

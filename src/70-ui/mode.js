@@ -18,7 +18,7 @@ document.addEventListener('keydown', e=>{
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
   if(PK){ if(e.key==='Escape'){ e.preventDefault(); PK.open ? pkClose() : pkCancel() } return }
-  if(DB || MODE==='batch' || MODE==='make' || !S) return;
+  if(DB || MODE==='batch' || MODE==='make' || MODE==='score' || !S) return;
   const inFight = MODE!=='sess' || (SESS && SESS.phase==='fight');
   const k=e.key;
   if(k==='Escape'){ e.preventDefault(); cancelPick(); return }
@@ -40,7 +40,7 @@ document.addEventListener('keydown', e=>{
 /* ═══ 모드 · 그리기 ══════════════════════════════════════════ */
 //@ 화면.모드 — §9.17 탭 갈아타기
 function showPane(m){
-  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-deck']){
+  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-score','pane-deck']){
     const e=$(id); if(e) e.style.display='none';
   }
   $('pane-'+m).style.display='';
@@ -54,7 +54,7 @@ function setMode(m){
   const P = PANES[m]||{};
   S=P.S||null; BOARD=P.BOARD||null; SEL=P.SEL??null; LOG=P.LOG||[]; UNDO=P.UNDO||[]; SESS=P.SESS||null;
   for(const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.m===m);
-  for(const id of ['side-one','side-sess','side-story','side-batch','side-make']){
+  for(const id of ['side-one','side-sess','side-story','side-batch','side-make','side-score']){
     const e=$(id); if(e) e.style.display='none';
   }
   $('side-'+m).style.display='';

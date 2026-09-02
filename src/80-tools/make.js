@@ -6,13 +6,22 @@
    v18 의 cbuild 자리. 판을 손으로 짜서 규칙을 시험한다 —
    질환도감의 한 항목을 판으로 옮겨 볼 때 쓰는 통로다. */
 //@ 화면.만들기 — §9.20 환자 직접 짜기
+/* score = 병기별 악보. null 이면 고른 병 노드의 악보를 그대로 쓴다.
+   scoreFrom = 그 악보를 어느 병 노드에서 떠 왔는가 (「악보」 탭이 갈림을 알린다) */
 let CUSTOM = {
-  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[],
+  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
   nodes:[{sym:'발열', init:65, evo:4, shielded:true, grow:0, p:''},
          {sym:'통증', init:50, evo:5, shielded:true, grow:0, p:''}],
   enh:[],
   dis:null,
 };
+
+/* 알림 줄 — 「만들기」와 「악보」 두 곁판에 같은 말을 띄운다.
+   mkStart 는 두 곳에서 부르는데 전에는 mk_note 에만 적어서,
+   악보 탭에서 누르면 실패해도 아무 말이 없었다 */
+function mkNote(txt){
+  for(const id of ['mk_note','sc_note']){ const e=$(id); if(e) e.textContent=txt }
+}
 
 function mkSet(path, v){
   const seg=path.split('.'); let o=CUSTOM;
@@ -34,6 +43,8 @@ function mkDelEnh(i){ CUSTOM.enh.splice(i,1); renderMake() }
 function mkToggleDis(){
   CUSTOM.dis = CUSTOM.dis ? null
     : {boss:'아이', stage:3, stageMax:5, init:SR.DIS_BASE[3], clock:SR.STAGE_TURNS, noDeath:true};
+  /* 병 노드를 끄면 악보도 함께 버린다 — 붙을 데가 없는 악보는 남겨 두면 거짓말이 된다 */
+  if(!CUSTOM.dis){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
   renderMake();
 }
 
@@ -49,17 +60,17 @@ function mkLoadFrom(){
   const p=SCRIPT[id], b=makePatient(id, +$('seed').value);
   CUSTOM = {name:p.name, hp:b.hp, level:p.lv, core:p.core, talk:p.talk??3, tags:(p.tags||[]).slice(),
     nodes:b.nodes.map(n=>({sym:n.sym, init:n.init, evo:n.evo, shielded:n.shielded, grow:n.grow})),
-    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:e.k})), dis:null};
-  $('mk_note').textContent = `${p.name} 을(를) 본으로 가져왔다.`;
+    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:e.k})), dis:null, score:null, scoreFrom:null};
+  mkNote(`${p.name} 을(를) 본으로 가져왔다.`);
   renderMake();
 }
 
-function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); $('mk_note').textContent='JSON 으로 내보냈다.' }
+function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); mkNote('JSON 으로 내보냈다.') }
 
 function mkFromJson(){
   try{ const o=JSON.parse($('mk_json').value); if(!o.nodes) throw new Error('nodes 가 없다');
-       CUSTOM=o; $('mk_note').textContent='읽어들였다.'; renderMake() }
-  catch(e){ $('mk_note').textContent='읽지 못했다 — '+e.message }
+       CUSTOM=o; mkNote('읽어들였다.'); renderMake() }
+  catch(e){ mkNote('읽지 못했다 — '+e.message) }
 }
 
 function buildCustom(){
@@ -87,6 +98,10 @@ function buildCustom(){
       spawned:false, stage:+d.stage, stageMax:+d.stageMax, stageClock:+d.clock, beat:0};
     board.nodes = [dis, ...syms];
     board.boss = d.boss; board.core='병'; board.noDeath = !!d.noDeath;
+    /* 손으로 짠 악보가 있으면 판에 싣는다 — scoreOf 가 보스 악보보다 먼저 본다.
+       모르는 이름과 빈 병기는 scoreClean 이 떨군다 */
+    const sc = scoreClean(CUSTOM.score);
+    if(sc) board.score = sc;
   }
   board.S = S_of({nodes:syms, enh:board.enh, evoBase:board.evoBase});
   board.lvCalc = lv_of(board.S);
@@ -95,7 +110,7 @@ function buildCustom(){
 
 function mkStart(){
   const b = buildCustom();
-  if(!b.nodes.length){ $('mk_note').textContent='자리가 하나는 있어야 한다.'; return }
+  if(!b.nodes.length){ mkNote('자리가 하나는 있어야 한다.'); return }
   if(CUSTOM.dis){ $('boss').value='custom'; PANES.story.started=true; setMode('story'); newStory() }
   else { $('src').value='custom'; PANES.one.started=true; setMode('one'); newGame() }
 }
@@ -151,7 +166,9 @@ function renderMake(){
         <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`
-    + (CUSTOM.dis ? `<div class="note">악보(분화·고유·진행)는 고른 보스의 것을 빌려 쓴다. 병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.</div>
+    + (CUSTOM.dis ? `<div class="note">악보는 고른 병 노드의 것을 밑그림으로 쓴다. 「악보」 탭에서 병기마다 고쳐 짤 수 있다 ${CUSTOM.score?'— <b>지금 손댄 악보가 실려 있다</b>':''}.<br>
+         병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.
+         <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
          <label class="mk">시작 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>

@@ -19,10 +19,14 @@ h1{position:relative;padding-right:52px;
 /* 이름도 판본도 도중에 끊지 않는다 — 자리가 모자라면 판본이 통째로 아랫줄로 내려간다 */
 h1 .ttl,h1 .ver{white-space:nowrap}
 h1 .ver{color:var(--blood)}
-.tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
-.tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
- cursor:pointer;border-right:1px solid var(--line);color:var(--dim)}
-.tab:last-child{border-right:0}.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
+/* 탭이 여섯이 되면서 250px 한 줄에 안 들어간다 — 줄을 접는다.
+   접힌 줄에도 칸이 고르게 서도록 flex-basis 를 33% 로 잡아 셋씩 앉힌다 */
+.tabs{display:flex;flex-wrap:wrap;gap:0;margin:0 0 14px;border:1px solid var(--line)}
+.tab{flex:1 1 33.33%;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
+ cursor:pointer;border-right:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tab:nth-child(3n){border-right:0}
+.tab:nth-child(n+4){border-top:1px solid var(--line)}
+.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
 label{display:block;font:11px/1 var(--mono);letter-spacing:.1em;color:var(--dim);margin:14px 0 5px;text-transform:uppercase}
 select,input[type=number]{width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:7px 8px;font:13px var(--mono)}
 select:focus,input:focus,button:focus{outline:2px solid var(--t3);outline-offset:1px}
@@ -364,6 +368,42 @@ body.pnon{overflow:hidden}
 .pnrow.big .pngrp li{font-size:15px;line-height:1.8}
 .pnrow.big .pnsub li{font-size:13.5px}
 .pnrow.big .pnempty{font-size:14px}
+
+/* ── 악보 (§9.21) ─────────────────────────────────────────────
+   비트 한 칸 = 번호 + 무엇을 하는가 + 앞뒤로 밀기 + 빼기.
+   고를 수 있는 이름이 열셋이라 이름은 select 가 겸한다 — 이름표와 고르는 칸을
+   따로 두면 같은 말이 두 번 적힌다. 툴팁도 그 select 에 붙는다. */
+.scline{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:6px 0}
+.scline.aim{outline:1px dashed var(--t3);outline-offset:5px}
+.beat{display:flex;align-items:center;gap:2px;border:1px solid var(--line);
+  background:var(--panel);padding:3px 4px 3px 0}
+.beat .n{width:20px;flex:none;text-align:center;font:10px var(--mono);color:var(--dim)}
+.beat select{width:auto;min-width:92px;border:0;background:transparent;padding:4px 2px;font-size:12px}
+.beat select:hover{color:var(--t3)}
+.beat .mini{padding:3px 5px;border-color:transparent;color:var(--dim)}
+.beat .mini:hover{border-color:var(--line);color:var(--ink)}
+.scline .addb{align-self:center;padding:5px 10px}
+
+.scfoot{display:flex;align-items:flex-end;gap:14px;margin:2px 0 0}
+.scfoot .mk{width:88px;flex:none;margin:0}
+.scfoot .note{margin:0 0 7px}
+
+/* 악보 한 줄을 글로도 적어 둔다 — 표를 훑지 않고 흐름만 볼 때가 더 잦다 */
+.scflow{font:11.5px var(--mono);color:var(--ink);background:rgba(61,102,115,.07);
+  border-left:2px solid var(--shield);padding:6px 10px;margin:6px 0 2px;
+  overflow-x:auto;white-space:nowrap}
+.scflow .d{color:var(--dim)}
+
+/* 패턴 서랍 — 쓸 수 있는 것을 통째로 늘어놓는다 */
+.scpal{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;margin:8px 0}
+.scpal .pal{display:flex;flex-direction:column;gap:2px;margin:0;padding:7px 9px;text-align:left}
+.scpal .pal b{font:12px var(--sans);letter-spacing:0}
+.scpal .pal .d{font:10.5px var(--mono);color:var(--dim);letter-spacing:0}
+
+/* 단추 둘을 나란히 앉히는 것은 악보 판에서만 필요하다.
+   .bar .right 로 넓게 걸었더니 손패 줄의 자판 안내(같은 class)까지 flex 가 돼서
+   글이 한 칸 벌어졌다 — 판을 좁혀 둔다 */
+#pane-score .bar .right{display:flex;gap:6px;align-items:center}
 /* ══════════════════════════════════════════════════════════════════
    무대 — 전투 화면
    ──────────────────────────────────────────────────────────────────
@@ -737,6 +777,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <div class="tab" data-m="story" onclick="setMode('story')">스토리</div>
     <div class="tab" data-m="batch" onclick="setMode('batch')">배치</div>
     <div class="tab" data-m="make" onclick="setMode('make')">만들기</div>
+    <div class="tab" data-m="score" onclick="setMode('score')">악보</div>
   </div>
 
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
@@ -828,6 +869,12 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <div class="note" id="bnote"></div>
   </div>
 
+  <div id="side-score" style="display:none">
+    <div id="sc_side"></div>
+    <button class="go" onclick="mkStart()">이 환자로 시작</button>
+    <div class="note" id="sc_note"></div>
+  </div>
+
   <div id="side-make" style="display:none">
     <label>불러오기</label>
     <select id="mk_from"><option value="">— 빈 판에서 시작 —</option></select>
@@ -868,6 +915,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   </div>
   <div id="pane-batch" style="display:none"><div id="bout" class="empty">왼쪽에서 배치를 실행한다.</div></div>
   <div id="pane-make" style="display:none"><div id="mk_body"></div></div>
+  <div id="pane-score" style="display:none"><div id="sc_body"></div></div>
   <div id="pane-deck" style="display:none"><div id="dk_body"></div></div>
  </div>
 
@@ -3167,8 +3215,48 @@ function growBeat(S){
 //@ 스토리.쉼 — 아무 일도 하지 않는 것이 값인 비트
 const BEAT_REST = {'같은 박자':1};
 
+/* diseaseAct 가 모르는 이름을 받았을 때 돌려주는 줄의 머리.
+   검사기가 이 말로 찾으므로 두 곳에 따로 적지 않는다 */
+const BEAT_UNKNOWN = '모르는 박자';
+
+/* 병이 쓸 수 있는 박자 한 벌 — diseaseAct 가 '이름으로' 다루는 것이 여기 전부다.
+   「만들기 · 악보」가 고를 수 있는 것도 이 목록이고, 불변 조건이 이 목록을 훑는다.
+   「병기 가속」·「가속」은 「진행」과 같은 비트다 — 셋 다 받지만 대표 이름 하나만 여기 둔다.
+   설명문은 화면 것이라 여기 없다 — BEATDOC(60-text)에 있다.
+   이 층은 자름 커널 구간 안이고, 그 구간의 계약은 화면을 쓰지 않는 것이다. */
+//@ 스토리.박자표 — 병이 쓸 수 있는 박자 한 벌
+const BEAT_LIST = ['분화','성장','고유','같은 박자','진행','창','굳는다','몰린다',
+                   '엮는다','번진다','아문다','치민다','가라앉는다'];
+
+/* 이 병기가 따르는 악보. 판에 손으로 짠 악보가 실려 있으면 그것이 먼저다 —
+   「만들기 · 악보」가 board.score 에 넣는다. 없으면 고른 병 노드의 악보를 본다.
+   ★ 예전에는 뒤쪽 폴백이 b[dis.stage0] 이었는데, stage0 은 보스 정의에만 있고
+     병 노드에는 없는 열쇠라 늘 undefined 였다 — 즉 한 번도 돈 적 없는 갈래다.
+     보스의 첫 병기를 보라는 뜻이 분명하므로 BOSS[].stage0 으로 바로잡았다.
+     이 갈래는 악보에 없는 병기로 커스텀 판을 세울 때만 닿는다. */
+//@ 스토리.악보 — 이 병기가 따르는 악보
+function scoreOf(S, stage){
+  const own = S.board && S.board.score;
+  if(own && own[stage] && own[stage].length) return own[stage];
+  const b = BOSS[S.board.boss];
+  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+}
+
 //@ 스토리.박자 — 병이 이번 턴에 무엇을 하는가
-function nextBeat(S,dis){ const b=BOSS[S.board.boss].beats; const sc=b[dis.stage]||b[dis.stage0]||['분화','고유']; return sc[dis.beat % sc.length] }
+function nextBeat(S,dis){ const sc=scoreOf(S,dis.stage); return sc[dis.beat % sc.length] }
+
+/* 손으로 짠 악보를 판에 싣기 전에 훑는다 — 모르는 이름과 빈 병기를 떨군다.
+   화면이 무엇을 넣든 커널에 들어오는 것은 BEAT_LIST 안의 이름뿐이다. */
+//@ 스토리.악보검사 — 손으로 짠 악보를 훑는다
+function scoreClean(sc){
+  if(!sc) return null;
+  const out = {}; let any = false;
+  for(const st in sc){
+    const line = (sc[st]||[]).filter(b=>BEAT_LIST.includes(b));
+    if(line.length){ out[st] = line; any = true }
+  }
+  return any ? out : null;
+}
 
 function diseaseAct(S, dis, act){
   const b = BOSS[S.board.boss];
@@ -3262,7 +3350,13 @@ function diseaseAct(S, dis, act){
   }
   if(beat==='성장') return growBeat(S);
   if(BEAT_REST[beat]) return beat;                  // 쉬는 비트 — 아무것도 하지 않는 것이 값이다
-  return b.unique(S, dis) || growBeat(S);           // 고유가 헛돌면 성장으로 대신한다
+  if(beat==='고유') return b.unique(S, dis) || growBeat(S);   // 고유가 헛돌면 성장으로 대신한다
+  /* 여기까지 왔다면 이 자가 모르는 이름이다. 악보를 손으로 짤 수 있게 된 뒤로는
+     오타나 옛 이름이 여기 닿을 수 있다 — 전에는 그대로 「고유」로 새서, 병이 엉뚱한
+     한 수를 두고도 아무도 몰랐다. 성장으로 받되 이름을 적어 돌려준다.
+     불변 조건이 이 줄을 찾아 BEAT_LIST 와 diseaseAct 가 갈라졌는지 본다. */
+  growBeat(S);
+  return `${BEAT_UNKNOWN} 「${beat}」 — 성장으로 대신한다`;
 }
 
 function stageUp(S, dis){
@@ -3928,7 +4022,7 @@ const SYMDOC = {
   탈수:     {label:'안정화 나누기', step:0.5,
              why:()=>`살아 있는 동안 안정화가 쌓는 값을 이 수로 나눈다. 지금 값 ${R.DEHY_STAB} 이면 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.<br>진화하면 이 자리의 보호막을 아예 못 깎는다.`},
   발열:     {label:'진화 수치 배수', step:0.1,
-             why:()=>`진화하는 턴에 수치가 이 배수만큼 뛴다.<br>매 턴 피해는 공격 증상 공통값(수치의 <b>${pctOf(R.ATK_K)}</b>)을 쓴다.`},
+             why:()=>`진화하는 턴에 수치가 이 배수만큼 뛴다.<br>매 턴 피해는 <b>최대 ${R.TURN_DMG.발열}</b>에 남은 수치 몫을 곱해서 낸다 — 수치가 뛰면 피해도 따라 뛴다.`},
   통증:     {label:'처치선 배율', step:0.05,
              why:()=>`살아 있는 동안 판 전체의 처치선에 이 값을 곱한다. 여러 자리면 곱연산으로 겹친다.<br>하한은 규칙값(지금 <b>${pctOf(R.PAIN_FLOOR)}</b>)이다.<br>진화하면 통증 말고는 아무것도 처치할 수 없다.`},
   호흡곤란: {label:'드로우 감소', step:1,
@@ -3937,7 +4031,7 @@ const SYMDOC = {
 
 /* 진화한 자리가 무엇을 하는가 — 그 자리의 실제 값으로 적는다 */
 const EVOTXT_F = {
-  발열:     n=>`수치가 <b>${sp(n,'발열')}배</b>로 뛴 상태다. 매 턴 피해는 그대로 수치의 ${pctOf(R.ATK_K)}.`,
+  발열:     n=>`수치가 <b>${sp(n,'발열')}배</b>로 뛴 상태다. 매 턴 피해도 그만큼 커졌다 — 최대 ${R.TURN_DMG.발열} 에 초기값 대비 수치 몫을 곱한다.`,
   출혈:     n=>`매 턴 성장이 <b>${pctOf(sp(n,'출혈'))}</b>로 ${R.EVO_BLEED_ACC}배가 됐다. 클수록 더 빨리 큰다.`,
   감염:     n=>`만드는 총 성장이 <b>현재 수치의 ${pctOf(sp(n,'감염')*R.EVO_X2)}</b>로 ${R.EVO_X2}배가 됐다. 자기 진단 요구도 ${R.EVO_INF_DIAG} 올랐다.`,
   탈수:     n=>`이 자리의 보호막을 <b>아예 깎을 수 없다</b>. 안정화가 통하지 않는다.`,
@@ -3947,12 +4041,52 @@ const EVOTXT_F = {
 
 /* ── 증상 설명 ── */
 const SYMTIP = {
- get 발열(){ return `공격 증상. 매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>진화하면 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛴다.` },
- get 출혈(){ return `공격 증상. 매 턴 수치의 ${pctOf(R.ATK_K)}만큼 환자를 때린다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.<br>진화하면 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.` },
+ get 발열(){ return `공격 증상. 매 턴 <b>최대 ${R.TURN_DMG.발열}</b>만큼 환자를 때린다 — 실제 피해는 <b>남은 수치에 비례</b>한다(올림). 눌러 두면 덜 아프다.<br>진화하면 수치가 ${numOf(R.EVO_FEVER_GROW)}배로 뛰고 피해도 따라 뛴다.` },
+ get 출혈(){ return `공격 증상. 매 턴 <b>최대 ${R.TURN_DMG.출혈}</b>만큼 환자를 때린다 — 실제 피해는 <b>남은 수치에 비례</b>한다(올림).<br>수치가 초기값을 넘으면 그 최대치도 넘어간다. 수치 상한이 ${numOf(R.VAL_CAP)}배이므로 끝까지 부풀면 ${Math.ceil(R.TURN_DMG.출혈*R.VAL_CAP)} 까지 간다 — 방치하면 아파진다.<br>매 턴 <b>현재 수치의 일정 비율</b>만큼 스스로 자란다 — 늦게 손대면 손을 못 댄다.<br>비율은 자리마다 다를 수 있다. 표식의 성장률을 본다.<br>진화하면 성장이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.` },
  get 감염(){ return `다른 모든 자리에 성장률을 얹는다. 진화하면 ${R.EVO_X2}배.<br>진화 시 자기 진단 요구 스택이 ${R.EVO_INF_DIAG} 오른다.` },
  get 탈수(){ return `살아 있는 동안 안정화가 쌓는 값을 나눈다. 기본은 ${R.DEHY_STAB} 로 나눠 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.<br>진화하면 이 자리의 보호막을 아예 벗길 수 없다.` },
  get 통증(){ return `살아 있는 동안 판 전체의 처치선을 낮춘다(겹치면 곱연산, 하한 ${pctOf(R.PAIN_FLOOR)}).<br>진화하면 통증 말고는 아무것도 처치할 수 없다.` },
  get 호흡곤란(){ return `살아 있는 동안 턴 드로우를 깎는다. 기본은 ${R.DRAW_CUT}장이다.<br>진화하면 ${R.EVO_X2}배로 깎는다.` },
+};
+
+/* ── 병 노드 박자 설명 ─────────────────────────────────────────
+   「만들기 · 악보」가 패턴마다 이 표를 띄운다.
+   고를 수 있는 이름의 목록은 여기가 아니라 BEAT_LIST(30-core/story.js)가 쥔다 —
+   그쪽이 diseaseAct 가 실제로 다루는 것이고, 여기는 그 이름의 뜻풀이다.
+   목록이 갈라지지 않는지는 sim_check 불변 조건이 본다. */
+//@ 문안.박자 — 병 노드 박자의 뜻풀이
+const BEATDOC = {
+  '분화':   {label:'자리를 하나 늘린다',
+    why:()=>`명부가 있는 병기는 <b>빈 자리를 명부대로</b> 채우고, 명부가 없으면 자리 상한까지 <b>새 자리를 뿜는다</b>.<br>자리가 다 찼으면 헛돌지 않고 「성장」으로 대신한다.`},
+  '성장':   {label:'살아 있는 자리가 전부 자란다',
+    why:()=>`부수 자리마다 <b>제 초기값의 ${pctOf(SR.BEAT.성장)}</b>만큼 오른다. 수치 상한(초기값 ${numOf(R.VAL_CAP)}배)에서 잘린다.<br><br>다른 비트가 헛돌 때 대신 나오는 것도 이 비트다 — 병이 노는 턴을 만들지 않기 위한 바닥이다.`},
+  '고유':   {label:'이 병만의 한 수',
+    why:()=>`고른 병 노드마다 다르다. 헛돌면 「성장」으로 대신한다.<br><br>
+      <b>아이</b> · 병기3 「파고든다」 신경계 자리의 진화 시계를 ${SR.BEAT_EVO_PULL} 당긴다<br>
+      <span class="d">　　</span>병기4 「알아듣지 못한다」 정신을 한 단계 무너뜨린다<br>
+      <span class="d">　　</span>병기5 「터진다」 재워 둔 자리가 다시 일어난다<br>
+      <b>어부</b> 「긁는다」 활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이면 이차 감염이 앉는다<br>
+      <b>송이</b> 「지금이면 괜찮아진다」 재워 둔 자리를 깨우고 정신을 무너뜨린다`},
+  '같은 박자': {label:'쉰다',
+    why:()=>`아무 일도 하지 않는 것이 이 비트의 값이다.<br>「창」이 쓸어 간 판을 한 턴 비워 두는 자리로 쓴다 — 숨을 돌릴 틈이 없으면 창이 벌이 아니라 사고가 된다.<br><br><span class="d">검사기도 이 비트만은 「헛돈다」로 세지 않는다.</span>`},
+  '진행':   {label:'병기 시계를 당긴다',
+    why:()=>`시계를 <b>${SR.BEAT_CLOCK}</b> 당긴다. 그 턴의 자연 감소 1 과 겹쳐 합쳐 ${SR.BEAT_CLOCK+1} 이 된다.<br><br><span class="d">「병기 가속」·「가속」이라 적어도 같은 비트다.</span>`},
+  '창':     {label:'판이 무너진다',
+    why:()=>`부수 자리가 <b>전부 죽는다</b>. 휴면이 아니라 사망이다.<br>3막에서만, 그리고 창 기믹이 켜져 있을 때만 돈다 — 아니면 「성장」으로 대신한다.<br><br>창이 만든 빈 판은 <b>연명으로 쳐 주지 않는다</b>. 병이 자리를 다시 세울 때까지 판정이 열리지 않는다.`},
+  '굳는다': {label:'벗겨진 보호막을 다시 두른다',
+    why:()=>`감쌈이 벗겨진 자리를 전부 다시 덮는다. 쌓아 둔 안정화는 <b>0 으로 돌아간다</b>.<br>덮을 자리가 없으면 「성장」으로 대신한다.`},
+  '몰린다': {label:'가장 옅은 자리 하나만 크게',
+    why:()=>`수치가 가장 낮은 자리 하나가 <b>제 초기값의 ${pctOf(SR.BEAT.몰린다)}</b>만큼 오른다.<br>거의 잡아 둔 자리를 다시 세우는 비트다.`},
+  '엮는다': {label:'자리 둘 사이에 촉발 배선을 놓는다',
+    why:()=>`살아 있는 증상 둘을 골라 촉발 연결선(가속·경화·점화 중 하나)을 새로 놓는다. 이 선은 <b>숨지 않는다</b>.<br>증상이 둘 미만이거나 더 엮을 짝이 없으면 「성장」으로 대신한다.`},
+  '번진다': {label:'통증 자리만 골라 오른다',
+    why:()=>`살아 있는 <b>통증</b> 자리가 전부 제 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 오른다.<br>통증이 하나도 없으면 「성장」으로 대신한다.`},
+  '아문다': {label:'가장 옅은 자리가 스스로 가라앉는다',
+    why:()=>`수치가 가장 낮은 자리 하나가 <b>휴면</b>으로 간다. ${R.DORMANT}턴 뒤 초기값으로 되살아난다.<br>병이 제 자리를 스스로 재우는 비트다 — 벌이 아니라 박자다.`},
+  '치민다': {label:'전부 오르고 정신이 무너진다',
+    why:()=>`살아 있는 자리가 전부 <b>제 초기값의 ${pctOf(SR.BEAT.치민다)}</b>만큼 오르고, 정신이 한 단계 무너진다.<br>금단의 정점 자리다.`},
+  '가라앉는다': {label:'전부 내려간다',
+    why:()=>`살아 있는 자리가 전부 제 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 내려간다. <b>1 아래로는 안 간다</b> — 저절로 죽지는 않는다.<br>정점을 지나면 저절로 내려가는 결이다.`},
 };
 
 //@ 파일.60-text/rule-doc
@@ -4053,8 +4187,10 @@ const RULE_DOC = {
   INF_G:'감염이 만드는 총 성장 — 현재 수치의 이 비율을 다른 자리들이 나눠 갖는다',
   GROW_HOLD:'성장 정지 지속 턴 — 「멈춰!」', NOATK_G:'공격 증상이 없는 판의 기본 성장률',
   VAL_CAP:'노드 수치 상한 — 초기값의 몇 배까지',
-  ATK_K:'발열·출혈이 매 턴 때리는 몫 (수치의 몇 배)',
-  EVO_HIT:'진화 즉발 피해 — 진화 시점 수치의 몇 배', EVO_FEVER_GROW:'발열 진화 시 수치 배수',
+  ATK_K:'점화(촉발선)가 때리는 몫 — 턴당 피해는 TURN_DMG 로 옮겼다',
+  TURN_DMG:'증상별 턴당 최대 피해 — 실제 피해는 남은 수치 몫만큼 깎인다',
+  TURN_DMG_MIN:'최대 피해가 있는 자리가 살아 있는 한 때리는 바닥',
+  EVO_HIT:'진화 즉발 피해 — 수치를 보지 않는 고정값', EVO_FEVER_GROW:'발열 진화 시 수치 배수',
   EVO_BLEED_ACC:'출혈 진화 시 성장 배수', DORMANT:'휴면에서 돌아오는 데 걸리는 턴',
   SHIELD_CUT:'보호막 경감률', SHIELD_MAX:'보호막을 벗기는 데 드는 안정화',
   DEHY_STAB:'탈수 — 안정화를 나누는 수',
@@ -4103,7 +4239,7 @@ const RULE_DOC = {
 const RULE_GROUP = {
   R:[['처치와 처치선', ['KILL_LINE','KILL_COST','REFUND','SWEEP_CAP','SWEEP_K','DIS_KILL_LINE','DIS_SHIELD','WEAK_STACK','WEAK_STACK_DIS','WEAK_LINE_MAX','PAIN_T','PAIN_FLOOR','PAIN_STACK']],
      ['성장과 진화', ['BLEED_G','BLEED_ABS','INF_G','GROW_HOLD','NOATK_G','VAL_CAP','EVO_HIT','EVO_FEVER_GROW','EVO_BLEED_ACC','EVO_X2','EVO_INF_DIAG','DORMANT']],
-     ['피해와 정신', ['ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_CUT']],
+     ['피해와 정신', ['TURN_DMG','TURN_DMG_MIN','ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_CUT']],
      ['보호막과 안정화', ['SHIELD_CUT','SHIELD_MAX','DEHY_STAB']],
      ['손과 코스트', ['ENERGY','HAND','DRAW_CUT','PLAY_CAP']],
      ['진단과 재진', ['DIAG_NEED','DIAG_NEED_UP','DIAG_CUT_R2','DIAG_CUT_LATE','DIAG_DEMOTE_ROUND','DIAG_DEEP_MAX']],
@@ -4163,6 +4299,12 @@ const PATCH_NOTES = [
 *송이의 진화 레벨이 거꾸로 걸려 있던 것을 바로잡았다
 
 시뮬레이터
+
+-「악보」 탭 추가 — 병 노드가 매 턴 무엇을 할지 직접 짠다
+*병기마다 악보가 따로 있고, 기본값은 고른 병 노드의 악보다
+*패턴 순서 바꾸기 · 악보 길이 늘리고 줄이기 · 슬롯마다 갈아 끼우기
+*쓸 수 있는 패턴 열셋을 서랍에 늘어놓고, 이름 위에 손을 올리면 무엇을 하는지 나온다
+*짠 악보는 「이 환자로 시작」에 그대로 실린다
 
 -전투 화면 재구성
 `},
@@ -4329,7 +4471,7 @@ const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 /* 모드별 판 보관 — 탭을 옮겨도 진행 중인 판이 남는다 (v19 는 매번 새 판을 깔았다) */
 //@ 화면.패널 — §9.5 모드별 판 · 가방 상한
 const PANES = {one:{started:false}, sess:{started:false}, story:{started:false},
-               batch:{started:true}, make:{started:true}};
+               batch:{started:true}, make:{started:true}, score:{started:true}};
 
 /* ── 수치 물들이기 ─────────────────────────────────────────────
    바탕값(규칙이 정한 값 · 카드에 적힌 값)과 지금 값이 다르면 색으로 알린다.
@@ -4837,6 +4979,7 @@ function render(){
   if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }
   if(MODE==='make'){ renderMake(); return }
+  if(MODE==='score'){ renderScore(); return }
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
@@ -5894,8 +6037,12 @@ function newStory(){
   setupDeck(S, STORY_DECK, mulberry32(seed+1)); S.rng=rng;
   S.param=0; S.evid=1; S.paramAcc=0; S.act=1; S.policy=null; S.act1Beat=0; S.comfort=0;
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.story.started=true;
-  const b = BOSS[BOARD.boss] || {name:CUSTOM.name, stage0:BOARD.nodes[0].stage, hp:BOARD.hp, noDeath:BOARD.noDeath};
-  log(`<b>${b.name}</b> · 병기 ${BOARD.nodes[0].stage} · 체력 ${b.hp}${BOARD.noDeath?' <span class="d">(체력 0이 되지 않는다)</span>':''}${ovrNote()}`);
+  /* 커스텀 판은 악보만 보스에게 빌려 쓴다 — 이름과 체력은 만든 것을 적는다.
+     전에는 BOARD.boss 로 BOSS 를 찾아서, 만든 환자인데 「쓰러진 아이 · 체력 120」이라 적혔다 */
+  const b = key==='custom' ? {name:CUSTOM.name, hp:BOARD.hp, noDeath:BOARD.noDeath} : BOSS[BOARD.boss];
+  log(`<b>${b.name}</b> · 병기 ${BOARD.nodes[0].stage} · 체력 ${b.hp}`
+    + `${BOARD.noDeath?' <span class="d">(체력 0이 되지 않는다)</span>':''}`
+    + `${BOARD.score?' <span class="d">· 손으로 짠 악보</span>':''}${ovrNote()}`);
 
   /* 3막부터 시작 — v18 의 「3막만 돌린다」 자리 */
   const pol = $('sk_pol').value;
@@ -6187,7 +6334,7 @@ document.addEventListener('keydown', e=>{
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   /* 카드팩 편성 중 — Esc 는 펼친 대체 풀을 먼저 닫고, 없으면 편성을 무른다 */
   if(PK){ if(e.key==='Escape'){ e.preventDefault(); PK.open ? pkClose() : pkCancel() } return }
-  if(DB || MODE==='batch' || MODE==='make' || !S) return;
+  if(DB || MODE==='batch' || MODE==='make' || MODE==='score' || !S) return;
   const inFight = MODE!=='sess' || (SESS && SESS.phase==='fight');
   const k=e.key;
   if(k==='Escape'){ e.preventDefault(); cancelPick(); return }
@@ -6209,7 +6356,7 @@ document.addEventListener('keydown', e=>{
 /* ═══ 모드 · 그리기 ══════════════════════════════════════════ */
 //@ 화면.모드 — §9.17 탭 갈아타기
 function showPane(m){
-  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-deck']){
+  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-score','pane-deck']){
     const e=$(id); if(e) e.style.display='none';
   }
   $('pane-'+m).style.display='';
@@ -6223,7 +6370,7 @@ function setMode(m){
   const P = PANES[m]||{};
   S=P.S||null; BOARD=P.BOARD||null; SEL=P.SEL??null; LOG=P.LOG||[]; UNDO=P.UNDO||[]; SESS=P.SESS||null;
   for(const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.m===m);
-  for(const id of ['side-one','side-sess','side-story','side-batch','side-make']){
+  for(const id of ['side-one','side-sess','side-story','side-batch','side-make','side-score']){
     const e=$(id); if(e) e.style.display='none';
   }
   $('side-'+m).style.display='';
@@ -8146,13 +8293,22 @@ async function batchStory(){
    v18 의 cbuild 자리. 판을 손으로 짜서 규칙을 시험한다 —
    질환도감의 한 항목을 판으로 옮겨 볼 때 쓰는 통로다. */
 //@ 화면.만들기 — §9.20 환자 직접 짜기
+/* score = 병기별 악보. null 이면 고른 병 노드의 악보를 그대로 쓴다.
+   scoreFrom = 그 악보를 어느 병 노드에서 떠 왔는가 (「악보」 탭이 갈림을 알린다) */
 let CUSTOM = {
-  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[],
+  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
   nodes:[{sym:'발열', init:65, evo:4, shielded:true, grow:0, p:''},
          {sym:'통증', init:50, evo:5, shielded:true, grow:0, p:''}],
   enh:[],
   dis:null,
 };
+
+/* 알림 줄 — 「만들기」와 「악보」 두 곁판에 같은 말을 띄운다.
+   mkStart 는 두 곳에서 부르는데 전에는 mk_note 에만 적어서,
+   악보 탭에서 누르면 실패해도 아무 말이 없었다 */
+function mkNote(txt){
+  for(const id of ['mk_note','sc_note']){ const e=$(id); if(e) e.textContent=txt }
+}
 
 function mkSet(path, v){
   const seg=path.split('.'); let o=CUSTOM;
@@ -8174,6 +8330,8 @@ function mkDelEnh(i){ CUSTOM.enh.splice(i,1); renderMake() }
 function mkToggleDis(){
   CUSTOM.dis = CUSTOM.dis ? null
     : {boss:'아이', stage:3, stageMax:5, init:SR.DIS_BASE[3], clock:SR.STAGE_TURNS, noDeath:true};
+  /* 병 노드를 끄면 악보도 함께 버린다 — 붙을 데가 없는 악보는 남겨 두면 거짓말이 된다 */
+  if(!CUSTOM.dis){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
   renderMake();
 }
 
@@ -8189,17 +8347,17 @@ function mkLoadFrom(){
   const p=SCRIPT[id], b=makePatient(id, +$('seed').value);
   CUSTOM = {name:p.name, hp:b.hp, level:p.lv, core:p.core, talk:p.talk??3, tags:(p.tags||[]).slice(),
     nodes:b.nodes.map(n=>({sym:n.sym, init:n.init, evo:n.evo, shielded:n.shielded, grow:n.grow})),
-    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:e.k})), dis:null};
-  $('mk_note').textContent = `${p.name} 을(를) 본으로 가져왔다.`;
+    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:e.k})), dis:null, score:null, scoreFrom:null};
+  mkNote(`${p.name} 을(를) 본으로 가져왔다.`);
   renderMake();
 }
 
-function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); $('mk_note').textContent='JSON 으로 내보냈다.' }
+function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); mkNote('JSON 으로 내보냈다.') }
 
 function mkFromJson(){
   try{ const o=JSON.parse($('mk_json').value); if(!o.nodes) throw new Error('nodes 가 없다');
-       CUSTOM=o; $('mk_note').textContent='읽어들였다.'; renderMake() }
-  catch(e){ $('mk_note').textContent='읽지 못했다 — '+e.message }
+       CUSTOM=o; mkNote('읽어들였다.'); renderMake() }
+  catch(e){ mkNote('읽지 못했다 — '+e.message) }
 }
 
 function buildCustom(){
@@ -8227,6 +8385,10 @@ function buildCustom(){
       spawned:false, stage:+d.stage, stageMax:+d.stageMax, stageClock:+d.clock, beat:0};
     board.nodes = [dis, ...syms];
     board.boss = d.boss; board.core='병'; board.noDeath = !!d.noDeath;
+    /* 손으로 짠 악보가 있으면 판에 싣는다 — scoreOf 가 보스 악보보다 먼저 본다.
+       모르는 이름과 빈 병기는 scoreClean 이 떨군다 */
+    const sc = scoreClean(CUSTOM.score);
+    if(sc) board.score = sc;
   }
   board.S = S_of({nodes:syms, enh:board.enh, evoBase:board.evoBase});
   board.lvCalc = lv_of(board.S);
@@ -8235,7 +8397,7 @@ function buildCustom(){
 
 function mkStart(){
   const b = buildCustom();
-  if(!b.nodes.length){ $('mk_note').textContent='자리가 하나는 있어야 한다.'; return }
+  if(!b.nodes.length){ mkNote('자리가 하나는 있어야 한다.'); return }
   if(CUSTOM.dis){ $('boss').value='custom'; PANES.story.started=true; setMode('story'); newStory() }
   else { $('src').value='custom'; PANES.one.started=true; setMode('one'); newGame() }
 }
@@ -8291,7 +8453,9 @@ function renderMake(){
         <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`
-    + (CUSTOM.dis ? `<div class="note">악보(분화·고유·진행)는 고른 보스의 것을 빌려 쓴다. 병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.</div>
+    + (CUSTOM.dis ? `<div class="note">악보는 고른 병 노드의 것을 밑그림으로 쓴다. 「악보」 탭에서 병기마다 고쳐 짤 수 있다 ${CUSTOM.score?'— <b>지금 손댄 악보가 실려 있다</b>':''}.<br>
+         병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.
+         <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
          <label class="mk">시작 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
@@ -8303,6 +8467,195 @@ function renderMake(){
   $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join('');
   renderAIW();
 }
+
+//@ 파일.80-tools/score
+
+/* ══════════════════════════════════════════════════════════════════
+   §9.21 악보 짜기
+   ══════════════════════════════════════════════════════════════════ */
+/* ═══ 악보 ═══════════════════════════════════════════════════
+   병이 매 턴 무엇을 하는가. 병기마다 악보가 하나 있고, 한 턴에 한 비트씩
+   나아가다 끝에 닿으면 처음으로 돌아온다. 병기가 오르면 다시 1번부터다.
+
+   여기서 짠 악보는 CUSTOM.score 에 얹히고 buildCustom 이 board.score 로
+   판에 싣는다. 판에 악보가 실려 있으면 scoreOf(30-core/story.js)가 그것을
+   먼저 보므로, 고른 병 노드의 악보는 밑그림 노릇만 한다.
+
+   고를 수 있는 이름은 BEAT_LIST 가, 그 뜻풀이는 BEATDOC(60-text)가 쥔다 —
+   여기에 목록을 또 적지 않는다. 두 벌로 적으면 언젠가 갈라진다. */
+//@ 화면.악보 — §9.21 병 노드 악보 짜기
+
+/* 지금 손대는 병기. 패턴 서랍이 여기 끝에 붙인다 */
+let SCORE_AIM = null;
+/* 악보 하나에 둘 수 있는 비트 수. 시계보다 길어도 되지만 끝이 없으면 표가 무너진다 */
+const SCORE_MAX = 16;
+
+/* 편집할 병기 — 시작 병기부터 최대 병기까지. 손으로 뒤집어 적어도 견딘다 */
+function scStages(){
+  const d = CUSTOM.dis; if(!d) return [];
+  const a = Math.max(3, Math.min(5, +d.stage    || 3));
+  const b = Math.max(3, Math.min(5, +d.stageMax || a));
+  const out = [];
+  for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
+  return out;
+}
+
+/* 밑그림 — 고른 병 노드가 그 병기에 쓰는 악보.
+   scoreOf 의 폴백과 같은 차례로 찾는다. 둘이 갈리면 화면이 거짓말을 한다 */
+function scBase(st){
+  const b = BOSS[CUSTOM.dis.boss];
+  return (b.beats[st] || b.beats[b.stage0] || ['분화','고유']).slice();
+}
+
+/* 그 병기의 악보. 아직 손대지 않았으면 밑그림을 그대로 깐다 —
+   「기본값은 고른 병 노드의 악보」가 여기 한 줄이다 */
+function scLine(st){
+  if(!CUSTOM.dis) return [];
+  if(!CUSTOM.score) CUSTOM.score = {};
+  if(!CUSTOM.score[st] || !CUSTOM.score[st].length){
+    CUSTOM.score[st] = scBase(st);
+    if(!CUSTOM.scoreFrom) CUSTOM.scoreFrom = CUSTOM.dis.boss;
+  }
+  return CUSTOM.score[st];
+}
+
+function scSet(st, i, v){ scLine(st)[i] = v; SCORE_AIM = st; renderScore() }
+
+/* 앞뒤로 민다. 끝에서 밀면 반대편으로 돈다 — 악보는 돌아가는 것이라 그 결이 맞다 */
+function scMove(st, i, d){
+  const L = scLine(st), j = (i + d + L.length) % L.length;
+  const x = L[i]; L[i] = L[j]; L[j] = x;
+  SCORE_AIM = st; renderScore();
+}
+
+function scDel(st, i){
+  const L = scLine(st);
+  if(L.length <= 1) return;              // 빈 악보는 둘 수 없다 — 병이 할 일이 없어진다
+  L.splice(i, 1); SCORE_AIM = st; renderScore();
+}
+
+function scAdd(st, beat){ scLine(st).push(beat || '성장'); SCORE_AIM = st; renderScore() }
+
+/* 길이를 맞춘다. 늘릴 때는 앞에서부터 되풀이해 채운다 */
+function scLen(st, n){
+  n = Math.max(1, Math.min(SCORE_MAX, Math.floor(+n) || 1));
+  const L = scLine(st), base = L.length;
+  while(L.length > n) L.pop();
+  while(L.length < n) L.push(L[L.length % base]);
+  SCORE_AIM = st; renderScore();
+}
+
+function scReset(st){ CUSTOM.score[st] = scBase(st); SCORE_AIM = st; renderScore() }
+
+function scResetAll(){
+  CUSTOM.score = {};
+  CUSTOM.scoreFrom = CUSTOM.dis ? CUSTOM.dis.boss : null;
+  renderScore();
+}
+
+/* 만들기 쪽 병 노드 손잡이를 여기서도 돌린다 — 탭을 오갈 일을 줄인다 */
+function scSetDis(k, v){ mkSet('dis.'+k, v); renderScore() }
+
+function scOn(){ if(!CUSTOM.dis) mkToggleDis(); renderScore() }
+
+/* ── 그리기 ── */
+function renderScore(){
+  tipReset();
+  const host = $('sc_body');
+  if(!host) return;
+
+  if(!CUSTOM.dis){
+    host.innerHTML =
+      `<div class="chart">악보 — 병 노드가 없다</div>
+       <div class="note">악보는 병 노드가 매 턴 무엇을 하는가다. 병 노드를 켜야 짤 것이 생긴다.<br>
+         「만들기」의 병 노드를 켜거나, 아래 단추로 바로 켠다.</div>
+       <button onclick="scOn()">병 노드를 켠다</button>`;
+    $('sc_side').innerHTML = '';
+    $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+    return;
+  }
+
+  const d = CUSTOM.dis, sts = scStages();
+  if(SCORE_AIM === null || !sts.includes(SCORE_AIM)) SCORE_AIM = sts[0];
+
+  /* 밑그림을 뜬 뒤에 병 노드를 갈아 끼웠는가 — 손댄 악보를 말없이 지우지 않는다 */
+  const drift = CUSTOM.scoreFrom && CUSTOM.scoreFrom !== d.boss;
+
+  const opt = (b, cur) => BEAT_LIST.map(x =>
+    `<option value="${esc(x)}" ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
+  const doc = b => {
+    const e = BEATDOC[b];
+    return e ? TT(b + ' · ' + e.label, e.why()) : TT(b, '설명이 아직 없는 박자다.');
+  };
+
+  let h = `<div class="chart">악보 — ${esc(CUSTOM.name)} · 밑그림 <b>${esc(d.boss)}</b>`
+        + ` · 병기 ${sts[0]}${sts.length>1?`~${sts[sts.length-1]}`:''}</div>
+     <div class="note">한 턴에 한 비트씩 나아가고, 끝에 닿으면 처음으로 돌아온다.
+       병기가 오르면 다시 1번부터다. 병기 시계는 ${SR.STAGE_TURNS}턴.<br>
+       헛도는 비트는 「성장」으로 대신 나간다 — 병이 통째로 노는 턴은 만들지 않는다.</div>`;
+
+  if(drift) h += `<div class="note" style="color:var(--alarm)">
+      밑그림은 <b>${esc(CUSTOM.scoreFrom)}</b> 의 악보인데 지금 고른 병 노드는 <b>${esc(d.boss)}</b> 다.
+      「고유」는 <b>${esc(d.boss)}</b> 의 한 수로 나간다.
+      <button class="mini" onclick="scResetAll()">${esc(d.boss)} 의 악보로 다시 깐다</button></div>`;
+
+  for(const st of sts){
+    const L = scLine(st), n = L.length, aim = st === SCORE_AIM;
+    const fit = n === SR.STAGE_TURNS ? `시계와 딱 맞는다 — 매 병기가 같은 흐름이다`
+      : n < SR.STAGE_TURNS ? `시계가 다 돌기 전에 악보가 한 바퀴 돈다 — 앞 ${SR.STAGE_TURNS-n}박자가 한 번 더 나온다`
+      : `뒤 ${n-SR.STAGE_TURNS}박자는 시계가 늘어져야 나온다`;
+    h += `<div class="bar">병기 ${st}${st===+d.stage?' · 시작':''}${st===+d.stageMax?' · 최종':''}
+        <span class="right">
+          <button class="mini" onclick="scAim(${st})"${aim?' disabled':''}>여기에 붙인다</button>
+          <button class="mini" onclick="scReset(${st})">밑그림으로</button>
+        </span></div>
+      <div class="scline${aim?' aim':''}">`
+      + L.map((b,i)=>`<span class="beat">
+            <b class="n">${i+1}</b>
+            <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b,b)}</select>
+            <button class="mini" onclick="scMove(${st},${i},-1)" title="앞으로">◀</button>
+            <button class="mini" onclick="scMove(${st},${i},1)" title="뒤로">▶</button>
+            <button class="mini" onclick="scDel(${st},${i})" title="뺀다"${n<=1?' disabled':''}>×</button>
+          </span>`).join('')
+      + `<button class="mini addb" onclick="scAdd(${st})" title="끝에 한 박자 더">+</button></div>
+      <div class="scfoot">
+        <label class="mk">길이<input type="number" min="1" max="${SCORE_MAX}" value="${n}"
+               onchange="scLen(${st},this.value)"></label>
+        <span class="note">${n}박자 · ${fit}</span>
+      </div>
+      <div class="scflow">${L.map(b=>esc(b)).join(' <span class="d">→</span> ')} <span class="d">↻</span></div>`;
+  }
+
+  h += `<div class="bar">쓸 수 있는 패턴 <span class="right d">누르면 병기 ${SCORE_AIM} 끝에 붙는다</span></div>
+     <div class="note">이름 위에 손을 올리면 그 박자가 무엇을 하는지 나온다.</div>
+     <div class="scpal">`
+    + BEAT_LIST.map(b=>{
+        const e = BEATDOC[b];
+        return `<button class="pal"${tip(doc(b))} onclick="scAdd(${SCORE_AIM},'${esc(b)}')">
+            <b>${esc(b)}</b><span class="d">${e?esc(e.label):''}</span></button>`;
+      }).join('')
+    + `</div>`;
+
+  host.innerHTML = h;
+
+  $('sc_side').innerHTML =
+    `<label>밑그림 병 노드</label>
+     <select onchange="scSetDis('boss',this.value)">${Object.keys(BOSS).map(k=>
+        `<option ${k===d.boss?'selected':''}>${esc(k)}</option>`).join('')}</select>
+     <div class="note">「고유」가 어느 병의 한 수로 나갈지도 이 값이 정한다.</div>
+     <button onclick="scResetAll()">밑그림 악보로 전부 되돌린다</button>
+     <label>병기</label>
+     <div class="row2">
+       <input type="number" min="3" max="5" value="${d.stage}" onchange="scSetDis('stage',this.value)">
+       <input type="number" min="3" max="5" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)">
+     </div>
+     <div class="note">시작 병기 · 최종 병기</div>
+     <button onclick="setMode('make')">만들기로 간다</button>`;
+
+  $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+}
+
+function scAim(st){ SCORE_AIM = st; renderScore() }
 
 //@ 파일.90-boot
 

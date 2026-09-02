@@ -22,7 +22,7 @@ const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 /* 모드별 판 보관 — 탭을 옮겨도 진행 중인 판이 남는다 (v19 는 매번 새 판을 깔았다) */
 //@ 화면.패널 — §9.5 모드별 판 · 가방 상한
 const PANES = {one:{started:false}, sess:{started:false}, story:{started:false},
-               batch:{started:true}, make:{started:true}};
+               batch:{started:true}, make:{started:true}, score:{started:true}};
 
 /* ── 수치 물들이기 ─────────────────────────────────────────────
    바탕값(규칙이 정한 값 · 카드에 적힌 값)과 지금 값이 다르면 색으로 알린다.

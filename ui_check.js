@@ -25,7 +25,7 @@ const exe = (() => {
   return hit;
 })();
 
-const PANES = ['one','sess','story','batch','make'];
+const PANES = ['one','sess','story','batch','make','score'];
 
 async function probe(browser, file){
   const page = await browser.newPage();
@@ -58,6 +58,9 @@ async function probe(browser, file){
   /* ④ 탭 다섯 — 각 탭의 첫 화면 */
   snap.panes = {};
   for(const m of PANES){
+    /* 그 탭이 서기 전의 옛 파일에는 없는 판이다 — 건너뛴다.
+       없는 채로 setMode 를 부르면 showPane 이 null.style 로 터진다 */
+    if(!await page.evaluate(mm => !!document.getElementById('pane-'+mm), m)) continue;
     await page.evaluate(mm=>setMode(mm), m); await page.waitForTimeout(150);
     snap.panes[m] = { side: await text('#side-'+m), pane: await text('#pane-'+m) };
   }

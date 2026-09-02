@@ -16,10 +16,14 @@ h1{position:relative;padding-right:52px;
 /* 이름도 판본도 도중에 끊지 않는다 — 자리가 모자라면 판본이 통째로 아랫줄로 내려간다 */
 h1 .ttl,h1 .ver{white-space:nowrap}
 h1 .ver{color:var(--blood)}
-.tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
-.tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
- cursor:pointer;border-right:1px solid var(--line);color:var(--dim)}
-.tab:last-child{border-right:0}.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
+/* 탭이 여섯이 되면서 250px 한 줄에 안 들어간다 — 줄을 접는다.
+   접힌 줄에도 칸이 고르게 서도록 flex-basis 를 33% 로 잡아 셋씩 앉힌다 */
+.tabs{display:flex;flex-wrap:wrap;gap:0;margin:0 0 14px;border:1px solid var(--line)}
+.tab{flex:1 1 33.33%;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
+ cursor:pointer;border-right:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tab:nth-child(3n){border-right:0}
+.tab:nth-child(n+4){border-top:1px solid var(--line)}
+.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
 label{display:block;font:11px/1 var(--mono);letter-spacing:.1em;color:var(--dim);margin:14px 0 5px;text-transform:uppercase}
 select,input[type=number]{width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:7px 8px;font:13px var(--mono)}
 select:focus,input:focus,button:focus{outline:2px solid var(--t3);outline-offset:1px}
@@ -361,3 +365,39 @@ body.pnon{overflow:hidden}
 .pnrow.big .pngrp li{font-size:15px;line-height:1.8}
 .pnrow.big .pnsub li{font-size:13.5px}
 .pnrow.big .pnempty{font-size:14px}
+
+/* ── 악보 (§9.21) ─────────────────────────────────────────────
+   비트 한 칸 = 번호 + 무엇을 하는가 + 앞뒤로 밀기 + 빼기.
+   고를 수 있는 이름이 열셋이라 이름은 select 가 겸한다 — 이름표와 고르는 칸을
+   따로 두면 같은 말이 두 번 적힌다. 툴팁도 그 select 에 붙는다. */
+.scline{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:6px 0}
+.scline.aim{outline:1px dashed var(--t3);outline-offset:5px}
+.beat{display:flex;align-items:center;gap:2px;border:1px solid var(--line);
+  background:var(--panel);padding:3px 4px 3px 0}
+.beat .n{width:20px;flex:none;text-align:center;font:10px var(--mono);color:var(--dim)}
+.beat select{width:auto;min-width:92px;border:0;background:transparent;padding:4px 2px;font-size:12px}
+.beat select:hover{color:var(--t3)}
+.beat .mini{padding:3px 5px;border-color:transparent;color:var(--dim)}
+.beat .mini:hover{border-color:var(--line);color:var(--ink)}
+.scline .addb{align-self:center;padding:5px 10px}
+
+.scfoot{display:flex;align-items:flex-end;gap:14px;margin:2px 0 0}
+.scfoot .mk{width:88px;flex:none;margin:0}
+.scfoot .note{margin:0 0 7px}
+
+/* 악보 한 줄을 글로도 적어 둔다 — 표를 훑지 않고 흐름만 볼 때가 더 잦다 */
+.scflow{font:11.5px var(--mono);color:var(--ink);background:rgba(61,102,115,.07);
+  border-left:2px solid var(--shield);padding:6px 10px;margin:6px 0 2px;
+  overflow-x:auto;white-space:nowrap}
+.scflow .d{color:var(--dim)}
+
+/* 패턴 서랍 — 쓸 수 있는 것을 통째로 늘어놓는다 */
+.scpal{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;margin:8px 0}
+.scpal .pal{display:flex;flex-direction:column;gap:2px;margin:0;padding:7px 9px;text-align:left}
+.scpal .pal b{font:12px var(--sans);letter-spacing:0}
+.scpal .pal .d{font:10.5px var(--mono);color:var(--dim);letter-spacing:0}
+
+/* 단추 둘을 나란히 앉히는 것은 악보 판에서만 필요하다.
+   .bar .right 로 넓게 걸었더니 손패 줄의 자판 안내(같은 class)까지 flex 가 돼서
+   글이 한 칸 벌어졌다 — 판을 좁혀 둔다 */
+#pane-score .bar .right{display:flex;gap:6px;align-items:center}

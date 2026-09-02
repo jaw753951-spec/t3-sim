@@ -78,6 +78,7 @@ const SCENARIOS = `(() => {
 
   /* ⑥ 커널 손잡이 — 값이 그대로인가 */
   out.knobs = { R: R, SR: SR, SYMPARAM: SYMPARAM, LVTAB: LVTAB, BAND: BAND,
+                BEAT_LIST: typeof BEAT_LIST !== 'undefined' ? BEAT_LIST : null,
                 HP_TAG: L.HP_TAG, ATK_W: L.ATK_W, ATK_TARGET: L.ATK_TARGET, AIW: AIW_DEF,
                 cards: Object.keys(CARDS).length, script: Object.keys(P.SCRIPT).length };
   return out;
@@ -213,6 +214,54 @@ const INVARIANTS = `(() => {
           }
         });
       }
+    }
+    /* ③ㄹ 「악보」 탭이 고르게 해 주는 박자가 전부 실제로 판을 움직이는가.
+       ③ㄷ 는 보스가 지금 쓰는 비트만 본다. 악보를 손으로 짜면 BEAT_LIST 전부를
+       고를 수 있으므로, 목록에만 있고 아무 일도 안 하는 이름이 섞이면 그 턴이
+       통째로 빈다 — 손으로 짠 판에서만 나는 빈 턴이라 ③ㄷ 가 못 잡는다.
+       board.score 에 한 박자짜리 악보를 깔아 재므로 그 경로(scoreOf)도 함께 걸린다.
+       BEAT_LIST 가 서기 전의 옛 파일에서는 건너뛴다. */
+    if (typeof BEAT_LIST !== 'undefined') {
+      for (const boss in BOSS) {
+        const b = BOSS[boss], stage = b.stage0;
+        const full = b.roster ? b.roster[stage].map(r => r[0])
+                              : new Array(SR.SPAWN_LV[SLV(boss, 'spots', stage)]).fill('발열');
+        for (const beat of BEAT_LIST) {
+          if (BEAT_REST[beat]) continue;
+          for (const [what, fill] of [['자리 하나', ['발열']], ['자리가 꽉 참', full]]) {
+            const S = stand(boss, stage, fill, null);
+            S.board.score = { [stage]: [beat] };
+            S.nodes[0].beat = 0;
+            if (nextBeat(S, S.nodes[0]) !== beat)
+              bad.push('판에 실은 악보를 안 본다 — ' + boss + ' 병기' + stage + ' 「' + beat + '」');
+            const before = snap(S);
+            const line = diseaseAct(S, S.nodes[0], null);
+            if (snap(S) === before)
+              bad.push('악보의 박자가 헛돈다 — ' + boss + ' 병기' + stage + ' 「' + beat +
+                       '」 · ' + what + ' → 「' + line + '」');
+            /* 목록에는 있는데 diseaseAct 가 이름으로 안 받는 박자.
+               판은 움직이므로(성장으로 받는다) 위의 헛돔 검사로는 안 걸린다 */
+            if (typeof BEAT_UNKNOWN !== 'undefined' && String(line).startsWith(BEAT_UNKNOWN))
+              bad.push('악보 목록에 있는데 병이 다룰 줄 모른다 — ' + boss + ' 「' + beat + '」');
+          }
+        }
+      }
+
+      /* ③ㅁ 보스가 지금 쓰는 비트가 전부 그 목록 안에 있는가.
+         하나라도 빠지면 「악보」 탭이 그 병의 악보를 그대로 다시 짤 수 없다.
+         「병기 가속」·「가속」은 「진행」의 다른 이름이라 목록에 따로 두지 않는다. */
+      const ALIAS = ['병기 가속', '가속'];
+      for (const boss in BOSS) for (const st in BOSS[boss].beats)
+        for (const beat of BOSS[boss].beats[st])
+          if (!BEAT_LIST.includes(beat) && !ALIAS.includes(beat))
+            bad.push('악보 목록에 없는 박자를 보스가 쓴다 — ' + boss + ' 병기' + st + ' 「' + beat + '」');
+
+      /* ③ㅂ 손으로 짠 악보가 커널에 들어올 때 모르는 이름이 걸러지는가 */
+      const dirty = scoreClean({ 3: ['성장', '없는박자'], 4: [], 5: ['없는것만'] });
+      if (!dirty || JSON.stringify(dirty) !== JSON.stringify({ 3: ['성장'] }))
+        bad.push('scoreClean 이 모르는 이름·빈 병기를 못 떨군다 — ' + JSON.stringify(dirty));
+      if (scoreClean({ 3: ['모르는것'] }) !== null)
+        bad.push('scoreClean 이 남는 것 없는 악보를 null 로 돌려주지 않는다');
     }
   }
 

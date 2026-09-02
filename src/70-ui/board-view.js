@@ -36,6 +36,7 @@ function render(){
   if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }
   if(MODE==='make'){ renderMake(); return }
+  if(MODE==='score'){ renderScore(); return }
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');

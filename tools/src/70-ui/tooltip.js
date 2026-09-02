@@ -57,14 +57,9 @@ function tipFix(panel, html){
   addEventListener('scroll', ()=>{ const b=box(); if(b) b.style.display='none' }, true);
 })();
 
-function beatTip(S,n){
-  const b = nextBeat(S,n);
-  if(b==='고유'){
-    const k = `${S.board.boss}:${n.stage}`;
-    return UNIQTIP[k] || BEATTIP['고유'];
-  }
-  return BEATTIP[b] || null;
-}
+/* 박자가 제 이름으로 악보에 적히므로 여기서 보스·병기를 되짚을 일이 없다 —
+   전에는 「고유」 하나를 받아 UNIQTIP['보스:병기'] 로 갈랐다 */
+function beatTip(S,n){ return BEATTIP[nextBeat(S,n)] || null }
 
 /* ── 방침 ── */
 function policyTip(k){

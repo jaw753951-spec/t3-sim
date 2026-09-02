@@ -399,8 +399,12 @@ body.pnon{overflow:hidden}
 .scflow .d{color:var(--dim)}
 
 /* 패턴 서랍 — 쓸 수 있는 것을 통째로 늘어놓는다 */
-.scpal{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px;margin:8px 0}
-.scpal .pal{display:flex;flex-direction:column;gap:2px;margin:0;padding:7px 9px;text-align:left}
+/* 칸 크기를 고르게 — 요약 줄 길이가 제각각이라 줄마다 높이가 달랐다.
+   grid-auto-rows:1fr 이 줄 높이를 맞추고, 칸은 그 줄을 꽉 채운다 */
+.scpal{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+  grid-auto-rows:1fr;gap:6px;margin:8px 0}
+.scpal .pal{display:flex;flex-direction:column;justify-content:flex-start;gap:2px;
+  margin:0;padding:7px 9px;text-align:left;height:100%}
 .scpal .pal b{font:12px var(--sans);letter-spacing:0}
 .scpal .pal .d{font:10.5px var(--mono);color:var(--dim);letter-spacing:0}
 

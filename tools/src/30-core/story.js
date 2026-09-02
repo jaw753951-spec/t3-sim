@@ -128,8 +128,9 @@ const BEAT_UNKNOWN = '모르는 박자';
    설명문은 화면 것이라 여기 없다 — BEATDOC(60-text)에 있다.
    이 층은 자름 커널 구간 안이고, 그 구간의 계약은 화면을 쓰지 않는 것이다. */
 //@ 스토리.박자표 — 병이 쓸 수 있는 박자 한 벌
-const BEAT_LIST = ['분화','성장','고유','같은 박자','진행','창','굳는다','몰린다',
-                   '엮는다','번진다','아문다','치민다','가라앉는다'];
+const BEAT_LIST = ['분화','성장','같은 박자','진행','창','굳는다','몰린다',
+                   '엮는다','번진다','아문다','치민다','가라앉는다',
+                   ...Object.keys(UNIQ)];   // 고유 한 수도 제 이름으로 고른다
 
 /* 「진행」의 다른 이름들. 악보에 이렇게 적혀 있어도 같은 비트로 돈다.
    diseaseAct 와 검사기와 문안이 이 목록 하나를 본다 — 전에는 셋이 각자 적어 둬서,
@@ -146,7 +147,7 @@ const BEAT_ALIAS = ['병기 가속', '가속'];
 //@ 스토리.보스악보 — 고른 병 노드가 그 병기에 쓰는 악보
 function bossScore(bossKey, stage){
   const b = BOSS[bossKey];
-  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+  return b.beats[stage] || b.beats[b.stage0] || ['분화','성장'];   // 「고유」는 이제 없는 이름이다
 }
 
 //@ 스토리.악보 — 이 병기가 따르는 악보
@@ -260,7 +261,9 @@ function diseaseAct(S, dis, act){
   }
   if(beat==='성장') return growBeat(S);
   if(BEAT_REST[beat]) return beat;                  // 쉬는 비트 — 아무것도 하지 않는 것이 값이다
-  if(beat==='고유') return b.unique(S, dis) || growBeat(S);   // 고유가 헛돌면 성장으로 대신한다
+  /* 고유 한 수 — 악보에 제 이름으로 적힌다. 헛돌면 성장으로 대신한다.
+     전에는 「고유」한 이름으로 적고 고른 병 노드와 병기가 무엇이 나올지 정했다 */
+  if(UNIQ[beat]) return UNIQ[beat](S, dis) || growBeat(S);
   /* 여기까지 왔다면 이 자가 모르는 이름이다. 악보를 손으로 짤 수 있게 된 뒤로는
      오타나 옛 이름이 여기 닿을 수 있다 — 전에는 그대로 「고유」로 새서, 병이 엉뚱한
      한 수를 두고도 아무도 몰랐다. 성장으로 받되 이름을 적어 돌려준다.

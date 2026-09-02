@@ -7,7 +7,7 @@
 
    여기서 짠 악보는 CUSTOM.score 에 얹히고 buildCustom 이 board.score 로
    판에 싣는다. 판에 악보가 실려 있으면 scoreOf(30-core/story.js)가 그것을
-   먼저 보므로, 고른 병 노드의 악보는 밑그림 노릇만 한다.
+   먼저 보므로, 고른 병 노드의 악보는 기본값 노릇만 한다.
 
    고를 수 있는 이름은 BEAT_LIST 가, 그 뜻풀이는 BEATDOC(60-text)가 쥔다 —
    여기에 목록을 또 적지 않는다. 두 벌로 적으면 언젠가 갈라진다. */
@@ -28,13 +28,13 @@ function scStages(){
   return out;
 }
 
-/* 밑그림 — 고른 병 노드가 그 병기에 쓰는 악보.
+/* 기본값 — 고른 병 노드가 그 병기에 쓰는 악보.
    폴백 사다리를 여기 다시 적지 않는다. 커널이 실제로 도는 자(bossScore)를 그대로 부른다 —
-   베껴 두면 사다리를 고칠 때 한쪽만 고쳐지고, 편집기가 보여 주는 밑그림과
+   베껴 두면 사다리를 고칠 때 한쪽만 고쳐지고, 편집기가 보여 주는 기본값과
    판이 실제로 도는 악보가 갈린다 */
 function scBase(st){ return bossScore(CUSTOM.dis.boss, st).slice() }
 
-/* 그 병기의 악보를 **읽는다**. 손대지 않았으면 밑그림을 돌려주되 적어 두지 않는다.
+/* 그 병기의 악보를 **읽는다**. 손대지 않았으면 기본값을 돌려주되 적어 두지 않는다.
    「기본값은 고른 병 노드의 악보」가 여기 한 줄이다.
 
    ★ 전에는 이 자가 읽으면서 CUSTOM.score 에 적었다. 그리기가 곧 쓰기라,
@@ -47,7 +47,7 @@ function scLine(st){
   return (own && own.length) ? own : scBase(st);
 }
 
-/* 손댈 때 비로소 제 악보로 굳힌다 — 그때가 밑그림에서 갈라지는 순간이고,
+/* 손댈 때 비로소 제 악보로 굳힌다 — 그때가 기본값에서 갈라지는 순간이고,
    scoreFrom 은 「어느 병 노드에서 떠 왔는가」를 그 순간에 적어 둔다 */
 function scEdit(st){
   if(!CUSTOM.score) CUSTOM.score = {};
@@ -60,9 +60,11 @@ function scEdit(st){
 
 function scSet(st, i, v){ scEdit(st)[i] = v; SCORE_AIM = st; renderScore() }
 
-/* 앞뒤로 민다. 끝에서 밀면 반대편으로 돈다 — 악보는 돌아가는 것이라 그 결이 맞다 */
+/* 앞뒤로 민다. 양 끝에서는 화면이 화살표를 꺼 두므로 넘어갈 자리가 없다 —
+   전에는 반대편으로 돌렸는데, 첫 칸의 ◀ 가 그것을 맨 뒤로 보내 놀랐다 */
 function scMove(st, i, d){
-  const L = scEdit(st), j = (i + d + L.length) % L.length;
+  const L = scEdit(st), j = i + d;
+  if(j < 0 || j >= L.length) return;
   const x = L[i]; L[i] = L[j]; L[j] = x;
   SCORE_AIM = st; renderScore();
 }
@@ -84,8 +86,8 @@ function scLen(st, n){
   SCORE_AIM = st; renderScore();
 }
 
-/* 밑그림으로 되돌리기 = 손댄 적 없는 상태로 되돌리기다. 밑그림을 베껴 넣는 대신
-   적어 둔 것을 지운다 — 그래야 그 뒤에 병 노드를 바꿔도 새 밑그림을 따라간다 */
+/* 기본값으로 되돌리기 = 손댄 적 없는 상태로 되돌리기다. 기본값을 베껴 넣는 대신
+   적어 둔 것을 지운다 — 그래야 그 뒤에 병 노드를 바꿔도 새 기본값을 따라간다 */
 function scReset(st){
   if(CUSTOM.score){
     delete CUSTOM.score[st];
@@ -124,9 +126,6 @@ function renderScore(){
   const d = CUSTOM.dis, sts = scStages();
   if(SCORE_AIM === null || !sts.includes(SCORE_AIM)) SCORE_AIM = sts[0];
 
-  /* 밑그림을 뜬 뒤에 병 노드를 갈아 끼웠는가 — 손댄 악보를 말없이 지우지 않는다 */
-  const drift = CUSTOM.scoreFrom && CUSTOM.scoreFrom !== d.boss;
-
   const opt = cur => BEAT_LIST.map(x =>
     `<option value="${esc(x)}" ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
   const doc = b => {
@@ -134,16 +133,11 @@ function renderScore(){
     return e ? TT(b + ' · ' + e.label, e.why()) : TT(b, '설명이 아직 없는 박자다.');
   };
 
-  let h = `<div class="chart">악보 — ${esc(CUSTOM.name)} · 밑그림 <b>${esc(d.boss)}</b>`
+  let h = `<div class="chart">악보 — ${esc(CUSTOM.name)} · 기본값 <b>${esc(d.boss)}</b>`
         + ` · 병기 ${sts[0]}${sts.length>1?`~${sts[sts.length-1]}`:''}</div>
      <div class="note">한 턴에 한 비트씩 나아가고, 끝에 닿으면 처음으로 돌아온다.
        병기가 오르면 다시 1번부터다. 병기 시계는 ${SR.STAGE_TURNS}턴.<br>
        헛도는 비트는 「성장」으로 대신 나간다 — 병이 통째로 노는 턴은 만들지 않는다.</div>`;
-
-  if(drift) h += `<div class="note" style="color:var(--alarm)">
-      밑그림은 <b>${esc(CUSTOM.scoreFrom)}</b> 의 악보인데 지금 고른 병 노드는 <b>${esc(d.boss)}</b> 다.
-      「고유」는 <b>${esc(d.boss)}</b> 의 한 수로 나간다.
-      <button class="mini" onclick="scResetAll()">${esc(d.boss)} 의 악보로 다시 깐다</button></div>`;
 
   for(const st of sts){
     const L = scLine(st), n = L.length, aim = st === SCORE_AIM;
@@ -152,15 +146,15 @@ function renderScore(){
       : `뒤 ${n-SR.STAGE_TURNS}박자는 시계가 늘어져야 나온다`;
     h += `<div class="bar">병기 ${st}${st===+d.stage?' · 시작':''}${st===+d.stageMax?' · 최종':''}
         <span class="right">
-          <button class="mini" onclick="scAim(${st})"${aim?' disabled':''}>여기에 붙인다</button>
-          <button class="mini" onclick="scReset(${st})">밑그림으로</button>
+          <button class="mini" onclick="scAim(${st})"${aim?' disabled':''}>악보 선택</button>
+          <button class="mini" onclick="scReset(${st})">기본값으로</button>
         </span></div>
       <div class="scline${aim?' aim':''}">`
       + L.map((b,i)=>`<span class="beat">
             <b class="n">${i+1}</b>
             <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b)}</select>
-            <button class="mini" onclick="scMove(${st},${i},-1)" title="앞으로">◀</button>
-            <button class="mini" onclick="scMove(${st},${i},1)" title="뒤로">▶</button>
+            <button class="mini" onclick="scMove(${st},${i},-1)" title="앞으로"${i===0?' disabled':''}>◀</button>
+            <button class="mini" onclick="scMove(${st},${i},1)" title="뒤로"${i===n-1?' disabled':''}>▶</button>
             <button class="mini" onclick="scDel(${st},${i})" title="뺀다"${n<=1?' disabled':''}>×</button>
           </span>`).join('')
       + `<button class="mini addb" onclick="scAdd(${st})" title="끝에 한 박자 더">+</button></div>
@@ -185,11 +179,11 @@ function renderScore(){
   host.innerHTML = h;
 
   $('sc_side').innerHTML =
-    `<label>밑그림 병 노드</label>
+    `<label>기본값 병 노드</label>
      <select onchange="scSetDis('boss',this.value)">${Object.keys(BOSS).map(k=>
         `<option ${k===d.boss?'selected':''}>${esc(k)}</option>`).join('')}</select>
-     <div class="note">「고유」가 어느 병의 한 수로 나갈지도 이 값이 정한다.</div>
-     <button onclick="scResetAll()">밑그림 악보로 전부 되돌린다</button>
+     <div class="note">고른 병 노드의 악보를 기본값으로 깐다. 손댄 악보는 이 단추를 눌러야 새것으로 바뀐다.</div>
+     <button onclick="scResetAll()">병 노드 변경</button>
      <label>병기</label>
      <div class="row2">
        <input type="number" min="3" max="5" value="${d.stage}" onchange="scSetDis('stage',this.value)">

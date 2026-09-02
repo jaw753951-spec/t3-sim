@@ -6,6 +6,56 @@
 /* ── 보스 — v18 CASES 의 정연 정의를 그대로 옮긴다 ──────────
    ★ 셋 다 noDeath. 이 판에서 환자 체력은 0이 되지 않는다.
    ★ 방침 승리 조건은 케이스마다 다르다 (도피 갈래가 특히). */
+/* ── 고유 박자 ────────────────────────────────────────────────
+   전에는 보스마다 unique(S,dis) 하나를 두고 그 안에서 병기로 갈랐다.
+   그래서 악보에는 「고유」라고만 적혔고, 무엇이 나올지는 고른 병 노드와
+   병기가 정했다 — 악보만 봐서는 병이 무엇을 할지 알 수 없었다.
+   이제 박자가 제 이름으로 악보에 적힌다. 고른 병 노드는 악보의 기본값만
+   정하고, 어느 한 수가 나가는지는 정하지 않는다.
+
+   돌려주는 값이 그 턴의 줄이다. null 이면 헛돈 것이고 성장으로 대신한다 —
+   문자열을 돌려주면 그 턴이 통째로 빈다. */
+//@ 스토리.고유박자 — 이름으로 적히는 한 수
+const UNIQ = {
+  /* 아이 병기3 — 신경계 노드의 진화 시계를 당긴다.
+     당길 자리가 하나도 없으면(창이 쓸어 간 직후 · 이미 시계가 1) 헛돈다 */
+  '파고든다': S => {
+    const ns = K.active(S).filter(n=>n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란') && n.evoLeft>1);
+    if(!ns.length) return null;
+    for(const n of ns) n.evoLeft = Math.max(1, n.evoLeft - SR.BEAT_EVO_PULL);
+    return '파고든다';
+  },
+  /* 아이 병기4 — 정신을 한 단계 무너뜨린다 */
+  '알아듣지 못한다': S => {
+    if(S.mind==='공황') return null;            // 더 갈 데가 없으면 폴백
+    K.mind(S,+1); return '알아듣지 못한다';
+  },
+  /* 아이 병기5 — 걷어낸 자리가 다시 일어난다 */
+  '터진다': S => {
+    const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
+    if(!dorm.length) return null;              // 깨울 자리가 없으면 폴백
+    const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0;
+    return '터진다';
+  },
+  /* 어부 — 활성 통증 자리가 둘 이상이면 긁어서 이차 감염이 앉는다 */
+  '긁는다': S => {
+    const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
+    if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
+    S.nodes.push(mkSpot(S.board.boss, S.nodes[0].stage, '감염',
+                        SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
+    return '긁어서 이차 감염이 앉는다';
+  },
+  /* 송이 — 재워 둔 자리를 깨우고 정신을 한 단계 무너뜨린다 */
+  '지금이면 괜찮아진다': S => {
+    const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
+    const mind0=S.mind;
+    if(dorm.length){ const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0 }
+    K.mind(S,+1);
+    if(!dorm.length && S.mind===mind0) return null;   // 깨울 자리도 정신도 더 갈 데가 없으면 헛돈다
+    return '지금이면 괜찮아진다';
+  },
+};
+
 //@ 스토리.병기 — 최종 병기의 단계와 박자
 const BOSS = {
   아이:{name:'쓰러진 아이 · 수막알균', stage0:3, stageMax:5, tags:['소아'],
@@ -21,61 +71,23 @@ const BOSS = {
     /* 병기3 — 창 뒤는 「같은 박자」 한 턴만 비우고 분화가 판을 다시 세운다.
        전에는 창 다음이 고유(파고든다)였는데, 창이 죽인 신경계 자리를 노리는
        비트라 반드시 헛돌아 두 턴이 통째로 비었다. */
-    beats:{3:['분화','고유','같은 박자','창','같은 박자','분화'],
-           4:['분화','굳는다','고유','창','분화','몰린다'],
-           5:['분화','성장','고유','창','분화','엮는다']},
-    unique:(S,dis)=>{
-      if(dis.stage===3){                       // 「파고든다」 — 신경계 노드 진화 시계를 당긴다
-        /* 당길 자리가 하나도 없으면(창이 쓸어 간 직후·이미 시계가 1) 헛돈다 —
-           null 을 돌려 성장으로 넘긴다. 문자열을 돌려주면 그 턴은 통째로 빈다. */
-        const ns = K.active(S).filter(n=>n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란') && n.evoLeft>1);
-        if(!ns.length) return null;
-        for(const n of ns) n.evoLeft = Math.max(1, n.evoLeft - SR.BEAT_EVO_PULL);
-        return '파고든다';
-      }
-      if(dis.stage===4){                       // 「알아듣지 못한다」 — 정신을 한 단계 무너뜨린다
-        if(S.mind==='공황') return null;        // 더 갈 데가 없으면 폴백
-        K.mind(S,+1); return '알아듣지 못한다';
-      }
-      /* Lv5 「터진다」 — 병을 억제한 턴에 걷어낸 자리가 다시 일어난다 */
-      const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
-      if(!dorm.length) return null;            // 재울 자리가 없으면 폴백
-      const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0;
-      return '터진다';
-    },
+    beats:{3:['분화','파고든다','같은 박자','창','같은 박자','분화'],
+           4:['분화','굳는다','알아듣지 못한다','창','분화','몰린다'],
+           5:['분화','성장','터진다','창','분화','엮는다']},
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
   어부:{name:'어부 · 접촉성 피부염', stage0:3, stageMax:3, tags:['노동자'],
     lv:{band:2, evo:3, spots:5, enh:1},
     noDeath:true, seed:['통증'], dupType:'통증',
-    beats:{3:['분화','번진다','고유','아문다','몰린다','아문다']},
-    /* 「긁는다」 — 활성 통증 자리가 둘 이상이면 긁어서 이차 감염이 앉는다 */
-    unique:(S)=>{
-      const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
-      /* 통증이 모자라거나 이미 감염이 앉아 있으면 헛돈다 — 성장으로 넘긴다 */
-      if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
-      S.nodes.push(mkSpot(S.board.boss, S.nodes[0].stage, '감염',
-                          SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
-      return '긁어서 이차 감염이 앉는다';
-    },
+    beats:{3:['분화','번진다','긁는다','아문다','몰린다','아문다']},
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
   송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:3, tags:['영양실조'],
     lv:{band:3, evo:5, spots:2, enh:1},   // v26 — 1 은 가장 느린 판이었다. 방향을 뒤집는다
     noDeath:true, seed:['탈수','통증'],
-    beats:{3:['성장','고유','치민다','가라앉는다','고유','가라앉는다']},
-    /* 「지금이면 괜찮아진다」 — 재워둔 자리 하나를 깨우고 정신을 한 단계 무너뜨린다 */
-    unique:(S)=>{
-      const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
-      const mind0=S.mind;
-      if(dorm.length){ const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0 }
-      K.mind(S,+1);
-      /* 깨울 자리도 없고 정신도 더 갈 데가 없으면 헛돈다 — 성장으로 넘긴다 */
-      if(!dorm.length && S.mind===mind0) return null;
-      return '지금이면 괜찮아진다';
-    },
+    beats:{3:['성장','지금이면 괜찮아진다','치민다','가라앉는다','지금이면 괜찮아진다','가라앉는다']},
     policy:{완치:'병 노드를 처치선까지 내려 끊는다 (정점을 넘기는 경주)',
             연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},

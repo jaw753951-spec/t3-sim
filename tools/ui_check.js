@@ -89,11 +89,12 @@ async function probe(browser, file){
     const RULEFREE = new Set(['KWTIP.개방','KWTIP.진단','LINKTIP.불응',
       'LINKTIP.부설','LINKTIP.만개','LINKTIP.연쇄','LINKTIP.확산',
       'BEATTIP.분화','BEATTIP.같은 박자','BEATTIP.창','BEATTIP.굳는다','BEATTIP.엮는다',
-      'BEATTIP.아문다','BEATTIP.고유','UNIQTIP.아이:4','UNIQTIP.아이:5','UNIQTIP.송이:3']);
+      'BEATTIP.아문다','BEATTIP.알아듣지 못한다','BEATTIP.터진다',
+      'BEATTIP.지금이면 괜찮아진다']);
     const all = () => {
       const o = {};
       for (const [nm, d] of [['KWTIP',KWTIP],['LINKTIP',LINKTIP],['BEATTIP',BEATTIP],
-                             ['UNIQTIP',UNIQTIP],['SYMTIP',SYMTIP]])
+                             ['SYMTIP',SYMTIP]])
         for (const k of Object.keys(d)) o[nm + '.' + k] = String(d[k]);
       for (const k of Object.keys(SYMDOC)) o['SYMDOC.' + k] = SYMDOC[k].why();
       return o;

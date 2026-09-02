@@ -121,9 +121,13 @@ const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':
 /* 박자 이름 → 그림. 없는 박자는 고유 표로 떨어진다 (새 보스가 새 박자를 들고
    와도 화면이 안 깨진다) */
 const BEATICO = {
-  '분화':'bSpawn', '고유':'bUniq', '성장':'grow', '몰린다':'grow', '치민다':'grow',
+  '분화':'bSpawn', '성장':'grow', '몰린다':'grow', '치민다':'grow',
   '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
   '창':'bWin', '같은 박자':'bSame', '굳는다':'bHard', '진행':'bFast', '가속':'bFast',
+  /* 고유 한 수 다섯 — 전에는 「고유」 한 이름이라 한 줄이면 됐다.
+     이름으로 쪼갠 뒤로는 저마다 적어 준다. 여기 없는 박자는 아래 || 가 고유 그림으로 받는다 */
+  '파고든다':'bUniq', '알아듣지 못한다':'bUniq', '터진다':'bUniq',
+  '긁는다':'bUniq', '지금이면 괜찮아진다':'bUniq',
 };
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 

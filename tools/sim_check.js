@@ -83,7 +83,12 @@ const SCENARIOS = `(() => {
   /* ⑥ 커널 손잡이 — 값이 그대로인가 */
   out.knobs = { R: R, SR: SR, SYMPARAM: SYMPARAM, LVTAB: LVTAB, BAND: BAND,
                 BEAT_LIST: typeof BEAT_LIST !== 'undefined' ? BEAT_LIST : null,
-                HP_TAG: L.HP_TAG, ATK_W: L.ATK_W, ATK_TARGET: L.ATK_TARGET, AIW: AIW_DEF,
+                /* 체격표도 함께 본다 — 환자 체력의 대부분이 여기서 나오는데
+                   HP_TAG 만 적어 두던 동안은 소아 120→100 같은 변경이 견주기에
+                   한 줄도 안 뜨고, 보스 판에서는 아예 안 드러났다.
+                   lab 의 후퇴선 판본 둘이 바로 이 표를 움직인다 */
+                HP_TAG: L.HP_TAG, BODY_HP: L.BODY_HP,
+                ATK_W: L.ATK_W, ATK_TARGET: L.ATK_TARGET, AIW: AIW_DEF,
                 cards: Object.keys(CARDS).length, script: Object.keys(P.SCRIPT).length };
   return out;
 })()`;
@@ -192,7 +197,7 @@ const INVARIANTS = `(() => {
       const S = K.newState(board, {}); S.board = board; S.rng = rng; S.act = 3;
       S.nodes[0].stage = stage;
       for (const n of S.nodes) if (n.role !== 'disease') { n.dead = true; n.val = 0 }
-      for (const sym of fill) { const n = mkSpot(sym, 50, 0); n.val = 20; S.nodes.push(n) }
+      for (const sym of fill) { const n = mkSpot(boss, stage, sym, 50, 0); n.val = 20; S.nodes.push(n) }
       if (mind) S.mind = mind;
       return S;
     };
@@ -253,11 +258,11 @@ const INVARIANTS = `(() => {
 
       /* ③ㅁ 보스가 지금 쓰는 비트가 전부 그 목록 안에 있는가.
          하나라도 빠지면 「악보」 탭이 그 병의 악보를 그대로 다시 짤 수 없다.
-         「병기 가속」·「가속」은 「진행」의 다른 이름이라 목록에 따로 두지 않는다. */
-      const ALIAS = ['병기 가속', '가속'];
+         별명(「진행」의 다른 이름들)은 BEAT_ALIAS 가 쥔다 — 여기 손으로 적어 두면
+         이름을 하나 더할 때 검사기가 있지도 않은 어긋남을 알린다. */
       for (const boss in BOSS) for (const st in BOSS[boss].beats)
         for (const beat of BOSS[boss].beats[st])
-          if (!BEAT_LIST.includes(beat) && !ALIAS.includes(beat))
+          if (!BEAT_LIST.includes(beat) && !BEAT_ALIAS.includes(beat))
             bad.push('악보 목록에 없는 박자를 보스가 쓴다 — ' + boss + ' 병기' + st + ' 「' + beat + '」');
 
       /* ③ㅂ 손으로 짠 악보가 커널에 들어올 때 모르는 이름이 걸러지는가 */

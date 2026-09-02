@@ -1208,15 +1208,10 @@ const TAG_CAP = 2;
 
 const TAG_GROUP = [['노인','소아'], ['노동자','군인','상층']];
 
-const TAG_LIST = () => [...Object.keys(BODY_HP).filter(t=>t!=='성인'), '상층', ...Object.keys(HP_TAG)]
-  .filter((t,i,a)=>a.indexOf(t)===i);
-const tagLabel = t => (BODY_HP[t]!==undefined ? '체격 '+BODY_HP[t] : '')
-  + (BODY_HP[t]!==undefined && HP_TAG[t] ? ' · ' : '')
-  + (HP_TAG[t] ? '×'+HP_TAG[t] : '')
-  || '체격 '+BODY_HP[BODY_DEF];
+const TAG_LIST = () => [...Object.keys(BODY_HP).filter(t=>t!==BODY_DEF), ...Object.keys(HP_TAG)];
 
 //@ 생성기.체격 — 환자 체력의 출발점. 태그가 어느 체격을 볼지 고른다
-const BODY_HP = { '소아':120, '성인':170, '노동자':200, '군인':200 };
+const BODY_HP = { '소아':120, '성인':170, '상층':170, '노동자':200, '군인':200 };
 const BODY_DEF = '성인';
 const bodyHp = tags => {
   const hit = (tags||[]).filter(t => BODY_HP[t]!==undefined).map(t => BODY_HP[t]);
@@ -1228,7 +1223,7 @@ const HP_TAG = {
   '재진악화':0.85, '공황시작':0.85, 'T3이식다수':0.85, '노인':0.85,
 };
 
-const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG), '상층']);
+const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG)]);
 
 const hpOfTags = tags => {
   let hp = bodyHp(tags);
@@ -1250,7 +1245,7 @@ const SW = {
   valDiv: 25,     // 수치 총합을 이 수로 나눠 더한다
   basic:  0.5,    // 기본형 연결선 하나당
   enh:    2,      // 추가 연결선 하나당
-  evoRef: 7,      // 진화까지의 턴은 이 값에서 뺀 만큼 얹는다 (빠를수록 어렵다)
+  evoRef: LVTAB[1].evo,
   atk:    1.5,    // 공격 가중 1당
   shSome: 1,      // 일부만 감싸였을 때
   shAll:  2,      //  전부 감싸였을 때
@@ -1621,7 +1616,7 @@ for(const d of Object.values(SESSIONS)) d.list = d.rounds.flat();
 
 //@ 스토리.병기 — 최종 병기의 단계와 박자
 const BOSS = {
-  아이:{name:'쓰러진 아이 · 수막알균', stage0:3, stageMax:5, hp:{lv:4}, tags:['소아'],
+  아이:{name:'쓰러진 아이 · 수막알균', stage0:3, stageMax:5, tags:['소아'],
     lv:{enh:1},
     noDeath:true, seed:['통증'],
     syms:{3:['통증','발열'],
@@ -1649,23 +1644,21 @@ const BOSS = {
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
-  어부:{name:'어부 · 접촉성 피부염', stage0:3, stageMax:3, hp:{lv:1}, tags:['노동자'],
+  어부:{name:'어부 · 접촉성 피부염', stage0:3, stageMax:3, tags:['노동자'],
     lv:{band:2, evo:3, spots:5, enh:1},
     noDeath:true, seed:['통증'], dupType:'통증',
     beats:{3:['분화','번진다','고유','아문다','몰린다','아문다']},
     unique:(S)=>{
       const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
       if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
-      const nd = mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn);
-      const e = spotEvo(S.board.boss, S.nodes[0].stage, '감염');   // v26 — mkSpot 의 기본 4 를 덮는다
-      nd.evo = e; nd.evoLeft = e;
-      S.nodes.push(nd);
+      S.nodes.push(mkSpot(S.board.boss, S.nodes[0].stage, '감염',
+                          SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
       return '긁어서 이차 감염이 앉는다';
     },
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
-  송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:3, hp:{lv:1}, tags:['영양실조'],
+  송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:3, tags:['영양실조'],
     lv:{band:3, evo:5, spots:2, enh:1},   // v26 — 1 은 가장 느린 판이었다. 방향을 뒤집는다
     noDeath:true, seed:['탈수','통증'],
     beats:{3:['성장','고유','치민다','가라앉는다','고유','가라앉는다']},
@@ -1690,7 +1683,7 @@ for(const key in BOSS){
     for(const st in b.syms)
       b.roster[st] = b.syms[st].map((sym,i)=>[sym, stageBand(key, +st, i)]);
   }
-  if(b.hp && typeof b.hp === 'object') b.hp = hpOfTags(b.tags||[]);
+  b.hp = hpOfTags(b.tags||[]);
 }
 
 //@ 파일.30-core/kernel
@@ -2672,12 +2665,15 @@ function spotEvo(bossKey, stage, sym){
   return Math.max(1, T.evo + (EVO_ADJ[sym]||0));
 }
 
-//@ 스토리.병노드 — 병 노드를 세운다
-function mkSpot(sym, init, turn){
-  return {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-    grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
+//@ 스토리.병노드 — 자리 하나를 세운다. 진화 카운터까지 여기서 챙긴다
+function mkSpot(bossKey, stage, sym, init, turn){
+  const e = spotEvo(bossKey, stage, sym);
+  const n = {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
+    grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
     rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-    resist:0, resistBack:false, demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
+    resist:0, resistBack:false, demoted:false, revealed:false, spawned:turn!=null, role:'sym'};
+  if(turn!=null) n.born = turn;
+  return n;
 }
 
 function makeDisease(key, rng){
@@ -2693,11 +2689,7 @@ function makeDisease(key, rng){
     const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
     const init = b.roster ? band + Math.floor(rng()*SR.SPOT_SPREAD)
                           : SR.FREE_BASE + Math.floor(rng()*SR.FREE_SPREAD);
-    const e = spotEvo(key, stage, s);
-    nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-      grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
-      rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-      resist:0, resistBack:false, demoted:false, revealed:false, spawned:false, role:'sym'});
+    nodes.push(mkSpot(key, stage, s, init));   // 턴을 안 준다 — 3막 전에 이미 서 있는 자리다
   });
   let hp=b.hp;
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
@@ -2707,9 +2699,7 @@ function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
 
 function laySpot(S, slot, turn, stage){
   const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
-  const nd = mkSpot(slot[0], init, turn);
-  const e = spotEvo(S.board.boss, stage, slot[0]);
-  nd.evo = e; nd.evoLeft = e;
+  const nd = mkSpot(S.board.boss, stage, slot[0], init, turn);
   S.wiped = false;                                 // 자리가 다시 섰다 — 연명 판정이 열린다
   S.nodes.push(nd);
   return nd;
@@ -2761,12 +2751,20 @@ const BEAT_UNKNOWN = '모르는 박자';
 const BEAT_LIST = ['분화','성장','고유','같은 박자','진행','창','굳는다','몰린다',
                    '엮는다','번진다','아문다','치민다','가라앉는다'];
 
+//@ 스토리.박자별명 — 「진행」의 다른 이름
+const BEAT_ALIAS = ['병기 가속', '가속'];
+
+//@ 스토리.보스악보 — 고른 병 노드가 그 병기에 쓰는 악보
+function bossScore(bossKey, stage){
+  const b = BOSS[bossKey];
+  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+}
+
 //@ 스토리.악보 — 이 병기가 따르는 악보
 function scoreOf(S, stage){
   const own = S.board && S.board.score;
   if(own && own[stage] && own[stage].length) return own[stage];
-  const b = BOSS[S.board.boss];
-  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+  return bossScore(S.board.boss, stage);
 }
 
 //@ 스토리.박자 — 병이 이번 턴에 무엇을 하는가
@@ -2802,16 +2800,12 @@ function diseaseAct(S, dis, act){
       const pool = bd.dupType ? [bd.dupType] : ['발열','통증','호흡곤란','감염','탈수'];
       const s = pool[Math.floor(S.rng()*pool.length)];
       const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
-      const e = spotEvo(S.board.boss, dis.stage, s);   // v26 — 여기도 4 가 박혀 있었다
-      S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-        grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false,
-        spawned:true, born:S.turn, role:'sym'});
+      S.nodes.push(mkSpot(S.board.boss, dis.stage, s, init, S.turn));
       return `분화 — ${s}`;
     }
     return growBeat(S);
   }
-  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
+  if(beat==='진행' || BEAT_ALIAS.includes(beat)){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   if(beat==='창'){                                  // 판이 무너진다 — 다음 비트 턴이 무방비다
     if(S.act!==3 || !SR.GIMMICK.WINDOW) return growBeat(S);
     wipeSpots(S);
@@ -3308,7 +3302,7 @@ const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BA
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
-const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
+const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,BODY_HP,hpOfTags,ATK_W,ATK_TARGET};
 
 const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,STORY_CAP,packDeck,packPick,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,cardNums,cardRaw,hasRevisit,rigTotal,handPicks,pickNeed,VAL_KIND};
@@ -3411,31 +3405,73 @@ get '부설'(){ return TT('부설 · 전이',
 const kwLabel = L => linkKws(L).join(' · ');
 const kwTip   = L => linkKws(L).map(k => LINKTIP[k] || TT(k, '')).join('<br><br>');
 
-const BEATTIP = {
-'분화': TT('분화', '부수 증상 하나를 생성한다. 증상 자리 상한에 닿아 있으면 아무 일도 일어나지 않는다.'),
-get '진행'(){ return TT('진행', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '가속'(){ return TT('가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '병기 가속'(){ return TT('병기 가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '성장'(){ return TT('성장', `모든 부수 증상이 초기값의 ${pctOf(SR.BEAT.성장)}만큼 성장한다.`) },
-'같은 박자': TT('같은 박자', '이번 턴은 아무것도 하지 않는다.'),
-'창': TT('창 · 아이 전용', '모든 부수 증상을 처치한다.'),
-'굳는다': TT('굳는다', '모든 증상에 보호막을 생성한다. 이미 보호막이 있다면 아무 일도 일어나지 않는다.'),
-get '몰린다'(){ return TT('몰린다', `수치가 가장 낮은 증상 하나가 초기값의 ${pctOf(SR.BEAT.몰린다)}만큼 성장한다.`) },
-'엮는다': TT('엮는다', '촉발 배선을 한 개 생성한다.'),
-get '번진다'(){ return TT('번진다 · 어부', `모든 통증이 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 성장한다.`) },
-'아문다': TT('아문다 · 어부', '수치가 가장 낮은 증상 하나를 휴면 상태로 만든다.'),
-get '치민다'(){ return TT('치민다 · 송이', `모든 증상이 초기값의 ${pctOf(SR.BEAT.치민다)}만큼 성장하고 정신이 한 단계 무너진다.`) },
-get '가라앉는다'(){ return TT('가라앉는다 · 송이', `모든 증상이 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 억제된다. 하한 1.`) },
-'고유': TT('고유', '이 병의 고유 행동.'),
+//@ 문안.체력태그 — 태그 한 줄 이름표
+const tagLabel = t => {
+  const part = [];
+  if(BODY_HP[t]!==undefined) part.push('체격 '+BODY_HP[t]);
+  if(HP_TAG[t]) part.push('×'+HP_TAG[t]);
+  return part.join(' · ') || '체격 '+BODY_HP[BODY_DEF];
 };
 
-const UNIQTIP = {
-get '아이:3'(){ return TT('파고든다 · 고유', `통증과 호흡곤란의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`) },
-'아이:4': TT('알아듣지 못한다 · 고유', '정신 상태가 한 단계 무너진다.'),
-'아이:5': TT('터진다 · 고유', '휴면 상태의 증상 하나가 초기값으로 부활한다.'),
-get '어부:3'(){ return TT('긁는다 · 고유', `활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이고 감염이 없으면 이차 감염이 새로 앉는다.`) },
-'송이:3': TT('지금이면 괜찮아진다 · 고유', '휴면 상태의 증상 하나를 부활시키고 정신을 한 단계 무너뜨린다.'),
+//@ 문안.박자 — 병 노드 박자의 뜻풀이. 판 툴팁과 악보 서랍이 같이 읽는다
+const BEATDOC = {
+  '분화':   {label:'자리를 하나 늘린다',
+    why:()=>`명부가 있는 병기는 <b>빈 자리를 명부대로</b> 채우고, 명부가 없으면 자리 상한까지 <b>새 자리를 뿜는다</b>.<br>자리가 다 찼으면 헛돌지 않고 「성장」으로 대신한다.`},
+  '성장':   {label:'살아 있는 자리가 전부 자란다',
+    why:()=>`부수 자리마다 <b>제 초기값의 ${pctOf(SR.BEAT.성장)}</b>만큼 오른다. 수치 상한(초기값 ${numOf(R.VAL_CAP)}배)에서 잘린다.<br><br>다른 비트가 헛돌 때 대신 나오는 것도 이 비트다 — 병이 노는 턴을 만들지 않기 위한 바닥이다.`},
+  '고유':   {label:'이 병만의 한 수',
+    why:()=>`고른 병 노드마다 다르다. 헛돌면 「성장」으로 대신한다.<br><br>` + uniqList()},
+  '같은 박자': {label:'쉰다',
+    why:()=>`아무 일도 하지 않는 것이 이 비트의 값이다.<br>「창」이 쓸어 간 판을 한 턴 비워 두는 자리로 쓴다 — 숨을 돌릴 틈이 없으면 창이 벌이 아니라 사고가 된다.<br><br><span class="d">검사기도 이 비트만은 「헛돈다」로 세지 않는다.</span>`},
+  '진행':   {label:'병기 시계를 당긴다',
+    why:()=>`시계를 <b>${SR.BEAT_CLOCK}</b> 당긴다. 그 턴의 자연 감소 1 과 겹쳐 합쳐 ${SR.BEAT_CLOCK+1} 이 된다.<br><br><span class="d">「${BEAT_ALIAS.join('」·「')}」라 적어도 같은 비트다.</span>`},
+  '창':     {of:'아이', label:'판이 무너진다',
+    why:()=>`부수 자리가 <b>전부 죽는다</b>. 휴면이 아니라 사망이다.<br>3막에서만, 그리고 창 기믹이 켜져 있을 때만 돈다 — 아니면 「성장」으로 대신한다.<br><br>창이 만든 빈 판은 <b>연명으로 쳐 주지 않는다</b>. 병이 자리를 다시 세울 때까지 판정이 열리지 않는다.`},
+  '굳는다': {label:'벗겨진 보호막을 다시 두른다',
+    why:()=>`감쌈이 벗겨진 자리를 전부 다시 덮는다. 쌓아 둔 안정화는 <b>0 으로 돌아간다</b>.<br>덮을 자리가 없으면 「성장」으로 대신한다.`},
+  '몰린다': {label:'가장 옅은 자리 하나만 크게',
+    why:()=>`수치가 가장 낮은 자리 하나가 <b>제 초기값의 ${pctOf(SR.BEAT.몰린다)}</b>만큼 오른다.<br>거의 잡아 둔 자리를 다시 세우는 비트다.`},
+  '엮는다': {label:'자리 둘 사이에 촉발 배선을 놓는다',
+    why:()=>`살아 있는 증상 둘을 골라 촉발 연결선(가속·경화·점화 중 하나)을 새로 놓는다. 이 선은 <b>숨지 않는다</b>.<br>증상이 둘 미만이거나 더 엮을 짝이 없으면 「성장」으로 대신한다.`},
+  '번진다': {of:'어부', label:'통증 자리만 골라 오른다',
+    why:()=>`살아 있는 <b>통증</b> 자리가 전부 제 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 오른다.<br>통증이 하나도 없으면 「성장」으로 대신한다.`},
+  '아문다': {of:'어부', label:'가장 옅은 자리가 스스로 가라앉는다',
+    why:()=>`수치가 가장 낮은 자리 하나가 <b>휴면</b>으로 간다. ${R.DORMANT}턴 뒤 초기값으로 되살아난다.<br>병이 제 자리를 스스로 재우는 비트다 — 벌이 아니라 박자다.`},
+  '치민다': {of:'송이', label:'전부 오르고 정신이 무너진다',
+    why:()=>`살아 있는 자리가 전부 <b>제 초기값의 ${pctOf(SR.BEAT.치민다)}</b>만큼 오르고, 정신이 한 단계 무너진다.<br>금단의 정점 자리다.`},
+  '가라앉는다': {of:'송이', label:'전부 내려간다',
+    why:()=>`살아 있는 자리가 전부 제 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 내려간다. <b>1 아래로는 안 간다</b> — 저절로 죽지는 않는다.<br>정점을 지나면 저절로 내려가는 결이다.`},
 };
+
+//@ 문안.고유박자 — 병기마다 다른 한 수
+const UNIQDOC = {
+  '아이:3': {name:'파고든다', why:()=>`통증과 호흡곤란의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`},
+  '아이:4': {name:'알아듣지 못한다', why:()=>'정신 상태가 한 단계 무너진다.'},
+  '아이:5': {name:'터진다', why:()=>'휴면 상태의 증상 하나가 초기값으로 부활한다.'},
+  '어부:3': {name:'긁는다', why:()=>`활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이고 감염이 없으면 이차 감염이 새로 앉는다.`},
+  '송이:3': {name:'지금이면 괜찮아진다', why:()=>'휴면 상태의 증상 하나를 부활시키고 정신을 한 단계 무너뜨린다.'},
+};
+
+function uniqList(){
+  const by = {};
+  for(const k of Object.keys(UNIQDOC)){
+    const [boss, st] = k.split(':');
+    (by[boss] = by[boss] || []).push(`병기${st} 「${UNIQDOC[k].name}」 ${UNIQDOC[k].why()}`);
+  }
+  return Object.keys(by).map(b => `<b>${b}</b> · ` + by[b].join('<br><span class="d">　　</span>')).join('<br>');
+}
+
+const BEATTIP = {};
+const beatDocTip = k => TT(k + (BEATDOC[k].of ? ' · ' + BEATDOC[k].of + ' 전용' : ''), BEATDOC[k].why());
+for(const k of Object.keys(BEATDOC))
+  Object.defineProperty(BEATTIP, k, {enumerable:true, get(){ return beatDocTip(k) }});
+for(const a of BEAT_ALIAS)
+  Object.defineProperty(BEATTIP, a, {enumerable:true, get(){ return TT(a, BEATDOC['진행'].why()) }});
+
+const UNIQTIP = {};
+for(const k of Object.keys(UNIQDOC))
+  Object.defineProperty(UNIQTIP, k, {enumerable:true, get(){
+    return TT(UNIQDOC[k].name + ' · 고유', UNIQDOC[k].why()) }});
 
 const KWORDS = ['관해도','관해','설치물','설치','개방','약화','기세','재진','지연'];
 
@@ -3473,7 +3509,7 @@ const SYMBODY = {
     done: `매 턴 <b>최대 ${R.TURN_DMG.발열}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례한다.<br>진화하며 수치가 <b>${numOf(spOf(n,'발열'))}배</b>로 뛰었다 — 때리는 값도 그만큼 크다.`,
   }),
   출혈: n => ({
-    now : `매 턴 <b>최대 ${R.TURN_DMG.출혈}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례하고, 수치가 초기값을 넘으면 그 최대치도 넘어간다 — 끝까지 부풀면 ${Math.ceil(R.TURN_DMG.출혈*R.VAL_CAP)} 이다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다.`,
+    now : `매 턴 <b>최대 ${R.TURN_DMG.출혈}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례하고, 수치가 초기값을 넘으면 그 최대치도 넘어간다 — 끝까지 부풀면 ${K.turnDmg({sym:'출혈', init:100, val:100*R.VAL_CAP})} 이다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다.`,
     will: `진화 시 성장률이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.`,
     done: `매 턴 <b>최대 ${R.TURN_DMG.출혈}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례한다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다 — 진화로 ${numOf(R.EVO_BLEED_ACC)}배가 된 값이다.`,
   }),
@@ -3517,41 +3553,6 @@ const symTip = n => {
   if(n.evolved)   return `${b.now}<br><b>진화함</b> — ${b.done}`;
   if(!evoSoon(n)) return `${b.now}<br><span class="d">진화하면 — ${b.will}</span>`;
   return `${b.now}<br><br><b>다음 턴에 진화한다</b> — 그 뒤에는<br>${b.done}`;
-};
-
-//@ 문안.박자 — 병 노드 박자의 뜻풀이
-const BEATDOC = {
-  '분화':   {label:'자리를 하나 늘린다',
-    why:()=>`명부가 있는 병기는 <b>빈 자리를 명부대로</b> 채우고, 명부가 없으면 자리 상한까지 <b>새 자리를 뿜는다</b>.<br>자리가 다 찼으면 헛돌지 않고 「성장」으로 대신한다.`},
-  '성장':   {label:'살아 있는 자리가 전부 자란다',
-    why:()=>`부수 자리마다 <b>제 초기값의 ${pctOf(SR.BEAT.성장)}</b>만큼 오른다. 수치 상한(초기값 ${numOf(R.VAL_CAP)}배)에서 잘린다.<br><br>다른 비트가 헛돌 때 대신 나오는 것도 이 비트다 — 병이 노는 턴을 만들지 않기 위한 바닥이다.`},
-  '고유':   {label:'이 병만의 한 수',
-    why:()=>`고른 병 노드마다 다르다. 헛돌면 「성장」으로 대신한다.<br><br>
-      <b>아이</b> · 병기3 「파고든다」 신경계 자리의 진화 시계를 ${SR.BEAT_EVO_PULL} 당긴다<br>
-      <span class="d">　　</span>병기4 「알아듣지 못한다」 정신을 한 단계 무너뜨린다<br>
-      <span class="d">　　</span>병기5 「터진다」 재워 둔 자리가 다시 일어난다<br>
-      <b>어부</b> 「긁는다」 활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이면 이차 감염이 앉는다<br>
-      <b>송이</b> 「지금이면 괜찮아진다」 재워 둔 자리를 깨우고 정신을 무너뜨린다`},
-  '같은 박자': {label:'쉰다',
-    why:()=>`아무 일도 하지 않는 것이 이 비트의 값이다.<br>「창」이 쓸어 간 판을 한 턴 비워 두는 자리로 쓴다 — 숨을 돌릴 틈이 없으면 창이 벌이 아니라 사고가 된다.<br><br><span class="d">검사기도 이 비트만은 「헛돈다」로 세지 않는다.</span>`},
-  '진행':   {label:'병기 시계를 당긴다',
-    why:()=>`시계를 <b>${SR.BEAT_CLOCK}</b> 당긴다. 그 턴의 자연 감소 1 과 겹쳐 합쳐 ${SR.BEAT_CLOCK+1} 이 된다.<br><br><span class="d">「병기 가속」·「가속」이라 적어도 같은 비트다.</span>`},
-  '창':     {label:'판이 무너진다',
-    why:()=>`부수 자리가 <b>전부 죽는다</b>. 휴면이 아니라 사망이다.<br>3막에서만, 그리고 창 기믹이 켜져 있을 때만 돈다 — 아니면 「성장」으로 대신한다.<br><br>창이 만든 빈 판은 <b>연명으로 쳐 주지 않는다</b>. 병이 자리를 다시 세울 때까지 판정이 열리지 않는다.`},
-  '굳는다': {label:'벗겨진 보호막을 다시 두른다',
-    why:()=>`감쌈이 벗겨진 자리를 전부 다시 덮는다. 쌓아 둔 안정화는 <b>0 으로 돌아간다</b>.<br>덮을 자리가 없으면 「성장」으로 대신한다.`},
-  '몰린다': {label:'가장 옅은 자리 하나만 크게',
-    why:()=>`수치가 가장 낮은 자리 하나가 <b>제 초기값의 ${pctOf(SR.BEAT.몰린다)}</b>만큼 오른다.<br>거의 잡아 둔 자리를 다시 세우는 비트다.`},
-  '엮는다': {label:'자리 둘 사이에 촉발 배선을 놓는다',
-    why:()=>`살아 있는 증상 둘을 골라 촉발 연결선(가속·경화·점화 중 하나)을 새로 놓는다. 이 선은 <b>숨지 않는다</b>.<br>증상이 둘 미만이거나 더 엮을 짝이 없으면 「성장」으로 대신한다.`},
-  '번진다': {label:'통증 자리만 골라 오른다',
-    why:()=>`살아 있는 <b>통증</b> 자리가 전부 제 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 오른다.<br>통증이 하나도 없으면 「성장」으로 대신한다.`},
-  '아문다': {label:'가장 옅은 자리가 스스로 가라앉는다',
-    why:()=>`수치가 가장 낮은 자리 하나가 <b>휴면</b>으로 간다. ${R.DORMANT}턴 뒤 초기값으로 되살아난다.<br>병이 제 자리를 스스로 재우는 비트다 — 벌이 아니라 박자다.`},
-  '치민다': {label:'전부 오르고 정신이 무너진다',
-    why:()=>`살아 있는 자리가 전부 <b>제 초기값의 ${pctOf(SR.BEAT.치민다)}</b>만큼 오르고, 정신이 한 단계 무너진다.<br>금단의 정점 자리다.`},
-  '가라앉는다': {label:'전부 내려간다',
-    why:()=>`살아 있는 자리가 전부 제 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 내려간다. <b>1 아래로는 안 간다</b> — 저절로 죽지는 않는다.<br>정점을 지나면 저절로 내려가는 결이다.`},
 };
 
 //@ 파일.60-text/rule-doc
@@ -5203,7 +5204,7 @@ function newStory(){
   setupDeck(S, STORY_DECK, mulberry32(seed+1)); S.rng=rng;
   S.param=0; S.evid=1; S.paramAcc=0; S.act=1; S.policy=null; S.act1Beat=0; S.comfort=0;
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.story.started=true;
-  const b = key==='custom' ? {name:CUSTOM.name, hp:BOARD.hp, noDeath:BOARD.noDeath} : BOSS[BOARD.boss];
+  const b = BOARD.script ? {name:BOARD.script.name, hp:BOARD.hp, noDeath:BOARD.noDeath} : BOSS[BOARD.boss];
   log(`<b>${b.name}</b> · 병기 ${BOARD.nodes[0].stage} · 체력 ${b.hp}`
     + `${BOARD.noDeath?' <span class="d">(체력 0이 되지 않는다)</span>':''}`
     + `${BOARD.score?' <span class="d">· 손으로 짠 악보</span>':''}${ovrNote()}`);
@@ -5493,10 +5494,10 @@ document.addEventListener('keydown', e=>{
 });
 
 //@ 화면.모드 — §9.17 탭 갈아타기
+const PANE_IDS = () => [...Object.keys(PANES).map(m=>'pane-'+m), 'pane-deck'];
+
 function showPane(m){
-  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-score','pane-deck']){
-    const e=$(id); if(e) e.style.display='none';
-  }
+  for(const id of PANE_IDS()){ const e=$(id); if(e) e.style.display='none' }
   $('pane-'+m).style.display='';
 }
 
@@ -5508,9 +5509,7 @@ function setMode(m){
   const P = PANES[m]||{};
   S=P.S||null; BOARD=P.BOARD||null; SEL=P.SEL??null; LOG=P.LOG||[]; UNDO=P.UNDO||[]; SESS=P.SESS||null;
   for(const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.m===m);
-  for(const id of ['side-one','side-sess','side-story','side-batch','side-make','side-score']){
-    const e=$(id); if(e) e.style.display='none';
-  }
+  for(const m of Object.keys(PANES)){ const e=$('side-'+m); if(e) e.style.display='none' }
   $('side-'+m).style.display='';
   showPane(m);
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;
@@ -7523,7 +7522,7 @@ async function batchStory(){
 
 //@ 화면.만들기 — §9.20 환자 직접 짜기
 let CUSTOM = {
-  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
+  name:'커스텀 환자', hp:hpOfTags([]), level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
   nodes:[{sym:'발열', init:65, evo:4, shielded:true, grow:0, p:''},
          {sym:'통증', init:50, evo:5, shielded:true, grow:0, p:''}],
   enh:[],
@@ -7572,9 +7571,11 @@ function mkToggleDis(){
 }
 
 function mkToggleTag(t){
+  const was = hpOfTags(CUSTOM.tags);
   CUSTOM.tags = CUSTOM.tags.includes(t)
     ? CUSTOM.tags.filter(x=>x!==t)
     : tagAdd(CUSTOM.tags, t);
+  if(+CUSTOM.hp === was) CUSTOM.hp = hpOfTags(CUSTOM.tags);
   renderMake();
 }
 
@@ -7716,20 +7717,16 @@ const SCORE_MAX = 16;
 
 function scStages(){
   const d = CUSTOM.dis; if(!d) return [];
-  const a = Math.max(3, Math.min(5, +d.stage    || 3));
-  const b = Math.max(3, Math.min(5, +d.stageMax || a));
+  const clamp = v => Math.max(3, Math.min(5, v));
+  const a = clamp(+d.stage || 3), b = clamp(+d.stageMax || a);
   const out = [];
   for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
   return out;
 }
 
-function scBase(st){
-  const b = BOSS[CUSTOM.dis.boss];
-  return (b.beats[st] || b.beats[b.stage0] || ['분화','고유']).slice();
-}
+function scBase(st){ return bossScore(CUSTOM.dis.boss, st).slice() }
 
 function scLine(st){
-  if(!CUSTOM.dis) return [];
   const own = CUSTOM.score && CUSTOM.score[st];
   return (own && own.length) ? own : scBase(st);
 }
@@ -7768,8 +7765,10 @@ function scLen(st, n){
 }
 
 function scReset(st){
-  if(CUSTOM.score) delete CUSTOM.score[st];
-  if(CUSTOM.score && !Object.keys(CUSTOM.score).length){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
+  if(CUSTOM.score){
+    delete CUSTOM.score[st];
+    if(!Object.keys(CUSTOM.score).length){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
+  }
   SCORE_AIM = st; renderScore();
 }
 
@@ -7803,7 +7802,7 @@ function renderScore(){
 
   const drift = CUSTOM.scoreFrom && CUSTOM.scoreFrom !== d.boss;
 
-  const opt = (b, cur) => BEAT_LIST.map(x =>
+  const opt = cur => BEAT_LIST.map(x =>
     `<option value="${esc(x)}" ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
   const doc = b => {
     const e = BEATDOC[b];
@@ -7834,7 +7833,7 @@ function renderScore(){
       <div class="scline${aim?' aim':''}">`
       + L.map((b,i)=>`<span class="beat">
             <b class="n">${i+1}</b>
-            <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b,b)}</select>
+            <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b)}</select>
             <button class="mini" onclick="scMove(${st},${i},-1)" title="앞으로">◀</button>
             <button class="mini" onclick="scMove(${st},${i},1)" title="뒤로">▶</button>
             <button class="mini" onclick="scDel(${st},${i})" title="뺀다"${n<=1?' disabled':''}>×</button>

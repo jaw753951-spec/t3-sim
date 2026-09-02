@@ -20,8 +20,10 @@ function newStory(){
   S.param=0; S.evid=1; S.paramAcc=0; S.act=1; S.policy=null; S.act1Beat=0; S.comfort=0;
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.story.started=true;
   /* 커스텀 판은 악보만 보스에게 빌려 쓴다 — 이름과 체력은 만든 것을 적는다.
-     전에는 BOARD.boss 로 BOSS 를 찾아서, 만든 환자인데 「쓰러진 아이 · 체력 120」이라 적혔다 */
-  const b = key==='custom' ? {name:CUSTOM.name, hp:BOARD.hp, noDeath:BOARD.noDeath} : BOSS[BOARD.boss];
+     전에는 BOARD.boss 로 BOSS 를 찾아서, 만든 환자인데 「쓰러진 아이 · 체력 120」이라 적혔다.
+     고르는 칸(select)이 아니라 판이 들고 있는 것을 본다 — buildCustom 이 board.script 에
+     이름을 적어 두므로, 고른 칸을 안 거치는 길(불러온 판·배치·되감기)로 들어와도 맞는다 */
+  const b = BOARD.script ? {name:BOARD.script.name, hp:BOARD.hp, noDeath:BOARD.noDeath} : BOSS[BOARD.boss];
   log(`<b>${b.name}</b> · 병기 ${BOARD.nodes[0].stage} · 체력 ${b.hp}`
     + `${BOARD.noDeath?' <span class="d">(체력 0이 되지 않는다)</span>':''}`
     + `${BOARD.score?' <span class="d">· 손으로 짠 악보</span>':''}${ovrNote()}`);

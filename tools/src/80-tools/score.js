@@ -21,19 +21,18 @@ const SCORE_MAX = 16;
 /* 편집할 병기 — 시작 병기부터 최대 병기까지. 손으로 뒤집어 적어도 견딘다 */
 function scStages(){
   const d = CUSTOM.dis; if(!d) return [];
-  const a = Math.max(3, Math.min(5, +d.stage    || 3));
-  const b = Math.max(3, Math.min(5, +d.stageMax || a));
+  const clamp = v => Math.max(3, Math.min(5, v));
+  const a = clamp(+d.stage || 3), b = clamp(+d.stageMax || a);
   const out = [];
   for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
   return out;
 }
 
 /* 밑그림 — 고른 병 노드가 그 병기에 쓰는 악보.
-   scoreOf 의 폴백과 같은 차례로 찾는다. 둘이 갈리면 화면이 거짓말을 한다 */
-function scBase(st){
-  const b = BOSS[CUSTOM.dis.boss];
-  return (b.beats[st] || b.beats[b.stage0] || ['분화','고유']).slice();
-}
+   폴백 사다리를 여기 다시 적지 않는다. 커널이 실제로 도는 자(bossScore)를 그대로 부른다 —
+   베껴 두면 사다리를 고칠 때 한쪽만 고쳐지고, 편집기가 보여 주는 밑그림과
+   판이 실제로 도는 악보가 갈린다 */
+function scBase(st){ return bossScore(CUSTOM.dis.boss, st).slice() }
 
 /* 그 병기의 악보를 **읽는다**. 손대지 않았으면 밑그림을 돌려주되 적어 두지 않는다.
    「기본값은 고른 병 노드의 악보」가 여기 한 줄이다.
@@ -44,7 +43,6 @@ function scBase(st){
      손으로는 한 번도 안 건드린 악보가 판을 몰았다.
      이제 굳는 것은 실제로 손댈 때뿐이다 (scEdit). */
 function scLine(st){
-  if(!CUSTOM.dis) return [];
   const own = CUSTOM.score && CUSTOM.score[st];
   return (own && own.length) ? own : scBase(st);
 }
@@ -89,8 +87,10 @@ function scLen(st, n){
 /* 밑그림으로 되돌리기 = 손댄 적 없는 상태로 되돌리기다. 밑그림을 베껴 넣는 대신
    적어 둔 것을 지운다 — 그래야 그 뒤에 병 노드를 바꿔도 새 밑그림을 따라간다 */
 function scReset(st){
-  if(CUSTOM.score) delete CUSTOM.score[st];
-  if(CUSTOM.score && !Object.keys(CUSTOM.score).length){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
+  if(CUSTOM.score){
+    delete CUSTOM.score[st];
+    if(!Object.keys(CUSTOM.score).length){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
+  }
   SCORE_AIM = st; renderScore();
 }
 
@@ -127,7 +127,7 @@ function renderScore(){
   /* 밑그림을 뜬 뒤에 병 노드를 갈아 끼웠는가 — 손댄 악보를 말없이 지우지 않는다 */
   const drift = CUSTOM.scoreFrom && CUSTOM.scoreFrom !== d.boss;
 
-  const opt = (b, cur) => BEAT_LIST.map(x =>
+  const opt = cur => BEAT_LIST.map(x =>
     `<option value="${esc(x)}" ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
   const doc = b => {
     const e = BEATDOC[b];
@@ -158,7 +158,7 @@ function renderScore(){
       <div class="scline${aim?' aim':''}">`
       + L.map((b,i)=>`<span class="beat">
             <b class="n">${i+1}</b>
-            <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b,b)}</select>
+            <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b)}</select>
             <button class="mini" onclick="scMove(${st},${i},-1)" title="앞으로">◀</button>
             <button class="mini" onclick="scMove(${st},${i},1)" title="뒤로">▶</button>
             <button class="mini" onclick="scDel(${st},${i})" title="뺀다"${n<=1?' disabled':''}>×</button>

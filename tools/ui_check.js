@@ -25,7 +25,10 @@ const exe = (() => {
   return hit;
 })();
 
-const PANES = ['one','sess','story','batch','make','score'];
+/* 탭 목록은 판이 쥔다 — 검사기가 제 목록을 들고 있으면 새 탭이 조용히 안 걸리고,
+   요약 줄이 제 목록에서 센 수를 자신 있게 찍는다. 옛 파일은 그냥 탭이 적게 나온다 */
+const PANES = page => page.evaluate(() =>
+  [...document.querySelectorAll('.tab[data-m]')].map(e => e.dataset.m));
 
 async function probe(browser, file){
   const page = await browser.newPage();
@@ -57,10 +60,7 @@ async function probe(browser, file){
 
   /* ④ 탭마다 첫 화면 — 목록은 PANES 가 쥔다 */
   snap.panes = {};
-  for(const m of PANES){
-    /* 그 탭이 서기 전의 옛 파일에는 없는 판이다 — 건너뛴다.
-       없는 채로 setMode 를 부르면 showPane 이 null.style 로 터진다 */
-    if(!await page.evaluate(mm => !!document.getElementById('pane-'+mm), m)) continue;
+  for(const m of await PANES(page)){
     await page.evaluate(mm=>setMode(mm), m); await page.waitForTimeout(150);
     snap.panes[m] = { side: await text('#side-'+m), pane: await text('#pane-'+m) };
   }

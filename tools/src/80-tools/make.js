@@ -9,7 +9,10 @@
 /* score = 병기별 악보. null 이면 고른 병 노드의 악보를 그대로 쓴다.
    scoreFrom = 그 악보를 어느 병 노드에서 떠 왔는가 (「악보」 탭이 갈림을 알린다) */
 let CUSTOM = {
-  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
+  /* hp 는 체격표에서 시작한다. 전에는 280 이 박혀 있었는데 그건 걷어낸 LVTAB[3].hp 의
+     사본이라, 태그 칸이 「체격 120」이라 적어 놓고 체력은 280 인 판이 나왔다 —
+     체격 규칙이 유일하게 안 통하는 화면이 하필 환자를 손으로 짜는 화면이었다 */
+  name:'커스텀 환자', hp:hpOfTags([]), level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
   nodes:[{sym:'발열', init:65, evo:4, shielded:true, grow:0, p:''},
          {sym:'통증', init:50, evo:5, shielded:true, grow:0, p:''}],
   enh:[],
@@ -71,9 +74,13 @@ function mkToggleDis(){
 }
 
 function mkToggleTag(t){
+  const was = hpOfTags(CUSTOM.tags);
   CUSTOM.tags = CUSTOM.tags.includes(t)
     ? CUSTOM.tags.filter(x=>x!==t)
     : tagAdd(CUSTOM.tags, t);
+  /* 손으로 체력을 적어 넣었으면 그것을 지키고, 표가 주던 값 그대로였으면 표를 따라간다.
+     '손댔는가'를 따로 들고 있지 않아도 이 비교 하나로 갈린다 */
+  if(+CUSTOM.hp === was) CUSTOM.hp = hpOfTags(CUSTOM.tags);
   renderMake();
 }
 

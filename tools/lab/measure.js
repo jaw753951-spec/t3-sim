@@ -29,7 +29,7 @@ function load(file) {
     if (i < 0 || j < 0) throw new Error(`${file}: 자름 앵커가 없다`);
     return t.slice(t.indexOf('\n', i) + 1, j);
   };
-  const ctx = vm.createContext({ console, Math, JSON, Object, Array, Set, Map, String, Number, isFinite, Proxy });
+  const ctx = vm.createContext({ console, Math, JSON, Object, Array, Set, Map, String, Number, isFinite });
   vm.runInContext(cut('//@ 자름.커널시작', '//@ 자름.커널끝') + '\n' +
                   cut('//@ 자름.배선시작', '//@ 자름.배선끝'), ctx, { filename: file });
   return e => vm.runInContext(e, ctx, { filename: file + ' <expr>' });
@@ -52,17 +52,19 @@ const PROBE = `((boss, policy, seed, noDeath) => {
   const put = (k, amt) => { LED.book[k] = (LED.book[k] || 0) + amt };
 
   /* 턴당 피해는 자리마다 재고 한 번에 합쳐 때린다 — 자리별로 받아 두었다가 비율로 나눈다 */
-  const hasTurnDmg = typeof turnDmg === 'function';
-  if (hasTurnDmg) {
+  if (typeof turnDmg === 'function') {
     const origTD = turnDmg;
     turnDmg = n => { const v = origTD(n);
       if (v > 0) { (LED.turnPend = LED.turnPend || {})[n.sym] = (LED.turnPend[n.sym] || 0) + v }
       return v };
   }
-  /* 진화 즉발은 R.EVO_HIT 를 읽는 그 자리에서만 붙잡는다.
-     turnResolve 안에서 이 표를 읽는 곳은 진화 한 줄뿐이다 (자동 진행은 그 바깥이다) */
-  const rawEvo = R.EVO_HIT;
-  R.EVO_HIT = new Proxy(rawEvo, { get(t, k) { if (t[k] !== undefined) LED.evoSym = k; return t[k] } });
+  /* 진화 즉발은 그 피해를 내는 자(evolveNow)를 감싸서 붙잡는다.
+     ★ 전에는 R.EVO_HIT 를 Proxy 로 갈아 끼워 '표를 읽는 순간'을 잡았는데,
+       그 표는 빔 탐색(beam.js)과 휴리스틱도 상태를 평가할 때마다 읽는다 —
+       한 판에 수천 번인 자리에 함정을 놓은 셈이라 쓸기 한 벌이 5~10% 느렸다.
+       진화 피해가 나는 곳은 evolveNow 한 곳뿐이므로 그것만 감싼다. */
+  const origEvolve = evolveNow;
+  evolveNow = (s, n) => { LED.evoSym = n.sym; try { return origEvolve(s, n) } finally { LED.evoSym = null } };
 
   const origHurt = hurtPatient;
   hurtPatient = (s, amt) => {
@@ -95,17 +97,13 @@ const PROBE = `((boss, policy, seed, noDeath) => {
     }
     res.hp = S.hp; res.hpMax = S.hpMax; res.evo = S.evoLog || 0; res.mind = S.mind;
   } finally {
-    hurtPatient = origHurt; K.turnResolve = origTR; turnResolve = origTR; R.EVO_HIT = rawEvo;
-    if (hasTurnDmg) { /* turnDmg 는 판마다 새로 감싸므로 되돌릴 필요가 없다 */ }
+    /* turnDmg 는 measure() 가 판마다 원본으로 되돌린다 (globalThis.__td) */
+    hurtPatient = origHurt; K.turnResolve = origTR; turnResolve = origTR; evolveNow = origEvolve;
   }
   const book = {}; for (const k in LED.book) book[k] = Math.round(LED.book[k] * 100) / 100;
   return Object.assign(res, { total: LED.total, maxHit: LED.maxHit,
                               shadowMin: LED.shadowMin, book, spot: LED.spot });
 })`;
-
-/* turnDmg 를 매 판 새로 감싸면 겹겹이 쌓인다 — 판마다 문맥을 새로 만드는 대신
-   감싼 것을 한 번만 풀도록 원본을 들고 있다가 되돌린다 */
-const RESET = `(() => { if (typeof turnDmg === 'function' && turnDmg.__orig) turnDmg = turnDmg.__orig; })()`;
 
 function measure(file, seeds) {
   const ev = load(file);

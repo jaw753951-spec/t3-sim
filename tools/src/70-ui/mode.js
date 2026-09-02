@@ -39,10 +39,14 @@ document.addEventListener('keydown', e=>{
 
 /* ═══ 모드 · 그리기 ══════════════════════════════════════════ */
 //@ 화면.모드 — §9.17 탭 갈아타기
+/* 탭 목록은 PANES(70-ui/globals.js)가 쥔다. 여기에 또 적어 두면 탭을 하나 더할 때
+   네 곳을 고쳐야 하고, 한 곳을 잊으면 새 판 위에 옛 판이 겹쳐 보이거나
+   곁판이 둘 다 뜬다 — 「악보」를 더할 때 실제로 네 곳을 고쳤다.
+   pane-deck 은 모드가 아니라 덮개라 따로 적는다 */
+const PANE_IDS = () => [...Object.keys(PANES).map(m=>'pane-'+m), 'pane-deck'];
+
 function showPane(m){
-  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-score','pane-deck']){
-    const e=$(id); if(e) e.style.display='none';
-  }
+  for(const id of PANE_IDS()){ const e=$(id); if(e) e.style.display='none' }
   $('pane-'+m).style.display='';
 }
 
@@ -54,9 +58,7 @@ function setMode(m){
   const P = PANES[m]||{};
   S=P.S||null; BOARD=P.BOARD||null; SEL=P.SEL??null; LOG=P.LOG||[]; UNDO=P.UNDO||[]; SESS=P.SESS||null;
   for(const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.m===m);
-  for(const id of ['side-one','side-sess','side-story','side-batch','side-make','side-score']){
-    const e=$(id); if(e) e.style.display='none';
-  }
+  for(const m of Object.keys(PANES)){ const e=$('side-'+m); if(e) e.style.display='none' }
   $('side-'+m).style.display='';
   showPane(m);
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;

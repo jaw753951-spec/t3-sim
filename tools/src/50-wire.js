@@ -11,7 +11,7 @@ const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BA
 
 /* medianBoards 는 화면에서 부르는 곳이 없다. 레벨표 중앙값으로 S 를 되짚는
    자체 검산이고, 지금 이것을 부르는 것은 sim_check.js 뿐이다. */
-const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
+const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,BODY_HP,hpOfTags,ATK_W,ATK_TARGET};
 
 const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,STORY_CAP,packDeck,packPick,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,cardNums,cardRaw,hasRevisit,rigTotal,handPicks,pickNeed,VAL_KIND};

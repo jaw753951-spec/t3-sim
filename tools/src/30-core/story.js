@@ -15,12 +15,23 @@ function spotEvo(bossKey, stage, sym){
   return Math.max(1, T.evo + (EVO_ADJ[sym]||0));
 }
 
-//@ 스토리.병노드 — 병 노드를 세운다
-function mkSpot(sym, init, turn){
-  return {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-    grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
+/* 자리 하나를 짓는다. 자리가 나는 네 경로가 전부 여기를 지난다 —
+   3막 진입 씨앗 · 명부대로 세우기(laySpot) · 명부 없는 보스의 분화 · 어부 「긁는다」.
+
+   ★ 진화 카운터를 밖에서 받지 않는다. 전에는 이 자가 4 를 박아 두고 부르는 쪽이
+     세 줄 뒤에 덮어썼는데, 덮어쓰기를 잊은 경로가 그대로 4 로 굳었다 —
+     어부·송이가 실제로 그랬다. 새 경로를 더해도 다시 그러지 않게 여기서 챙긴다.
+   turn 을 안 주면 씨앗이다. 3막 전에 이미 서 있던 자리라 '태어난 턴'이 없고,
+   그 열쇠는 turnResolve 가 「이번 턴에 난 자리는 이번 정산을 건너뛴다」에 쓴다. */
+//@ 스토리.병노드 — 자리 하나를 세운다. 진화 카운터까지 여기서 챙긴다
+function mkSpot(bossKey, stage, sym, init, turn){
+  const e = spotEvo(bossKey, stage, sym);
+  const n = {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
+    grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
     rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-    resist:0, resistBack:false, demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
+    resist:0, resistBack:false, demoted:false, revealed:false, spawned:turn!=null, role:'sym'};
+  if(turn!=null) n.born = turn;
+  return n;
 }
 
 /* ── 판 짓기 ── */
@@ -37,12 +48,7 @@ function makeDisease(key, rng){
     const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
     const init = b.roster ? band + Math.floor(rng()*SR.SPOT_SPREAD)
                           : SR.FREE_BASE + Math.floor(rng()*SR.FREE_SPREAD);
-    /* v26 — 4 가 손으로 박혀 있던 자리. 명부 있는 보스가 쓰는 경로와 같은 자를 본다 */
-    const e = spotEvo(key, stage, s);
-    nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-      grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
-      rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-      resist:0, resistBack:false, demoted:false, revealed:false, spawned:false, role:'sym'});
+    nodes.push(mkSpot(key, stage, s, init));   // 턴을 안 준다 — 3막 전에 이미 서 있는 자리다
   });
   let hp=b.hp;
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
@@ -55,12 +61,10 @@ function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
 /* 자리 하나를 명부대로 세운다 */
 function laySpot(S, slot, turn, stage){
   const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
-  const nd = mkSpot(slot[0], init, turn);
   /* v25 — 레벨표를 그대로 본다. build() 와 달리 EVO_ADJ 가 빠져 있어서
      같은 턴에 깔린 자리들이 같은 턴에 진화했다. 그게 체력 절벽의 원인이었다.
-     v26 — 그 계산을 spotEvo 로 뽑았다. 씨앗·분화도 같은 자를 본다. */
-  const e = spotEvo(S.board.boss, stage, slot[0]);
-  nd.evo = e; nd.evoLeft = e;
+     v26 — 그 계산은 mkSpot 안으로 들어갔다. 씨앗·분화도 같은 자를 본다. */
+  const nd = mkSpot(S.board.boss, stage, slot[0], init, turn);
   S.wiped = false;                                 // 자리가 다시 섰다 — 연명 판정이 열린다
   S.nodes.push(nd);
   return nd;
@@ -127,18 +131,29 @@ const BEAT_UNKNOWN = '모르는 박자';
 const BEAT_LIST = ['분화','성장','고유','같은 박자','진행','창','굳는다','몰린다',
                    '엮는다','번진다','아문다','치민다','가라앉는다'];
 
+/* 「진행」의 다른 이름들. 악보에 이렇게 적혀 있어도 같은 비트로 돈다.
+   diseaseAct 와 검사기와 문안이 이 목록 하나를 본다 — 전에는 셋이 각자 적어 둬서,
+   이름을 하나 더하면 검사기가 「목록에 없는 박자」라고 헛걸음을 했다 */
+//@ 스토리.박자별명 — 「진행」의 다른 이름
+const BEAT_ALIAS = ['병기 가속', '가속'];
+
 /* 이 병기가 따르는 악보. 판에 손으로 짠 악보가 실려 있으면 그것이 먼저다 —
    「만들기 · 악보」가 board.score 에 넣는다. 없으면 고른 병 노드의 악보를 본다.
    ★ 예전에는 뒤쪽 폴백이 b[dis.stage0] 이었는데, stage0 은 보스 정의에만 있고
      병 노드에는 없는 열쇠라 늘 undefined 였다 — 즉 한 번도 돈 적 없는 갈래다.
      보스의 첫 병기를 보라는 뜻이 분명하므로 BOSS[].stage0 으로 바로잡았다.
      이 갈래는 악보에 없는 병기로 커스텀 판을 세울 때만 닿는다. */
+//@ 스토리.보스악보 — 고른 병 노드가 그 병기에 쓰는 악보
+function bossScore(bossKey, stage){
+  const b = BOSS[bossKey];
+  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+}
+
 //@ 스토리.악보 — 이 병기가 따르는 악보
 function scoreOf(S, stage){
   const own = S.board && S.board.score;
   if(own && own[stage] && own[stage].length) return own[stage];
-  const b = BOSS[S.board.boss];
-  return b.beats[stage] || b.beats[b.stage0] || ['분화','고유'];
+  return bossScore(S.board.boss, stage);
 }
 
 //@ 스토리.박자 — 병이 이번 턴에 무엇을 하는가
@@ -176,18 +191,14 @@ function diseaseAct(S, dis, act){
       const pool = bd.dupType ? [bd.dupType] : ['발열','통증','호흡곤란','감염','탈수'];
       const s = pool[Math.floor(S.rng()*pool.length)];
       const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
-      const e = spotEvo(S.board.boss, dis.stage, s);   // v26 — 여기도 4 가 박혀 있었다
-      S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-        grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false,
-        spawned:true, born:S.turn, role:'sym'});
+      S.nodes.push(mkSpot(S.board.boss, dis.stage, s, init, S.turn));
       return `분화 — ${s}`;
     }
     /* 자리가 다 찼다 — 명부가 있는 보스와 같게 성장으로 넘긴다.
        전에는 여기서만 문자열을 돌려줘 어부·송이의 분화가 빈 턴이 됐다. */
     return growBeat(S);
   }
-  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
+  if(beat==='진행' || BEAT_ALIAS.includes(beat)){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   /* ── v25 신설 ── 창은 아이 전용. 나머지 셋은 공용, 아래 넷은 보스 고유 ── */
   if(beat==='창'){                                  // 판이 무너진다 — 다음 비트 턴이 무방비다
     if(S.act!==3 || !SR.GIMMICK.WINDOW) return growBeat(S);

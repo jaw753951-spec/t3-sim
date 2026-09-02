@@ -83,7 +83,7 @@ w(`# 전투 화면 툴팁 문안
 | 계기 · 진화 시계 | \`진화까지\` / \`진화함\` | \`stage-node.js\` · \`badgeSVG\` (+ \`EVOTXT_F\`) |
 | 계기 · 설치통 | \`설치물\` | \`stage-node.js\` · \`badgeSVG\` |
 | 병 노드 · 병기 링 · 병기 판 | \`병기\` | \`stage-node.js\` · \`badgeSVG\` |
-| 병 노드 · 다음 박자 | 박자 이름 | \`BEATTIP\` · \`UNIQTIP\` |
+| 병 노드 · 다음 박자 | 박자 이름 | \`BEATDOC\` · \`UNIQDOC\` |
 | 계기 · 증상 이름 | \`{증상}\` — 진화 전 · 임박 · 후 셋 | \`SYMBODY\` → \`symTip(n)\` |
 | 계기 아래 · 의도 칩 | \`{한 일}\` + 증상 설명 | \`stage-node.js\` · \`chipHTML\` → \`symTip\` · \`KWTIP\` |
 | 계기 아래 · 딱지 | 무적 · 약화 · 지연 · 성장 정지 · 반응 강등 · 만성 · 잠잠 | \`stage-node.js\` · \`standingMarks\` |
@@ -137,10 +137,11 @@ w('## 3. 배선 — `src/60-text/keywords.js` · `LINKTIP`\n');
 w('배선 메달에 뜬다. 꼬리로 `{A} 처치 시 → {B}` 가 붙는다 (`stage-node.js` · `stageLinks`).\n');
 w(js(table('src/60-text/keywords.js', 'LINKTIP')));
 
-w('## 4. 병 노드의 박자 — `BEATTIP` · `UNIQTIP`\n');
-w('병기 링 꼭대기의 「다음 박자」 그림에 뜬다. `고유` 는 보스 · 병기별로 `UNIQTIP` 이 대신한다.\n');
-w(js(table('src/60-text/keywords.js', 'BEATTIP')));
-w(js(table('src/60-text/keywords.js', 'UNIQTIP')));
+w('## 4. 병 노드의 박자 — `BEATDOC` · `UNIQDOC`\n');
+w('병기 링 꼭대기의 「다음 박자」 그림에 뜬다. `고유` 는 보스 · 병기별로 `UNIQDOC` 이 대신한다.\n');
+w('「만들기 · 악보」의 패턴 서랍도 같은 표를 읽는다 — 판 툴팁과 편집기가 한 집을 본다.\n');
+w(js(table('src/60-text/keywords.js', 'BEATDOC')));
+w(js(table('src/60-text/keywords.js', 'UNIQDOC')));
 
 w('## 5. 환자 체력 · 정신 — `src/70-ui/board-view.js`\n');
 w('환자칸의 체력 막대와 정신 줄이 쓴다. **작업대도 같은 함수를 쓴다** — 여기를 고치면 둘 다 바뀐다.\n');

@@ -104,11 +104,7 @@ function build(level, rng, opt={}){
     enh.push({a,b,k:['가속','경화','점화'][Math.floor(rng()*3)],kind:'trig',hidden:true});
   }
 
-  let hp = T.hp;
-  for(const t of (opt.tags||[])){
-    if(HP_TAG[t]===undefined) throw new Error('모르는 체력 태그: '+t);
-    hp = Math.round(hp*HP_TAG[t]);
-  }
+  const hp = hpOfTags(opt.tags||[]);   // v26 — 레벨표가 아니라 체격표를 본다
   const board = {nodes, enh, hp, hpMax:hp, level, evoBase:T.evo,
                  tags:opt.tags||[], core: opt.core || nodes[0].sym};
   board.S = S_of(board);

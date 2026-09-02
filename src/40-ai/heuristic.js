@@ -14,9 +14,9 @@ function effSup(S,n,raw){
 
 function threat(S,n){
   let t=0;
-  if(K.SYM[n.sym].atk) t += n.val*R.ATK_K*3;
+  t += K.turnDmg(n)*3;
   t += n.init*n.grow*2;
-  if(!n.evolved) t += (n.init*(R.EVO_HIT[n.sym]||0))/Math.max(1,n.evoLeft);
+  if(!n.evolved) t += (R.EVO_HIT[n.sym]||0)/Math.max(1,n.evoLeft);
   return t;
 }
 

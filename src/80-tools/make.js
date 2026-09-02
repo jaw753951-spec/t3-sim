@@ -120,7 +120,7 @@ function renderMake(){
        <label class="mk">말수<input type="number" value="${CUSTOM.talk}" onchange="mkSet('talk',this.value)"></label>
      </div>
      <div class="bar">체력 태그</div>
-     <div class="tags">${Object.keys(HP_TAG).map(t=>`<label><input type="checkbox" ${CUSTOM.tags.includes(t)?'checked':''} onchange="mkToggleTag('${t}')">${t} <span class="d">×${HP_TAG[t]}</span></label>`).join('')}</div>
+     <div class="tags">${TAG_LIST().map(t=>`<label><input type="checkbox" ${CUSTOM.tags.includes(t)?'checked':''} onchange="mkToggleTag('${t}')">${t} <span class="d">${tagLabel(t)}</span></label>`).join('')}</div>
 
      <div class="bar">증상 자리 <span class="right"><button class="mini" onclick="mkAddNode()">+ 자리</button></span></div>
      <div class="note">「효과 비율」은 그 증상을 그 증상이게 만드는 값이다. 증상을 바꾸면 항목도 바뀐다.

@@ -434,6 +434,17 @@ function policyDmg(S){
 /* noDeath 판은 체력이 0이 되지 않는다 — 문구 그대로 바닥을 1로 깐다.
    v21.2 까지는 사망 판정만 건너뛰고 값은 계속 내려가서 스토리 자동 진행이
    체력 −1985 같은 숫자를 찍었다. 화면과 예고가 전부 무의미해졌다. */
+/* v26 — 자리 하나가 이번 턴에 때리는 몫.
+   최대 피해를 '지금 얼마나 남았는지'로 깎는다. 초기값을 되찾으면 최대 피해 그대로,
+   수치가 상한(초기값 ×VAL_CAP)까지 부풀면 그 배수만큼 넘어간다 — 상한을 두지 않는다.
+   최대 피해가 0 인 증상(감염·탈수·통증·호흡곤란)은 턴당으로는 때리지 않는다. */
+//@ 커널.턴피해 — 자리 하나가 이번 턴에 때리는 몫
+function turnDmg(n){
+  const cap = R.TURN_DMG[n.sym] || 0;
+  if(cap<=0 || n.val<=0) return 0;
+  return Math.max(R.TURN_DMG_MIN, Math.ceil(cap * n.val / Math.max(1, n.init)));
+}
+
 function hurtPatient(S, amt){
   if(amt<=0) return;
   const floor = (S.board && S.board.noDeath) ? 1 : -Infinity;
@@ -489,7 +500,7 @@ function turnResolve(S){
   // 5 공격 — 관해 중에는 때리지 않는다
   let dmg = 0;
   if(!S.rem) for(const n of active(S))
-    if(n.role!=='disease' && !born(n) && SYM[n.sym].atk) dmg += Math.ceil(n.val*R.ATK_K);
+    if(n.role!=='disease' && !born(n)) dmg += turnDmg(n);
   const cuts = comfortCuts(S);
   /* 완화는 방침 배수에서 뺀다 (합연산).
      곱연산이면 두 겹만 채워도 배수가 1 아래로 떨어져 도피 방침이 되레 피해를 줄여 준다.
@@ -502,7 +513,7 @@ function turnResolve(S){
     n.evoLeft--;
     if(n.evoLeft>0) continue;
     n.evolved = true;
-    hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // 진화 '시점' 수치의 50%
+    hurtPatient(S, Math.ceil((R.EVO_HIT[n.sym]||0)*policyDmg(S)));   // v26 — 수치를 보지 않는 고정값
     if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
     if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
     if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;

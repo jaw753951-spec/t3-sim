@@ -13,8 +13,8 @@
 //@ 화면.태그칸 — 체력 태그 칸을 표에서 만든다
 function renderTagBox(){
   const box = $('tagbox'); if(!box) return;
-  box.innerHTML = Object.keys(HP_TAG).map(t =>
-    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">×${HP_TAG[t]}</span></label>`).join('');
+  box.innerHTML = TAG_LIST().map(t =>
+    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">${tagLabel(t)}</span></label>`).join('');
   const note = $('tagnote');
   if(note) note.textContent = `${TAG_CAP}개까지 · `
     + TAG_GROUP.map(g=>g.join('↔')).join(' · ') + ' 은 함께 붙지 않는다';

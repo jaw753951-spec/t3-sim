@@ -55,14 +55,17 @@ const BOSS = {
       const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
       /* 통증이 모자라거나 이미 감염이 앉아 있으면 헛돈다 — 성장으로 넘긴다 */
       if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
-      S.nodes.push(mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
+      const nd = mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn);
+      const e = spotEvo(S.board.boss, S.nodes[0].stage, '감염');   // v26 — mkSpot 의 기본 4 를 덮는다
+      nd.evo = e; nd.evoLeft = e;
+      S.nodes.push(nd);
       return '긁어서 이차 감염이 앉는다';
     },
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
   송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:3, hp:{lv:1}, tags:['영양실조'],
-    lv:{band:3, evo:1, spots:2, enh:1},
+    lv:{band:3, evo:5, spots:2, enh:1},   // v26 — 1 은 가장 느린 판이었다. 방향을 뒤집는다
     noDeath:true, seed:['탈수','통증'],
     beats:{3:['성장','고유','치민다','가라앉는다','고유','가라앉는다']},
     /* 「지금이면 괜찮아진다」 — 재워둔 자리 하나를 깨우고 정신을 한 단계 무너뜨린다 */
@@ -90,9 +93,7 @@ for(const key in BOSS){
     for(const st in b.syms)
       b.roster[st] = b.syms[st].map((sym,i)=>[sym, stageBand(key, +st, i)]);
   }
-  if(b.hp && typeof b.hp === 'object'){
-    let hp = LVTAB[b.hp.lv].hp;
-    for(const t of (b.tags||[])) hp = Math.round(hp * (HP_TAG[t]||1));
-    b.hp = hp;
-  }
+  /* v26 — 체력은 레벨(hp.lv)이 아니라 체격 태그가 정한다.
+     아이 120(소아) · 어부 200(노동자) · 송이 145(성인 + 영양실조) */
+  if(b.hp && typeof b.hp === 'object') b.hp = hpOfTags(b.tags||[]);
 }

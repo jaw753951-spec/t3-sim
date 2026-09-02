@@ -122,7 +122,7 @@ function nodeMarks(S, n){
     n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
     n.role==='disease'?'':(n.evolved
       ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
-      :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
+      :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>${R.EVO_HIT[n.sym]||0}</b>이 즉시 환자에게 들어간다. 수치를 보지 않는 고정값이다. 피해가 먼저, 수치 증가는 그 뒤다.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
     n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
     (SYMDOC[n.sym] && n.role!=='disease')
       ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
@@ -150,8 +150,8 @@ function renderInto(h){
 
   /* ── 환자 ── */
   const tagTip = (BOARD.tags||[]).length
-    ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>×${HP_TAG[t]}</b>`).join('<br>')
-        + `<br><br>기본 체력 ${LVTAB[BOARD.level]?LVTAB[BOARD.level].hp:'—'} 에 곱연산으로 걸린다.`)) : '';
+    ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>${tagLabel(t)}</b>`).join('<br>')
+        + `<br><br>체격 ${bodyHp(BOARD.tags||[])} 에서 출발해 곱연산으로 걸린다.`)) : '';
   const mindTip = tip(TT('정신 · '+S.mind, mindTipBody(S)));
   const hpTip   = tip(TT('환자 체력', hpTipBody(S, f)));
 

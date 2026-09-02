@@ -2,6 +2,19 @@
    §6 스토리 3막
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
+/* v26 — 자리가 태어날 때 진화 카운터를 어디서 받는가.
+   전에는 경로마다 달랐다: 명부가 있는 보스는 레벨표에서 읽고(laySpot),
+   명부가 없는 보스(어부·송이)는 4 가 손으로 박혀 있었다. 그래서 어부·송이는
+   진화 시계를 어떤 손잡이로도 못 만졌고, 송이에 지정된 진화 레벨(lv.evo)도
+   읽히지 않는 죽은 값이었다. 이제 세 경로가 이 자 하나를 본다 —
+   3막 진입 씨앗 · 명부대로 세우기 · 명부 없는 보스의 분화 폴백.
+   병 노드 자신(evo 99)은 여기를 지나지 않는다. 병 노드는 진화하지 않는 것이 설계다. */
+//@ 스토리.자리진화 — 자리가 갖고 태어나는 진화 카운터
+function spotEvo(bossKey, stage, sym){
+  const T = LVTAB[SLV(bossKey,'evo',stage)] || LVTAB[3];
+  return Math.max(1, T.evo + (EVO_ADJ[sym]||0));
+}
+
 //@ 스토리.병노드 — 병 노드를 세운다
 function mkSpot(sym, init, turn){
   return {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
@@ -24,8 +37,10 @@ function makeDisease(key, rng){
     const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
     const init = b.roster ? band + Math.floor(rng()*SR.SPOT_SPREAD)
                           : SR.FREE_BASE + Math.floor(rng()*SR.FREE_SPREAD);
+    /* v26 — 4 가 손으로 박혀 있던 자리. 명부 있는 보스가 쓰는 경로와 같은 자를 본다 */
+    const e = spotEvo(key, stage, s);
     nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-      grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
+      grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
       rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
       demoted:false, revealed:false, spawned:false, role:'sym'});
   });
@@ -42,9 +57,9 @@ function laySpot(S, slot, turn, stage){
   const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
   const nd = mkSpot(slot[0], init, turn);
   /* v25 — 레벨표를 그대로 본다. build() 와 달리 EVO_ADJ 가 빠져 있어서
-     같은 턴에 깔린 자리들이 같은 턴에 진화했다. 그게 체력 절벽의 원인이었다. */
-  const T = LVTAB[SLV(S.board.boss,'evo',stage)] || LVTAB[3];
-  const e = Math.max(1, T.evo + (EVO_ADJ[slot[0]]||0));
+     같은 턴에 깔린 자리들이 같은 턴에 진화했다. 그게 체력 절벽의 원인이었다.
+     v26 — 그 계산을 spotEvo 로 뽑았다. 씨앗·분화도 같은 자를 본다. */
+  const e = spotEvo(S.board.boss, stage, slot[0]);
   nd.evo = e; nd.evoLeft = e;
   S.wiped = false;                                 // 자리가 다시 섰다 — 연명 판정이 열린다
   S.nodes.push(nd);
@@ -121,8 +136,9 @@ function diseaseAct(S, dis, act){
       const pool = bd.dupType ? [bd.dupType] : ['발열','통증','호흡곤란','감염','탈수'];
       const s = pool[Math.floor(S.rng()*pool.length)];
       const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
+      const e = spotEvo(S.board.boss, dis.stage, s);   // v26 — 여기도 4 가 박혀 있었다
       S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-        grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
+        grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
         diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
         spawned:true, born:S.turn, role:'sym'});
       return `분화 — ${s}`;

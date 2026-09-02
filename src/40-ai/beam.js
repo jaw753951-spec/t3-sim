@@ -30,9 +30,9 @@ function evalState(S){
     const rest = n.val - line;
     if(rest<=0) v += W.ready - rest*0.1;                  // 뽑을 수 있는 상태 = 거의 뽑은 것
     else v -= rest*W.rest;                                // 아직 남은 일
-    if(K.SYM[n.sym] && K.SYM[n.sym].atk) v -= n.val*R.ATK_K*W.atk;   // 이 자리는 계속 때린다
+    v -= K.turnDmg(n)*W.atk;                                        // 이 자리는 계속 때린다
     v -= K.growAmt(S,n)*W.grow;
-    if(!n.evolved && n.evoLeft<=1) v -= n.init*(R.EVO_HIT[n.sym]||0)*W.evo;
+    if(!n.evolved && n.evoLeft<=1) v -= (R.EVO_HIT[n.sym]||0)*W.evo;
     if(n.shielded) v -= W.shield;
     if(C.rigTotal(n)>0) v += C.rigTotal(n)*W.rig;
   }

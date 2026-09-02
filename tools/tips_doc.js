@@ -13,7 +13,7 @@ const fs = require('fs'), path = require('path');
 const SRC = {};
 for (const f of ['src/60-text/keywords.js', 'src/70-ui/stage-node.js',
                  'src/70-ui/stage.js', 'src/70-ui/tooltip.js', 'src/70-ui/board-view.js'])
-  SRC[f] = fs.readFileSync(f, 'utf8');
+  SRC[f] = fs.readFileSync(path.join(__dirname, f), 'utf8');
 
 /* 소스에서 한 덩이를 잘라 온다. 못 찾으면 조용히 넘어가지 않는다 —
    함수 이름이 바뀌면 문서에 빈 칸이 생기는 것보다 여기서 서는 편이 낫다 */
@@ -161,5 +161,5 @@ w(js(block('src/70-ui/stage-node.js', '  /* ── 보호막 ── 문자판 �
 
 fs.mkdirSync('docs', { recursive: true });
 const md = out.join('\n');
-fs.writeFileSync(path.join('docs', '툴팁.md'), md);
+fs.writeFileSync(path.join(__dirname, 'docs', '툴팁.md'), md);
 console.log(`docs/툴팁.md — ${md.split('\n').length}줄 · ${Buffer.byteLength(md)}바이트`);

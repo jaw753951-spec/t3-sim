@@ -16,10 +16,11 @@
 
    떼어 오는 구간은 sim_check 와 같다 — 자름 앵커가 표시한다 (build.js 가 찍는다).
    ══════════════════════════════════════════════════════════════════════ */
-const fs = require('fs'), vm = require('vm');
+const fs = require('fs'), vm = require('vm'), path = require('path');
 
 const BOSSES = ['아이','어부','송이'], POLS = ['완치','연명','편하게'];
-const FILE = 'intern_sim.html', SEEDS = 40, TURNS = 30;
+/* 결과물은 저장소 루트에 있다 — 이 파일 자리에서 잡는다 (cwd 를 안 탄다) */
+const FILE = path.join(__dirname, '..', 'intern_sim.html'), SEEDS = 40, TURNS = 30;
 
 /* 화면 없이 도는 구간만 떼어 돌린다 */
 function load(file){

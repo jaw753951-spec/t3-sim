@@ -193,9 +193,18 @@ catch (e) { console.error('문법 오류:', e.message); process.exit(1) }
   }
 }
 
+/* 결과물은 저장소 루트에 둔다 — tools/ 아래는 그것을 만드는 쪽이고,
+   루트에 있는 파일이 곧 열어 보는 것이다.
+   --out 은 lab/patch.js 가 쓴다. 판본을 제 딸린 칸에 뽑아야 하는데
+   기본값(한 층 위)을 그대로 두면 판본들이 서로를 덮어쓴다. */
+const outIdx = process.argv.indexOf('--out');
+const OUT = outIdx >= 0 && process.argv[outIdx + 1]
+  ? path.resolve(process.argv[outIdx + 1])
+  : path.join(__dirname, '..', 'intern_sim.html');
+
 if (process.argv.includes('--check')) {
   console.log(`점검 통과 — 층 ${ORDER.length}개 · JS ${js.split('\n').length}줄`);
 } else {
-  fs.writeFileSync(path.join(__dirname, 'intern_sim.html'), html);
-  console.log(`intern_sim.html ${VERSION} — ${html.split('\n').length}줄 (JS ${js.split('\n').length}줄, 층 ${ORDER.length}개)`);
+  fs.writeFileSync(OUT, html);
+  console.log(`${path.relative(process.cwd(), OUT) || OUT} ${VERSION} — ${html.split('\n').length}줄 (JS ${js.split('\n').length}줄, 층 ${ORDER.length}개)`);
 }

@@ -55,7 +55,7 @@ async function probe(browser, file){
   await page.evaluate(()=>autoAll()); await page.waitForTimeout(400);
   snap.autoAll = { field: await text('#pane-one'), verdict: await text('#on_verdict') };
 
-  /* ④ 탭 다섯 — 각 탭의 첫 화면 */
+  /* ④ 탭마다 첫 화면 — 목록은 PANES 가 쥔다 */
   snap.panes = {};
   for(const m of PANES){
     /* 그 탭이 서기 전의 옛 파일에는 없는 판이다 — 건너뛴다.
@@ -316,6 +316,9 @@ async function probe(browser, file){
   })(A.snap, B.snap, '');
 
   if(d.length){ console.log(`\n=== 화면이 다른 곳 ${d.length} ===\n` + d.slice(0,12).join('\n\n')); bad++ }
-  else console.log('화면 같다 — 조작 8묶음 · 탭 5개 · 깊은 경로 5 + 카드팩 5 · 설명문 추적 · 오류 0');
+  /* 숫자를 글자로 박아 두면 탭이 늘 때마다 이 줄만 옛말을 한다 —
+     실제로 「악보」를 더한 뒤 「탭 5개」로 남아 있었다. 목록에서 읽는다 */
+  else console.log(`화면 같다 — 조작 8묶음 · 탭 ${Object.keys(B.snap.panes).length}개`
+    + ' · 깊은 경로 5 + 카드팩 5 · 설명문 추적 · 오류 0');
   process.exit(bad ? 1 : 0);
 })();

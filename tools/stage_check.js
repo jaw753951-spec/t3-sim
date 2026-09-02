@@ -52,7 +52,7 @@ const BOARDS = {
 };
 
 (async () => {
-  const file = path.resolve(process.argv[2] || 'intern_sim.html');
+  const file = path.resolve(process.argv[2] || path.join(__dirname, '..', 'intern_sim.html'));
   if (!fs.existsSync(file)) { console.error(`${file} 가 없다`); process.exit(2) }
   const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
   const bad = [];

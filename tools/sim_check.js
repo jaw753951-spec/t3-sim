@@ -9,7 +9,11 @@
      자름.커널시작 ~ 자름.커널끝   = 수치 · 데이터 · 로직 · 자동 진행
      자름.배선시작 ~ 자름.배선끝   = K · L · C · P · D · H
    ══════════════════════════════════════════════════════════════════════ */
-const fs = require('fs'), vm = require('vm');
+const fs = require('fs'), vm = require('vm'), path = require('path');
+
+/* 결과물은 저장소 루트에 있다 (tools/ 는 그것을 만드는 쪽이다).
+   cwd 가 아니라 이 파일 자리에서 잡아야 tools 안에서 부르든 루트에서 부르든 같다 */
+const DEFAULT_FILE = path.join(__dirname, '..', 'intern_sim.html');
 
 function carve(file) {
   const t = fs.readFileSync(file, 'utf8');
@@ -308,7 +312,7 @@ const report = (file, r) => {
 };
 
 if (!f1 || !f2) {
-  const file = f1 || 'intern_sim.html';
+  const file = f1 || DEFAULT_FILE;
   const r = run(file);
   if (r.bad) report(file, r);
   if (!r.ok) { console.error(r.err); process.exit(1) }

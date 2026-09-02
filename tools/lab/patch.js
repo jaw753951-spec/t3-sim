@@ -76,7 +76,8 @@ function make(name) {
   fs.cpSync(path.join(ROOT, 'src'), path.join(d, 'src'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, 'build.js'), path.join(d, 'build.js'));
   v.apply(d);
-  const r = cp.spawnSync('node', ['build.js'], { cwd: d, encoding: 'utf8' });
+  /* --out 을 안 주면 build.js 가 한 층 위(lab/build/)에 뽑아 판본끼리 서로를 덮는다 */
+  const r = cp.spawnSync('node', ['build.js', '--out', 'intern_sim.html'], { cwd: d, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${name} 조립 실패:\n${r.stdout}${r.stderr}`);
   fs.mkdirSync(OUT, { recursive: true });
   const dst = path.join(OUT, `${name}.html`);

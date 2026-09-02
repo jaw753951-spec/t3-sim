@@ -13,8 +13,10 @@ function clone(S){
     rng: ()=>0.5, rec: null, revisitOn: {...(S.revisitOn||{})}, diagPlus: {...(S.diagPlus||{})},
     drawQueue: (S.drawQueue||[]).slice(),
     pendKill: (S.pendKill||[]).slice(), killLate: [],
+    /* 사건 기록은 복제본이 물려받지 않는다. {...S} 로 뜨면 원본과 '같은 배열'을
+       가리키게 되어 탐색이 무대의 줄에 사건을 쏟아붓는다 (forecast 도 이 clone 을 쓴다) */
+    ev: null,
     board: {...S.board, nodes},
-    _log: (S._log||[]).slice(),
   };
   return T;
 }
@@ -23,6 +25,10 @@ function clone(S){
 function evalState(S){
   const W = AIW;
   let v = 0;
+  /* 감염 배분은 판 하나에 한 번만 센다. growAmt 에 넘기지 않으면 자리마다 다시 짠다 —
+     빔 탐색이 이 함수를 후보마다 부르므로 자리 수만큼 곱해져 돌아온다.
+     turnResolve 가 pool 을 넘기는 것과 같은 이유다. */
+  const pool = K.infPool(S);
   for(const n of S.nodes){
     if(n.dead){ v += W.dead; continue }                   // 뽑은 자리 — 되살아나지 않는다
     if(n.val<=0){ v += W.dorm; continue }                 // 재운 자리 — 2턴 뒤 돌아온다
@@ -30,8 +36,9 @@ function evalState(S){
     const rest = n.val - line;
     if(rest<=0) v += W.ready - rest*0.1;                  // 뽑을 수 있는 상태 = 거의 뽑은 것
     else v -= rest*W.rest;                                // 아직 남은 일
-    v -= K.turnDmg(n)*W.atk;                                        // 이 자리는 계속 때린다
-    v -= K.growAmt(S,n)*W.grow;
+    /* v26 — 커널과 같은 자를 본다. 안 맞추면 진화 피해를 init×36 으로 읽어 판단이 뒤틀린다 */
+    v -= K.turnDmg(n)*W.atk;                              // 이 자리는 계속 때린다
+    v -= K.growAmt(S,n,pool)*W.grow;
     if(!n.evolved && n.evoLeft<=1) v -= (R.EVO_HIT[n.sym]||0)*W.evo;
     if(n.shielded) v -= W.shield;
     if(C.rigTotal(n)>0) v += C.rigTotal(n)*W.rig;
@@ -47,11 +54,19 @@ function evalState(S){
 //@ AI.수 — 이번 턴에 둘 수 있는 수
 function moves(S){
   const out = [];
-  const live = K.alive(S).filter(n=>n.val>0);
-  /* 처치 — 광역 억제가 큰 것부터 */
-  for(const n of K.alive(S))
-    if(K.canKill(S,n) && S.energy>=R.KILL_COST && !S.rem)
-      out.push({t:'kill', i:S.nodes.indexOf(n), s:K.sweepAmt(n)});
+  /* S.nodes 를 한 번만 훑으면서 자리와 그 자리의 번호를 함께 쥔다 —
+     alive() 를 두 벌 만들고 자리마다 indexOf 로 번호를 다시 찾던 자리다.
+     차례는 그대로다: 처치가 먼저, 그 안에서는 명부 순서. 탐색 결과가 흔들리지 않는다. */
+  const live = [], ix = new Map();
+  const canKillNow = S.energy>=R.KILL_COST && !S.rem;
+  for(let i=0;i<S.nodes.length;i++){
+    const n = S.nodes[i];
+    if(n.dead) continue;
+    ix.set(n, i);
+    if(n.val>0) live.push(n);
+    /* 처치 — 광역 억제가 큰 것부터 */
+    if(canKillNow && K.canKill(S,n)) out.push({t:'kill', i, s:K.sweepAmt(n)});
+  }
   /* 카드 */
   const seen = {};
   for(const id of S.hand){
@@ -65,10 +80,10 @@ function moves(S){
       if(c.kw==='개방')  tg = live.filter(n=>n.rig>0);
       if(c.verb!=='진단') tg = tg.filter(n=>!K.immune(S,n));
       if(c.need && c.need.length<2) tg = tg.filter(n=>c.need(n));
-      for(const n of tg) out.push({t:'card', id, i:S.nodes.indexOf(n)});
+      for(const n of tg) out.push({t:'card', id, i:ix.get(n)});
       /* 안정화·완화는 막이 있는 자리에도 따로 */
       if(c.sub==='안정화'||c.sub==='완화')
-        for(const n of live) if(!tg.includes(n)) out.push({t:'card', id, i:S.nodes.indexOf(n)});
+        for(const n of live) if(!tg.includes(n)) out.push({t:'card', id, i:ix.get(n)});
     } else if(c.target==='hand'){
       /* 손패를 대상으로 잡는다 */
       const pool = C.handPicks(S,id), want = C.pickNeed(S,id);

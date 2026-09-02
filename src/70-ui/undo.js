@@ -8,7 +8,9 @@
 //@ 화면.되돌리기 — §9.8 한 수 무르기
 function snapS(S){
   if(!S) return null;
-  const {rng, board, ...rest} = S;
+  /* ev 는 뜨지 않는다 — pushUndo 는 playCard 안에서, 즉 무대가 사건 기록을 켜 둔
+     동안에 불린다. 그대로 두면 노드 객체를 문 사건 배열이 통째로 직렬화된다 */
+  const {rng, board, ev, ...rest} = S;
   const c = JSON.parse(JSON.stringify({...rest, board:{...board, nodes:null}}));
   c.__rng = (rng && rng.state) ? rng.state() : null;
   return c;

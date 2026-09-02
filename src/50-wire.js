@@ -3,8 +3,8 @@
    원본 intern_sim_v25.html 에서 그대로 옮겨 왔다. 내용 변경 없음.
    ══════════════════════════════════════════════════════════════════ */
 /* ── 모듈 간 참조를 잇는다 (원본 파일이 require 로 나눠져 있던 자리) ── */
-const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,
-  killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve, turnDmg,outcome,
+const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,ev,
+  killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,turnDmg,outcome,
   supAmt,stabAmt,diagAmt,
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};

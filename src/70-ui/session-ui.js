@@ -162,7 +162,7 @@ function renderSess(){
 
   const p=BOARD.script;
   const chips = alive(S).map(n=>`<span class="chip">${n.sym}</span>`).join('')
-    + basicLines(alive(S).map(n=>n.sym)).map(l=>`<span class="chip">${l.a}→${l.b} ${l.k}</span>`).join('');
+    + basicLines(alive(S).map(n=>n.sym)).map(l=>`<span class="chip">${l.a}→${l.b} ${kwLabel(l)}</span>`).join('');
   let head=`<div class="pat" id="se_patient"></div>`;
   if(S.phase==='intake'){
     head=`<div class="chart">접수 — ${p.name}${roundTag}</div><div class="chips" style="margin-bottom:12px">${chips}</div>`

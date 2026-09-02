@@ -5,17 +5,46 @@
 /* ═══ 예고 ═══════════════════════════════════════════════════
    판을 복제해 실제 turnResolve 를 한 번 돌려 본다.
    v19 는 같은 계산을 손으로 다시 써서 설치 억제 단계를 빠뜨렸고,
-   그 결과 의공학 덱에서 예고가 49% 확률로 틀렸다. 계산은 한 곳에만 둔다. */
+   그 결과 의공학 덱에서 예고가 49% 확률로 틀렸다. 계산은 한 곳에만 둔다.
+
+   스토리에서는 storyPhase 까지 돌려야 한다 — 실제 턴 종료는 병이 먼저 움직이고
+   그다음에 정산하기 때문이다 (resolveTurn 의 차례가 그렇다). 이 한 단계를
+   빠뜨리는 동안 예고가 1,879턴 중 240번(12.8%) 틀렸다. 분화 · 굳는다 · 몰린다는
+   자리를 키운 뒤에 때리므로 덜 봤고(최악 −25), 창 · 가라앉는다 · 아문다는 판을
+   내려놓아 덜 때리므로 더 봤다(최악 −52). 설치 억제를 빠뜨렸던 것과 같은 종류다.
+
+   난수를 빌리는 까닭 — 병의 박자는 난수로 자리를 고른다(분화 · 엮는다).
+   clone 은 탐색이 흔들리지 않게 rng 를 ()=>0.5 로 고정하므로, 그대로 두면 예고와
+   실제가 다른 갈래를 탄다. 실제 판의 난수를 빌려 쓰고 반드시 제자리로 돌려놓는다.
+   돌려놓기가 finally 인 것은 이 함수가 그릴 때마다 불리기 때문이다 — 중간에 튀면
+   난수가 앞으로 감긴 채 남아 판 전체가 어긋난다. */
 //@ 화면.예고 — §9.10 다음 턴에 무슨 일이 나는가
 function forecast(){
-  if(!S) return {dmg:0, evo:[], mind:null};
+  if(!S) return {dmg:0, evo:[], mind:null, ev:[]};
   const T = clone(S);
   const hp0 = T.hp, mind0 = T.mind;
   const was = T.nodes.map(n=>n.evolved);
-  try{ turnResolve(T) }catch(e){ return {dmg:0, evo:[], mind:null} }
+  const rng0 = (S.rng && S.rng.state) ? S.rng.state() : null;
+  T.rng = S.rng || T.rng;
+  /* 사건을 받아 둔다 — 무대의 의도 칩이 이것을 읽는다.
+     칩을 지금 판에서 따로 계산하면 스토리에서 합이 안 맞는다: 실제 턴 종료는 병이
+     먼저 움직이고 그 뒤에 때리므로, 자리 값이 이미 달라져 있다. 총계와 칩이
+     같은 한 번의 정산에서 나와야 둘이 안 갈린다. */
+  T.ev = [];
+  try{
+    if((T.act===1 || T.act===3) && T.nodes[0]) storyPhase(T, T.nodes[0]);
+    turnResolve(T);
+  }
+  catch(e){ return {dmg:0, evo:[], mind:null, ev:[]} }
+  finally{ if(rng0!==null && S.rng && S.rng.set) S.rng.set(rng0) }
+  /* 자리를 번호로 바꿔 내보낸다 — 클론의 노드 객체는 이 밖에서 쓸 것이 못 된다.
+     클론은 차례를 지키므로 T.nodes[i] 가 곧 S.nodes[i] 다 (박자가 새로 깐 자리는
+     뒤에 붙으므로 번호가 밀리지 않는다) */
+  const evOut = T.ev.map(e => e.n ? {...e, i:T.nodes.indexOf(e.n), n:null} : e);
   return {dmg: Math.max(0, hp0-T.hp),
           evo: T.nodes.map((n,i)=>(n.evolved&&!was[i])?n.sym:null).filter(Boolean),
-          mind: T.mind!==mind0 ? T.mind : null};
+          mind: T.mind!==mind0 ? T.mind : null,
+          ev: evOut};
 }
 
 //@ 화면.그리기 — §9.18 판 · 손패 · 계기판을 그린다
@@ -54,10 +83,9 @@ function render(){
 function mindTipBody(S){
   return `평정 = 안정화 ×${R.MIND_CALM_STAB}<br>불안 · 공황 = 억제 −${R.MIND_ANX_SUP} · 진단 −${R.MIND_ANX_DIAG}`
     + `<br>의식불명 = 진단이 −${R.MIND_KO_DIAG} 더<br><br>`
-    + `한 자리를 한 턴에 <b>${R.HIT_ANX}번째</b>로 억제하면 불안으로 간다 — 평정일 때만이고,`
-    + ' 억제로는 공황까지 가지 않는다. 판이 스스로 일으킨 억제(광역 · 설치물)는 세지 않는다.<br>'
-    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 한 단계 무너진다 — 턴당 한 번이다.<br>`
-    + '처치 · 진단 성공 · 휴면 도달은 한 단계 돌려놓는다.'
+    + `평정일 때 한 턴에 <b>${R.HIT_ANX}회</b> 억제하면 정신상태가 악화된다.`
+    + `한 턴에 최대 체력의 <b>${pctOf(R.MIND_BIGHIT)}</b> 이상 잃으면 정신상태가 악화된다. 턴당 한 번.<br>`
+    + '증상 처치, 진단 성공, 증상 휴면 도달은 정신 상태를 완화한다.'
     + (S.mind==='공황' ? '<br><br><b>공황</b> — 처치가 다음 턴 시작으로 밀린다.' : '');
 }
 
@@ -69,7 +97,7 @@ function hpTipBody(S, f){
     + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
     + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
     + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
-    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>. 바닥에 닿은 뒤의 피해는 버려진다 — 사망으로 지는 경로가 없는 판이다.</span>':'');
+    + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>.</span>':'');
 }
 
 /* ── 자리의 처치선 ── 규칙이 정한 바탕값과, 이 판에서 실제로 걸린 값 ──
@@ -130,7 +158,7 @@ function nodeMarks(S, n){
       + `<br><br>이 자리의 값 <b>${sp(n)}</b>`
       + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
       }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
-    `<span class="m"${tip(KWTIP['재진'] + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
+    `<span class="m"${tip((n.diagRound>=1 ? KWTIP['재진'] : KWTIP['진단']) + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
       + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
     n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
     n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
@@ -192,12 +220,15 @@ function renderInto(h){
 
     const marks = nodeMarks(S, n);
     const nm = n.role==='disease' ? '병 노드' : n.sym;
-    const symTip = n.role==='disease'
+    /* 이름을 nameTip 으로 바꿨다. 전에는 이 지역 상수가 symTip 이었는데,
+       문안 고르는 함수도 symTip 이라 그 초기화 식 안에서 자기 자신을 부르게 됐다
+       (「Cannot access 'symTip' before initialization」로 작업대가 통째로 안 떴다) */
+    const nameTip = n.role==='disease'
       ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
-      : tip(TT(n.sym, SYMTIP[n.sym]||''));
+      : tip(TT(n.sym + (n.evolved?' ✦':''), symTip(n)));
     const evoTip = tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'') + '<br><br><span class="d">한 번 진화한 자리는 되돌아가지 않는다.</span>'));
     return `<div class="node ${SEL===i?'sel':''} ${SYM[n.sym]&&SYM[n.sym].atk?'atk':''} ${n.evolved?'evo':''} ${n.role==='disease'?'dis':''}" onclick="pickNode(${i})">
-      <div class="nhead"><span><b${symTip}>${nm}</b>${n.evolved?`<span class="evomark"${evoTip}>진화</span>`:''}</span><span class="val">${n.val}<span class="d">/${n.init}</span></span></div>
+      <div class="nhead"><span><b${nameTip}>${nm}</b>${n.evolved?`<span class="evomark"${evoTip}>진화</span>`:''}</span><span class="val">${n.val}<span class="d">/${n.init}</span></span></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,n.val/den*100)}%"></div>
         <div class="cut" style="left:${Math.min(100,line/den*100)}%"></div>
         <div class="cut half" style="left:${Math.min(100,edge/den*100)}%"></div></div>
@@ -208,10 +239,12 @@ function renderInto(h){
   const bl=basicLines(ns.filter(n=>n.role!=='disease').map(n=>n.sym));
   const shown=ns.some(n=>n.revealed);
   $(h+'_wires').innerHTML=
-    (bl.length||(BOARD.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
-    + bl.map(l=>`<span class="wire"${tip(LINKTIP[l.k])}>${l.a} 처치 시 → ${l.b} <em>${l.k}</em></span>`).join('')
-    +(BOARD.enh||[]).map(e=>shown
-        ?`<span class="wire enh"${tip((LINKTIP[e.k]||'')+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${e.k}</em></span>`
+    /* 배선은 **판(S)** 에서 읽는다 — BOARD.enh 는 처음 만들어진 판의 것이라
+       부설이 싸움 중에 놓은 줄이 안 나온다 (무대가 같은 함정에 빠져 있었다) */
+    (bl.length||(S.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
+    + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
+    +(S.enh||[]).map(e=>shown
+        ?`<span class="wire enh"${tip(kwTip(e)+'<br><br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>')}>${e.a} 처치 시 → ${e.b} <em>${kwLabel(e)}</em></span>`
         :`<span class="wire hid"${tip(TT('감춰진 배선','이 환자에게만 걸린 강화형 연결선이다.<br>진단 1회차나 문진 「어쩌다 다치셨어요」로 드러난다.'))}>? → ? <em>진단 필요</em></span>`).join('');
 
   /* ── 우측 상태판 ── */
@@ -280,14 +313,17 @@ function renderInto(h){
 
 /* 성장이 어디서 왔는가 — 이미 박힌 값과 지금 켜져 있는 값을 갈라 적는다 */
 function growWhy(S,n){
-  const infN = active(S).filter(f=>f!==n && f.sym==='감염');
+  let infN = 0, tgtN = -1;                 // 자기 자신은 대상 수에서 뺀다
+  for(const f of active(S)){
+    if(f!==n && f.sym==='감염') infN++;
+    if(f.role!=='disease') tgtN++;
+  }
   const share = infPool(S).get(n) || 0;
-  const tgtN  = active(S).filter(f=>f.role!=='disease').length - 1;
-  const own  = Math.max(0, n.grow - 0);
+  const own  = Math.max(0, n.grow);
   if(n.growHold>0) return `턴 종료 시 <b>+0</b><br><br>· 성장이 <b>${n.growHold}턴</b> 멈춰 있다.<br>&nbsp;&nbsp;<span class="d">멈춘 동안 감염이 나눠 주는 몫도 받지 않는다. 그 몫은 다른 자리로 넘어가지 않고 사라진다.</span>`;
   const L=[`턴 종료 시 <b>+${growAmt(S,n)}</b>`, ''];
   if(n.sym==='출혈') L.push(`· 출혈 자체 — 매 턴 <b>현재 수치의 ${Math.round(sp(n,'출혈')*100)}%</b> (+${Math.ceil(n.val*sp(n,'출혈'))})${n.evolved?' <span class="d">진화로 두 배가 됐다</span>':''}`);
-  if(share>0)     L.push(`· 감염이 나눠 준 몫 — <b>+${share}</b><br>&nbsp;&nbsp;<span class="d">감염 ${infN.length}자리가 만드는 총량을 자리 ${tgtN+1}개가 나눠 갖는다. 자리가 늘어도 판 전체 성장은 그대로고 한 자리 몫만 얇아진다.<br>감염을 끊으면 이 몫은 사라진다.</span>`);
+  if(share>0)     L.push(`· 감염이 나눠 준 몫 — <b>+${share}</b><br>&nbsp;&nbsp;<span class="d">감염 ${infN}자리가 만드는 총량을 자리 ${tgtN+1}개가 나눠 갖는다. 자리가 늘어도 판 전체 성장은 그대로고 한 자리 몫만 얇아진다.<br>감염을 끊으면 이 몫은 사라진다.</span>`);
   if(own>0)       L.push(`· 이 자리에 <b>이미 박힌</b> 성장률 +${own.toFixed(2)} (+${Math.ceil(n.init*own)})<br>&nbsp;&nbsp;<span class="d">가속 촉발이나 무장발현으로 한 번 붙은 값이다. 되돌릴 수 없다.</span>`);
   if(n.sym!=='출혈' && !share && !own) L.push('· 판 전체에 걸린 기본 성장률');
   L.push('', `<span class="d">수치 상한은 초기값의 ${R.VAL_CAP}배 = ${Math.floor(n.init*R.VAL_CAP)}.</span>`);
@@ -379,7 +415,7 @@ function stateHTML(){
     rows.push(`<div class="st"${tip(TT('통증 · 처치선',
       `살아 있는 통증 자리마다 처치선 몫이 곱연산으로 낮아진다. 배율 <b>×${pm.toFixed(3)}</b>.<br>`
       +`하한은 <b>${Math.round(R.PAIN_FLOOR*100)}%</b>이고 통증 몫에만 걸린다 — 약화는 그 위에 더해지므로 언제나 유효하다.<br><br>`
-      +`지금 처치선 = 초기값 × (${Math.round(ps*100)}% + 5%p × 약화)`))}>
+      +`지금 처치선 = 초기값 × (${Math.round(ps*100)}% + ${pctOf(R.WEAK_STACK)}p × 약화)`))}>
       <div class="stt"><span>처치선 몫</span><b>${Math.round(ps*100)}%</b></div>
       <div class="stnote">기본 ${Math.round(R.KILL_LINE*100)}% → ${Math.round(ps*100)}%${ps<=R.PAIN_FLOOR?' <span class="d">(하한)</span>':''}<br>통증이 판을 조이고 있다</div></div>`);
   }

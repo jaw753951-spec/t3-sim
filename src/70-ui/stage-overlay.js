@@ -18,7 +18,13 @@ function stageOvHideAll(){
    대기 인원이 한 박자 늦게 따라오던 자리다 */
 function stageOvShow(id){
   stageOvHideAll();
-  if(STAGE_ON && S) stageHud();
+  /* 덮개 뒤의 판도 같이 맞춘다 — 턴 수 · 체력이 덮개 옆으로 비친다.
+     전에는 stageHud() 를 불렀는데 그 함수는 네 구역 개편에서 stageRender 로
+     갈라졌다. 이름만 남아 있어서 덮개가 뜨는 길(문진 · 명단 · 막)마다
+     ReferenceError 로 stageFlow 가 통째로 끊겼고, 그래서 외래 문진 화면이
+     빈 무대 위에 떴다. ui_check 는 작업대 쪽 길만 밟아서 못 잡았다 —
+     무대에서 외래를 한 번 열어 보고서야 나왔다. */
+  if(STAGE_ON && S) stageRender();
   const e=$(id); if(e) e.classList.add('on');
 }
 

@@ -84,7 +84,7 @@ function build(level, rng, opt={}){
     return {sym:s, init, val:init, band, shielded, shReduc:shielded?R.SHIELD_CUT:0, stabAcc:0,
             grow:0, evo, evoLeft:evo, evolved:false, dead:false, dormT:0, weak:0,
             rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0,
-            diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false,
+            diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
             revealed:false, spawned:false, role:'sym'};
   });
   if(!nodes.some(n=>SYM[n.sym].atk)) for(const n of nodes) n.grow += R.NOATK_G;

@@ -159,7 +159,9 @@ function nodeMarks(S, n){
       + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
       }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
     `<span class="m"${tip((n.diagRound>=1 ? KWTIP['재진'] : KWTIP['진단']) + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
-      + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
+      /* 덱에 재진을 달 길이 있을 때만 「재진이 있어야 한다」고 말한다.
+         없는 덱에서는 할 수 있는 일을 가리키지 않는 문장이라 안내가 아니라 잡음이다 */
+      + (n.diagRound>=1 && S.revisitArmed?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
     n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
     n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
     n.muted?`<span class="m dm">이번 턴 잠잠</span>`:'',
@@ -395,7 +397,7 @@ function stateHTML(){
   if(rv.length || held.length){
     rows.push(`<div class="st"${tip(KWTIP['재진'])}>
       <div class="stt"><span>재진</span><b>${held.length?held.length+'장':rv.length+'자리'}</b></div>
-      <div class="stnote">${held.map(k=>`<b>${k}</b> — ${[(S.revisitOn||{})[k]?'재진':'', (S.diagPlus||{})[k]?`진단 +${S.diagPlus[k]}`:''].filter(Boolean).join(' · ')}`).join('<br>')}
+      <div class="stnote">${held.map(k=>`<b>${k}</b> — ${[(S.diagPlus||{})[k]?`진단 +${S.diagPlus[k]}`:'', (S.revisitOn||{})[k]?'재진':''].filter(Boolean).join(', ')}`).join('<br>')}
         ${held.length&&rv.length?'<br>':''}
         ${rv.map(n=>`${n.role==='disease'?'병':n.sym} ${n.diagRound}회 · 다음 ${n.diagNeed}`).join('<br>')}</div></div>`);
   }

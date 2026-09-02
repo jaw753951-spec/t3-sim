@@ -283,6 +283,11 @@ function diagnose(S,n,amt,opt={}){
     if(n.val===0 && n.dormT===0) n.dormT = R.DORMANT;
     if(R.DIAG_DEEP_MAX && n.diagRound>=R.DIAG_DEEP_MAX) break;
   }
+  /* 재진이 아닌 진단으로 1회차를 열었으면 남은 스택을 버린다.
+     ★ 「2회차 이상은 재진만 연다」가 회차에는 걸려 있었는데(위 break) 스택에는
+       안 걸려 있었다. 요구가 3인데 5를 부으면 2가 남아, 나중에 재진 한 장이
+       올 때 2회차가 거저 열렸다 — 일반 진단이 재진의 몫을 미리 쌓아 두던 셈이다. */
+  if(!revisit && n.diagRound>=1) n.diagAcc = 0;
   return rounds;
 }
 
@@ -420,13 +425,20 @@ function killNow(S,n){
   S.rush = Math.min(R.RUSH_MAX, S.rush + R.RUSH_PER);   // 참조 카드가 없어도 쌓인다. 계기판만 가린다
   ev(S,{t:'kill', n, grade:r});
   ev(S,{t:'rush', v:S.rush});
-  mind(S,-1);                                     // 처치 성공 = 호전
+  /* 처치 성공 = 호전. 강반응은 그 호전을 상쇄한다 — 벌이 아니다.
+     ★ 전에는 여기서 mind(-1) 을 걸고 반응 뒤에 강반응이면 mind(+1) 을 따로 걸었다.
+       그런데 정신 눈금은 평정에서 멈추므로, 평정일 때는 -1 이 갈 데가 없어 그냥
+       버려지고 +1 만 남았다 — 평정에서 강반응으로 끊으면 정신이 불안으로 떨어졌다.
+       잘 끊을수록(수치를 많이 남기고 끊을수록) 나빠지는 셈이었다.
+       「레벨3 에서 발열을 끊으면 탈수가 서면서 정신이 나빠진다」는 제보의 원인이
+       이것이다. 탈수가 서는 것과는 상관이 없었고 등급이 원인이었다.
+     상쇄는 한 번에 셈해서 건다. 평정 아닌 자리에서의 결과는 전과 같다. */
+  if(r!=='strong') mind(S,-1);
   // ① 광역 억제 먼저 — 다른 노드가 처치선 아래로 내려가 연쇄가 열린다
   const before = alive(S);          // alive 가 이미 새 배열을 낸다 — 한 벌 더 뜨지 않는다
   for(const m of before) if(m!==n) suppress(S,m,amt,{sweep:true});
   // ② 반응 발동. 전이로 새로 생긴 노드는 ①을 못 받는다
   if(r!=='none') fireReactions(S,n,r);
-  if(r==='strong') mind(S,+1);
   return true;
 }
 

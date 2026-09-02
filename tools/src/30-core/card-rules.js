@@ -106,6 +106,13 @@ function setupDeck(S, list, rng){
   /* 기세는 항상 쌓인다. rushArmed 는 계기판을 켤지만 정한다 —
      참조 카드가 없으면 숫자가 장식으로 올라가기만 하므로 숨긴다 */
   S.rushArmed = list.some(id=>CARDS[id] && CARDS[id].rushCard);
+  /* 재진도 같다 — 덱에 재진을 달 길이 없으면 1회차를 연 뒤에도 「재진 태그 없이는
+     더 못 연다」는 안내가 할 수 있는 일을 가리키지 않는다. 그냥 거기서 끝인 것이다.
+     달 길 = 처음부터 재진인 카드, 또는 남의 카드에 재진을 붙이는 카드(진행을 붙든다) */
+  S.revisitArmed = list.some(id=>{
+    const c = CARDS[id];
+    return c && (c.revisit || c.kw==='재진');
+  });
   drawTurn(S);
 }
 

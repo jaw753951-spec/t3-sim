@@ -112,13 +112,15 @@ body.sgon{overflow:hidden}
 /* 배선 자체는 손이 안 닿지만 메달에는 설명이 붙는다 — 그 자리만 되살린다 */
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
-/* 배선은 A 에서 B 로 흐른다. 경로를 A→B 순으로 그으므로 dashoffset 을 음수로
-   밀면 대시가 그 방향으로 간다 — 경로를 거꾸로 그으면 화살표도 거꾸로 흐른다.
-   강화형은 대시를 더 띄엄띄엄 둬서 기본형과 갈린다 (전에는 stroke-dasharray
-   하나로만 갈랐는데 흐름을 주면서 그 자리가 겹쳤다) */
-#sg_links .wf{stroke-dasharray:16 9;animation:wfl 1.1s linear infinite}
-#sg_links .wf.enh{stroke-dasharray:7 11;animation-duration:1.5s}
-@keyframes wfl{to{stroke-dashoffset:-25}}
+/* 아직 안 난 자리 — 전이 배선이 닿는 빈 칸. 설명이 붙으므로 손이 닿아야 한다.
+   글꼴을 여기서 준다: SVG text 는 판의 글꼴을 물려받지 않는다 */
+#sg_links .ghz{pointer-events:auto;cursor:help;font-family:var(--sans)}
+/* 방향은 갈매기와 화살촉이 말한다 — 정적이다.
+   전에는 대시를 흐르게 해서 방향을 냈는데, 줄이 서넛이면 판 위쪽 전체가 늘
+       움직이고 있어 눈이 거기 붙들렸다. 갈무리 · 인쇄에도 안 남는다.
+   대시 무늬는 남긴다 — 기본형과 강화형을 가르는 것이 그 무늬다 */
+#sg_links .wf{stroke-dasharray:16 9}
+#sg_links .wf.enh{stroke-dasharray:7 11}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
 #sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;

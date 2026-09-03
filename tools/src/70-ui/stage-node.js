@@ -414,10 +414,16 @@ function badgeSVG(S, n, sz){
     /* 다음 박자 — 링 꼭대기에 그림 하나. 글은 beatTip 이 말한다 */
     const bt = (typeof nextBeat==='function' && S.board && S.board.boss) ? nextBeat(S, n) : null;
     if(bt){
-      const [bx,by]=P(270, RR+25), r=17;
+      /* 병기 배지(r 17)보다 크게 둔다 — 병이 다음 턴에 무엇을 할지가 이 판에서
+         가장 자주 보는 것인데 배지들 틈에 같은 크기로 묻혀 있었다.
+         그림도 같은 배수로 키운다 (20×20 원본을 1.4배) */
+      /* 오른쪽에 둔다 — 병기 배지가 왼쪽(180°)이라 좌우로 짝이 맞는다.
+         정수리(270°)에 있던 것을 옮긴 까닭: 보호막 눈금이 위쪽 200°~340° 를
+         쓰므로 그 한가운데였다. 그림을 키우자 눈금 위에 그대로 얹혀 둘 다 못 읽었다 */
+      const [bx,by]=P(0, RR+25), r=24, sc=1.4;
       s += `<g${tip(beatTip(S,n) || TT('다음 박자', esc(bt)))}>`
-        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="1.8"/>`
-        + `<g transform="translate(${(bx-10).toFixed(1)},${(by-10).toFixed(1)})" fill="none" stroke="#C9A44A"`
+        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="2.4"/>`
+        + `<g transform="translate(${(bx-10*sc).toFixed(1)},${(by-10*sc).toFixed(1)}) scale(${sc})" fill="none" stroke="#C9A44A"`
         + ` stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">`
         + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g></g>`;
     }
@@ -536,10 +542,15 @@ function dialSVG(S, n){
           `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
           + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
           + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
-      + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
-      + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)
-      + `<text x="${c}" y="42" text-anchor="middle" font-size="21" font-weight="800"`
-      + ` font-family="ui-monospace,monospace" fill="#9FD4DE">${left}</text></g>`;
+      /* 눈금과 숫자를 진하게. 옅은 물빛 숫자가 계기 얼굴 위에 얹혀 있어서
+         밝은 자리에서는 배경에 잠겼다 — 어두운 테를 두르고(paint-order) 키운다.
+         눈금 자체도 빈 쪽을 진하게 해서 얼마나 남았는지가 멀리서도 보이게 한다 */
+      + arcS(A0, A0+SPAN, 10, 'rgba(14,20,24,.55)', 1)
+      + arcS(A0, A0+SPAN, 10, 'rgba(122,168,178,.42)', 1)
+      + arcS(A0, A0+SPAN*f, 10, '#B8E4EC', 1)
+      + `<text x="${c}" y="45" text-anchor="middle" font-size="25" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="#D6EFF4"`
+      + ` stroke="#0E1418" stroke-width="4.5" paint-order="stroke" stroke-linejoin="round">${left}</text></g>`;
   }
 
   const ix = S.nodes.indexOf(n);
@@ -620,20 +631,66 @@ function dialSVG(S, n){
    붙어 있었다. 가로로 삐져나오는 양은 0.777×(sz/2+58) + 배지 반폭 ≈
    0.389sz + 69 이고 테 반폭이 0.5sz 이므로 자리 하나가 69 − 0.111sz,
    둘이 마주 보면 그 두 배다. 자리가 244 일 때 84 라 96 이면 넉넉하다. */
+/* 무대에 그릴 배선 — 기본형에 강화형을 얹는다.
+
+   강화형 배선은 **판(S)** 에서 읽는다. BOARD.enh 를 읽고 있었는데, 그것은
+   처음 만들어진 판의 것이라 부설이 싸움 중에 놓은 줄(S.enh.push)이 화면에
+   한 줄도 안 나왔다. 되돌리기가 판을 갈아 끼우면 둘이 아예 다른 배열이 된다.
+
+   아직 안 드러난 강화형은 여기서 걸러 낸다 — **한 줄도 안 그린다.** 점선으로라도
+   그리면 어느 자리끼리 걸렸는지가 새어 나간다 (작업대가 「? → ?」 로 양 끝을
+   감추는 것과 같은 잣대다). 자리잡기도 이 목록을 보므로, 안 드러난 줄이
+   빈 칸을 예약해 버리면 줄 간격만 보고 배선 수를 셀 수 있게 된다. */
+//@ 무대.배선목록 — 자리잡기와 그리기가 함께 보는 목록
+function stageLines(){
+  if(!S) return [];
+  const ns = alive(S).filter(n=>n.role!=='disease');
+  const shown = enhShown(S);
+  return [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
+          ...((S.enh)||[]).map(e=>({...e, enh:true}))]
+    .filter(l => !(l.enh && !shown));
+}
+
+/* 전이 배선이 낳을 자리 — 아직 판에 없는 도착점의 증상 이름들.
+   빈 칸 하나가 계기 한 대의 GH_W 만큼을 먹는다. 1 로 두면 「날지도 모르는 자리」
+   하나 때문에 실제 자리가 전부 한 치수 작아진다 — 절반쯤이 자리를 알아볼 만하면서
+   줄을 덜 밀었다. */
+const GH_W = 0.55;
+let SG_GHOST = [];
+function stageGhosts(){
+  if(!S) return [];
+  const live = new Set(alive(S).filter(n=>n.role!=='disease').map(n=>n.sym));
+  const out = [];
+  for(const l of stageLines()){
+    /* 출발점이 판에 있어야 그릴 수 있다 — 강화형 배선은 판에 없는 자리에서
+       나가는 것이 있다 (되돌리기로 자리가 사라져도 S.enh 는 남는다) */
+    if(!live.has(l.a) || !spawnsSpot(l) || live.has(l.b) || out.includes(l.b)) continue;
+    out.push(l.b);
+  }
+  return out;
+}
+
 function stageLayout(){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
   const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
   const row  = alive(S).filter(n=>n!==dis);
-  const CN   = row.length || 1;
+  const gh   = stageGhosts();
+  /* 칸은 「자리 하나」를 1 로 세는 단위다. 빈 칸이 GH_W 만 먹으므로 CN 은
+     정수가 아니다 — 전에는 row.length 로만 나눴고, 그래서 전이로 자리가
+     실제로 날 때 줄 전체가 한 칸씩 밀려 판이 통째로 흔들렸다.
+     미리 비워 두면 태어나는 자리가 제 칸에 그대로 선다. */
+  const CN   = (row.length + GH_W*gh.length) || 1;
   const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.97)/CN - 96));
   const cy   = dis ? H*0.68 : H*0.46;
+  const slot = (at,w) => W*0.015 + (W*0.97)*(at + w/2)/CN;
   row.forEach((n,i)=>{
-    n.px = W*0.015 + (W*0.97)*(i+0.5)/CN;
+    n.px = slot(i, 1);
     n.py = cy;
     n.sz = SZ;
   });
+  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
   /* 병 노드는 줄에 끼지 않고 위 가운데에 앉는다. 부수 증상보다 크되 전처럼
      판을 다 먹지는 않는다 — 330 은 배지까지 합쳐 판 높이의 절반을 넘었다 */
   /* 0.30 은 배지에서 거꾸로 잡은 값이다 — 병기 링 위 다음 박자 badge 가
@@ -739,7 +796,6 @@ function stageLinks(){
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
-  const shown = alive(S).some(n=>n.revealed);
   /* 레인은 줄 바로 위에 깐다. 판 꼭대기(34)에 못 박아 두었더니 스토리에서
      증상이 아래로 내려간 순간 배선이 병 노드를 가로질러 올라갔다.
 
@@ -750,37 +806,100 @@ function stageLinks(){
      한 벌이라 거기가 바뀌면 여기도 바뀐다. */
   const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
-  /* 강화형 배선은 **판(S)** 에서 읽는다. BOARD.enh 를 읽고 있었는데, 그것은
-     처음 만들어진 판의 것이라 부설이 싸움 중에 놓은 줄(S.enh.push)이 화면에
-     한 줄도 안 나왔다. 되돌리기가 판을 갈아 끼우면 둘이 아예 다른 배열이 된다 */
-  const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
-                 ...((S.enh)||[]).map(e=>({...e, enh:true}))];
+  const lines = stageLines();
+
+  /* 병 노드가 앉은 띠 — 레인이 여기를 지나면 안 된다.
+     ★ 레인은 줄 위로 30 씩 쌓이는데, 스토리 판은 병 노드가 판 위쪽 한가운데에
+       크게 앉아 있다. 레인이 서넛 되면 그 아래 테를 가로질렀다 (실측: 병 노드
+       바닥 400 · 둘째 레인 머리 372). 병 노드는 배선이 닿는 자리가 아니므로
+       가로지를 까닭이 없다.
+     간격을 좁혀 아래에 다 욱여넣는 길도 있었지만, 그러면 줄이 둘만 돼도 레인이
+       같은 높이에 겹쳐 메달이 포개졌다. 대신 **걸리는 줄만 병 노드 위로 넘긴다** —
+       가로로 병 노드에 안 걸치는 줄은 제자리에 그대로 둔다. */
+  const dz = alive(S).find(n=>n.role==='disease' && n.px!==undefined);
+  /* 여유는 테가 아니라 **배지 머리**에서 잡는다 — 병 노드는 테 밖으로 보호막 눈금과
+     병기 · 다음 박자 배지를 두르고 있어서, 테만 피하면 그 위를 그대로 지나간다.
+     82 는 BADGE_TOP 이 쓰는 것과 같은 값이다 (테 밖 58 + 배지 반높이 24) */
+  const PAD = 82;
+  /* above 는 레인을 통째로 넘기던 때의 것이었다 — 메달만 비키는 지금은 필요 없다 */
+  const DZ = dz ? {top:(dz.py - dz.sz/2 - PAD)/H*744, bot:(dz.py + dz.sz/2 + PAD)/H*744,
+                   l:(dz.px - dz.sz/2 - PAD)/W*1210,  r:(dz.px + dz.sz/2 + PAD)/W*1210} : null;
 
   let out = '';
+
+  /* 전이 색은 여기 하나로 둔다 — 빈 칸과 그 칸으로 가는 줄이 같은 색이라야
+     둘이 한 벌로 읽힌다 */
+  const C_TRANS = '#B8776F';
+
+  /* ── 아직 안 난 자리 ── 전이 배선이 닿는 빈 칸을 먼저 깐다 (줄 아래에 놓는다).
+     글자는 x 로 늘어난다: #sg_links 는 1210×744 viewBox 를 판(1512×788)에
+     preserveAspectRatio="none" 로 늘여 쓰므로 x 와 y 배율이 다르다. 재서 되돌린다 —
+     판 크기가 바뀌어도 따라온다. 이 SVG 에 글자를 넣는 것은 여기가 처음이다 */
+  const kx = (1210*H)/(744*W);
+  for(const g of SG_GHOST){
+    const gx=g.px/W*1210, gy=g.py/H*744, rx=g.sz/2/W*1210, ry=g.sz/2/H*744;
+    const from = [...new Set(lines.filter(l=>l.b===g.sym && spawnsSpot(l)).map(l=>l.a))];
+    const gt = TT(`${g.sym} — 아직 안 난 자리`,
+      `<b>${esc(from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
+      + '<br><br><span class="d">칸만 비워 둔 것이다 — 지금은 아무것도 하지 않고,'
+      + ' 아무것도 여기에 걸 수 없다.</span>');
+    out += `<g class="ghz"${tip(gt)}>`
+      + `<ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"`
+      + ` fill="#14181C" fill-opacity=".55" stroke="${C_TRANS}" stroke-width="2.4"`
+      + ` stroke-dasharray="9 8" opacity=".6"/>`
+      + `<g transform="translate(${gx.toFixed(1)} ${gy.toFixed(1)}) scale(${kx.toFixed(3)} 1)">`
+      + `<text text-anchor="middle" y="7" fill="${C_TRANS}" opacity=".9"`
+      + ` font-size="20" font-weight="700">${esc(g.sym)}</text></g>`
+      + `</g>`;
+  }
 
   /* 감염의 퍼짐 선은 걷었다 — 자리 넷을 먹이면 선이 넷 깔려 계기 뒤로
      지나가고 의도 칩을 가로질렀다. 지금은 자리 자체의 파문이 말한다
      (무대.방사). 되살릴 거면 대상을 손으로 고르지 말고 infPool 의 열쇠를
      쓴다 — 감염 둘 · 성장 정지 · 병 노드를 그 함수가 이미 가린다. */
 
+  /* 계기 테 꼭대기 — 줄이 여기에 붙는다. 빈 칸은 계기보다 작으므로 양 끝을
+     따로 잰다. 전에는 출발점의 top 하나로 양 끝을 다 그렸는데, 그때는 줄에
+     선 자리가 전부 같은 크기라 티가 안 났다 */
+  const topOf = p => (p.py - p.sz*0.56)/H*744;
+
   let lane = 0;
   for(const l of lines){
-    /* 아직 안 드러난 강화형 배선은 **한 줄도 안 그린다**.
-       점선으로라도 그리면 어느 자리끼리 걸렸는지가 새어 나간다 —
-       작업대가 「? → ?」 로 양 끝을 감추는 것과 같은 잣대다.
-       드러나는 길은 진단 1회차나 문진 「어쩌다 다치셨어요」다. */
-    if(l.enh && !shown) continue;
-    const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
+    const A = ns.find(x=>x.sym===l.a);
+    /* 도착점이 아직 판에 없어도 전이는 그린다 — **처치하면 거기에 자리가 난다.**
+       ★ 전에는 `if(!Bn) continue` 로 그 줄을 통째로 버렸다. basicLines 는 전이를
+         도착점 없이도 내므로(「C는 아직 없어도 된다」) 작업대에는
+         「발열 처치 시 → 탈수 무장발현」이 적히는데 무대에는 그 줄이 아예 없었다 —
+         같은 판을 두 창이 다르게 말했다. 빈 칸은 stageLayout 이 미리 잡아 둔다 */
+    const Bn = ns.find(x=>x.sym===l.b) || SG_GHOST.find(g=>g.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
-    const mx=(sx+ex)/2;
+    const top=topOf(A), topB=topOf(Bn);
+    const ly = Math.max(14, rowTop - 20 - lane*30); lane++;
+    /* 메달을 병 노드에서 비킨다.
+       ★ 선 자체는 병 노드 뒤로 지나가도 된다 — 자리(z 15)가 배선(z 11) 위에
+         그려지므로 가려질 뿐 겹쳐 보이지 않는다. 문제는 **메달**이었다.
+         레인 가운데가 마침 병 노드 자리라, 종류 그림이 보호막 눈금 위에 얹혀
+         둘 다 못 읽게 됐다. 레인을 통째로 병 노드 위로 넘겨도 봤지만 그 위
+         공간이 좁아 레인 둘이 같은 높이에 겹쳤다 — 비키는 것은 메달만으로 족하다.
+       띠 밖의 가까운 쪽으로 밀되, 제 줄(sx~ex) 밖으로는 안 나간다 */
+    let mx = (sx+ex)/2;
+    if(DZ && ly < DZ.bot && ly > DZ.top && mx > DZ.l && mx < DZ.r){
+      const lo = Math.min(sx,ex) + 26, hi = Math.max(sx,ex) - 26;
+      const left = DZ.l - 22, right = DZ.r + 22;
+      const okL = left >= lo, okR = right <= hi;
+      if(okL && okR) mx = (mx - DZ.l) < (DZ.r - mx) ? left : right;
+      else if(okL)   mx = left;
+      else if(okR)   mx = right;
+      /* 양쪽 다 제 줄을 벗어나면 그냥 둔다 — 줄이 병 노드보다 짧다는 뜻이고,
+         그때는 어디로 밀어도 제 줄 밖이라 더 나빠진다 */
+    }
     /* 배선 하나가 키워드를 여럿 든다 — 색과 그림은 **기본형**이 정하고
        얹힌 강화형은 메달 옆에 작은 위성으로 붙는다. 갈래도 커널의 linkKind 로
        묻는다: 여기서 '발현'·'무장발현' 을 손으로 세던 때는 부설이 촉발 색으로
        나왔다 (전이인데). 종류 표를 두 벌로 적으면 곧 한쪽이 거짓말을 한다 */
     const hk = linkHead(l), mods = linkKws(l).filter(isEnhKw);
-    const c = linkKind(l)==='trans' ? '#B8776F' : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
+    const c = linkKind(l)==='trans' ? C_TRANS : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
     /* 메달에 설명을 단다. 글은 작업대가 쓰는 LINKTIP 그대로다 —
        배선 규칙을 두 벌로 적으면 한쪽이 곧 거짓말을 한다 */
     const lt = kwTip(l) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
@@ -800,10 +919,10 @@ function stageLinks(){
       + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
       + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
-      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none"`
+      + `<path d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
+      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none"`
       + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
-      + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
+      + `<path d="M${ex-7} ${topB-11} L${ex} ${topB-1} L${ex+7} ${topB-11} Z" fill="${c}"/>`
       + chev(34*dir) + chev(56*dir)
       + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
       + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`

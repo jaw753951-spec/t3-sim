@@ -449,9 +449,10 @@ body.sgon{overflow:hidden}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
 
-#sg_links .wf{stroke-dasharray:16 9;animation:wfl 1.1s linear infinite}
-#sg_links .wf.enh{stroke-dasharray:7 11;animation-duration:1.5s}
-@keyframes wfl{to{stroke-dashoffset:-25}}
+#sg_links .ghz{pointer-events:auto;cursor:help;font-family:var(--sans)}
+
+#sg_links .wf{stroke-dasharray:16 9}
+#sg_links .wf.enh{stroke-dasharray:7 11}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
 #sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;
@@ -1748,6 +1749,10 @@ function linkKind(L){
 }
 const linkHead = L => linkKws(L).find(k => !isEnhKw(k)) || linkKws(L)[0];
 
+//@ 커널.전이자리 — 처치 때 자리가 나는 배선인가
+const kwSpawns = k => !isEnhKw(k) && k!=='부설' && kindOf(k)==='trans';
+const spawnsSpot = L => linkKws(L).some(kwSpawns);
+
 function sp(n, sym){
   const d = SYMPARAM[sym||n.sym]; if(!d) return 0;
   const v = n[d.key];
@@ -2036,7 +2041,7 @@ function fireLine(S, src, L, strong, lines){
 
   for(const k of base){
     if(k==='부설'){ layLink(S, src, L, strong); continue }
-    if(kindOf(k)!=='trans') continue;
+    if(!kwSpawns(k)) continue;
     if(alive(S).find(n=>n.sym===L.b && n!==src)) continue;   // 이미 있으면 안 생긴다
     const nn = transmit(S, src, L, k, strong);
     if(nn && bloom && strong) bloomNow(S, nn, true);
@@ -3565,6 +3570,9 @@ const symBody = (sym, n) => (SYMBODY[sym] ? SYMBODY[sym](n) : null);
 //@ 문안.진화임박 — 떨림 연출과 툴팁이 함께 보는 조건
 const evoSoon = n => !!n && !n.evolved && !!n.revealed && n.evoLeft<=1 && n.role!=='disease';
 
+//@ 문안.배선드러남 — 작업대와 무대가 함께 보는 조건
+const enhShown = S => !!S && (S.nodes||[]).some(n=>n.revealed);
+
 const SYMTIP = {}, SYMTIP_EVO = {};
 for(const k of Object.keys(SYMBODY)){
   Object.defineProperty(SYMTIP, k, {enumerable:true, get(){ const b = symBody(k, null);
@@ -4441,7 +4449,7 @@ function renderInto(h){
   }).join('') || '<div class="empty">판이 비었다.</div>';
 
   const bl=basicLines(ns.filter(n=>n.role!=='disease').map(n=>n.sym));
-  const shown=ns.some(n=>n.revealed);
+  const shown=enhShown(S);
   $(h+'_wires').innerHTML=
     (bl.length||(S.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
     + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
@@ -6225,10 +6233,10 @@ function badgeSVG(S, n, sz){
 
     const bt = (typeof nextBeat==='function' && S.board && S.board.boss) ? nextBeat(S, n) : null;
     if(bt){
-      const [bx,by]=P(270, RR+25), r=17;
+      const [bx,by]=P(0, RR+25), r=24, sc=1.4;
       s += `<g${tip(beatTip(S,n) || TT('다음 박자', esc(bt)))}>`
-        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="1.8"/>`
-        + `<g transform="translate(${(bx-10).toFixed(1)},${(by-10).toFixed(1)})" fill="none" stroke="#C9A44A"`
+        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="2.4"/>`
+        + `<g transform="translate(${(bx-10*sc).toFixed(1)},${(by-10*sc).toFixed(1)}) scale(${sc})" fill="none" stroke="#C9A44A"`
         + ` stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">`
         + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g></g>`;
     }
@@ -6329,10 +6337,12 @@ function dialSVG(S, n){
           `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
           + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
           + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
-      + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
-      + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)
-      + `<text x="${c}" y="42" text-anchor="middle" font-size="21" font-weight="800"`
-      + ` font-family="ui-monospace,monospace" fill="#9FD4DE">${left}</text></g>`;
+      + arcS(A0, A0+SPAN, 10, 'rgba(14,20,24,.55)', 1)
+      + arcS(A0, A0+SPAN, 10, 'rgba(122,168,178,.42)', 1)
+      + arcS(A0, A0+SPAN*f, 10, '#B8E4EC', 1)
+      + `<text x="${c}" y="45" text-anchor="middle" font-size="25" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="#D6EFF4"`
+      + ` stroke="#0E1418" stroke-width="4.5" paint-order="stroke" stroke-linejoin="round">${left}</text></g>`;
   }
 
   const ix = S.nodes.indexOf(n);
@@ -6365,20 +6375,46 @@ function dialSVG(S, n){
   return s;
 }
 
+//@ 무대.배선목록 — 자리잡기와 그리기가 함께 보는 목록
+function stageLines(){
+  if(!S) return [];
+  const ns = alive(S).filter(n=>n.role!=='disease');
+  const shown = enhShown(S);
+  return [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
+          ...((S.enh)||[]).map(e=>({...e, enh:true}))]
+    .filter(l => !(l.enh && !shown));
+}
+
+const GH_W = 0.55;
+let SG_GHOST = [];
+function stageGhosts(){
+  if(!S) return [];
+  const live = new Set(alive(S).filter(n=>n.role!=='disease').map(n=>n.sym));
+  const out = [];
+  for(const l of stageLines()){
+    if(!live.has(l.a) || !spawnsSpot(l) || live.has(l.b) || out.includes(l.b)) continue;
+    out.push(l.b);
+  }
+  return out;
+}
+
 function stageLayout(){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
   const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
   const row  = alive(S).filter(n=>n!==dis);
-  const CN   = row.length || 1;
+  const gh   = stageGhosts();
+  const CN   = (row.length + GH_W*gh.length) || 1;
   const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.97)/CN - 96));
   const cy   = dis ? H*0.68 : H*0.46;
+  const slot = (at,w) => W*0.015 + (W*0.97)*(at + w/2)/CN;
   row.forEach((n,i)=>{
-    n.px = W*0.015 + (W*0.97)*(i+0.5)/CN;
+    n.px = slot(i, 1);
     n.py = cy;
     n.sz = SZ;
   });
+  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
   if(dis){ dis.px = W/2; dis.py = H*0.30; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
@@ -6457,24 +6493,58 @@ function stageLinks(){
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
   const ns = alive(S).filter(n=>n.role!=='disease');
-  const shown = alive(S).some(n=>n.revealed);
   const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
-  const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
-                 ...((S.enh)||[]).map(e=>({...e, enh:true}))];
+  const lines = stageLines();
+
+  const dz = alive(S).find(n=>n.role==='disease' && n.px!==undefined);
+  const PAD = 82;
+  const DZ = dz ? {top:(dz.py - dz.sz/2 - PAD)/H*744, bot:(dz.py + dz.sz/2 + PAD)/H*744,
+                   l:(dz.px - dz.sz/2 - PAD)/W*1210,  r:(dz.px + dz.sz/2 + PAD)/W*1210} : null;
 
   let out = '';
 
+  const C_TRANS = '#B8776F';
+
+  const kx = (1210*H)/(744*W);
+  for(const g of SG_GHOST){
+    const gx=g.px/W*1210, gy=g.py/H*744, rx=g.sz/2/W*1210, ry=g.sz/2/H*744;
+    const from = [...new Set(lines.filter(l=>l.b===g.sym && spawnsSpot(l)).map(l=>l.a))];
+    const gt = TT(`${g.sym} — 아직 안 난 자리`,
+      `<b>${esc(from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
+      + '<br><br><span class="d">칸만 비워 둔 것이다 — 지금은 아무것도 하지 않고,'
+      + ' 아무것도 여기에 걸 수 없다.</span>');
+    out += `<g class="ghz"${tip(gt)}>`
+      + `<ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"`
+      + ` fill="#14181C" fill-opacity=".55" stroke="${C_TRANS}" stroke-width="2.4"`
+      + ` stroke-dasharray="9 8" opacity=".6"/>`
+      + `<g transform="translate(${gx.toFixed(1)} ${gy.toFixed(1)}) scale(${kx.toFixed(3)} 1)">`
+      + `<text text-anchor="middle" y="7" fill="${C_TRANS}" opacity=".9"`
+      + ` font-size="20" font-weight="700">${esc(g.sym)}</text></g>`
+      + `</g>`;
+  }
+
+  const topOf = p => (p.py - p.sz*0.56)/H*744;
+
   let lane = 0;
   for(const l of lines){
-    if(l.enh && !shown) continue;
-    const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
+    const A = ns.find(x=>x.sym===l.a);
+    const Bn = ns.find(x=>x.sym===l.b) || SG_GHOST.find(g=>g.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
     const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
-    const mx=(sx+ex)/2;
+    const top=topOf(A), topB=topOf(Bn);
+    const ly = Math.max(14, rowTop - 20 - lane*30); lane++;
+    let mx = (sx+ex)/2;
+    if(DZ && ly < DZ.bot && ly > DZ.top && mx > DZ.l && mx < DZ.r){
+      const lo = Math.min(sx,ex) + 26, hi = Math.max(sx,ex) - 26;
+      const left = DZ.l - 22, right = DZ.r + 22;
+      const okL = left >= lo, okR = right <= hi;
+      if(okL && okR) mx = (mx - DZ.l) < (DZ.r - mx) ? left : right;
+      else if(okL)   mx = left;
+      else if(okR)   mx = right;
+    }
     const hk = linkHead(l), mods = linkKws(l).filter(isEnhKw);
-    const c = linkKind(l)==='trans' ? '#B8776F' : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
+    const c = linkKind(l)==='trans' ? C_TRANS : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
     const lt = kwTip(l) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
     const dir = ex > sx ? 1 : -1;
@@ -6482,10 +6552,10 @@ function stageLinks(){
       + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
       + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
-      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none"`
+      + `<path d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
+      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none"`
       + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
-      + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
+      + `<path d="M${ex-7} ${topB-11} L${ex} ${topB-1} L${ex+7} ${topB-11} Z" fill="${c}"/>`
       + chev(34*dir) + chev(56*dir)
       + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
       + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`

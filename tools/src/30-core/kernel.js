@@ -89,6 +89,14 @@ function linkKind(L){
 /* 배선에 적힌 종류 하나 — 화면이 색과 그림을 고를 때 쓴다 (기본형이 있으면 그것) */
 const linkHead = L => linkKws(L).find(k => !isEnhKw(k)) || linkKws(L)[0];
 
+/* 이 키워드가 **새 자리를 낳는가**. 부설도 전이지만 자리가 아니라 배선을 놓으므로
+   빠진다 — fireLine ① 이 부설을 먼저 걷어내고 나머지 전이만 transmit 으로 보낸다.
+   무대가 「생길 자리」를 미리 비워 두려면 같은 잣대를 봐야 한다. 손으로 한 벌 더
+   적으면 무대가 안 생길 자리를 예약하거나 생길 자리를 빠뜨린다 */
+//@ 커널.전이자리 — 처치 때 자리가 나는 배선인가
+const kwSpawns = k => !isEnhKw(k) && k!=='부설' && kindOf(k)==='trans';
+const spawnsSpot = L => linkKws(L).some(kwSpawns);
+
 /* 이 자리의 값 — 적어 둔 것이 있으면 그것, 없으면 권위본 기본값 */
 function sp(n, sym){
   const d = SYMPARAM[sym||n.sym]; if(!d) return 0;
@@ -475,7 +483,7 @@ function fireLine(S, src, L, strong, lines){
   /* ① 전이 · 부설 — 새것이 생긴다 */
   for(const k of base){
     if(k==='부설'){ layLink(S, src, L, strong); continue }
-    if(kindOf(k)!=='trans') continue;
+    if(!kwSpawns(k)) continue;
     if(alive(S).find(n=>n.sym===L.b && n!==src)) continue;   // 이미 있으면 안 생긴다
     const nn = transmit(S, src, L, k, strong);
     /* 만개가 얹힌 전이 + 강반응 — 태어나면서 진화한 채로 선다 */

@@ -239,7 +239,7 @@ function renderInto(h){
 
   /* ── 연결선 ── */
   const bl=basicLines(ns.filter(n=>n.role!=='disease').map(n=>n.sym));
-  const shown=ns.some(n=>n.revealed);
+  const shown=enhShown(S);
   $(h+'_wires').innerHTML=
     /* 배선은 **판(S)** 에서 읽는다 — BOARD.enh 는 처음 만들어진 판의 것이라
        부설이 싸움 중에 놓은 줄이 안 나온다 (무대가 같은 함정에 빠져 있었다) */

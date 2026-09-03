@@ -4,6 +4,19 @@
    ══════════════════════════════════════════════════════════════════ */
 /* ═══ 스토리 ═════════════════════════════════════════════════ */
 //@ 화면.스토리 — §9.13 스토리 모드
+/* 병기 고르개 — BOSS 표에서 짓는다. 저장해 둔 커스텀 병 노드도 여기 뜬다.
+   전에는 셋을 마크업에 손으로 적어 둬서, 저장한 것을 고를 길이 없었다.
+   편집 중인 것(DIS_KEY)은 「만든 환자」가 이미 가리키므로 목록에서 뺀다 */
+//@ 화면.병기고르개 — BOSS 표에서 짓는다
+function renderBossPick(){
+  const sel = $('boss'); if(!sel) return;
+  const was = sel.value;
+  sel.innerHTML = Object.keys(BOSS).filter(k=>k!==DIS_KEY)
+      .map(k=>`<option>${esc(k)}</option>`).join('')
+    + '<option value="custom">만든 환자</option>';
+  if(was && [...sel.options].some(o=>o.value===was)) sel.value = was;
+}
+
 function newStory(){
   PICK = null;
   const key=$('boss').value, seed=+$('seed').value, rng=mulberry32(seed);

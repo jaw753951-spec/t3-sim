@@ -10,7 +10,7 @@
     <div class="tab" data-m="story" onclick="setMode('story')">스토리</div>
     <div class="tab" data-m="batch" onclick="setMode('batch')">배치</div>
     <div class="tab" data-m="make" onclick="setMode('make')">만들기</div>
-    <div class="tab" data-m="score" onclick="setMode('score')">악보</div>
+    <div class="tab" data-m="score" onclick="setMode('score')">병 노드</div>
   </div>
 
   <!-- 공통 — 모드가 바뀌어도 남는 것 -->
@@ -63,7 +63,7 @@
 
   <div id="side-story" style="display:none">
     <label>보스</label>
-    <select id="boss"><option>아이</option><option>어부</option><option>송이</option><option value="custom">만든 환자</option></select>
+    <select id="boss"></select>
     <label>가방</label>
     <div id="story_deck" class="deckline"></div>
     <button id="btn_deck_story" onclick="openPackStory()">가방을 연다</button>

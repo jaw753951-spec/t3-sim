@@ -34,15 +34,47 @@ function mkSpot(bossKey, stage, sym, init, turn){
   return n;
 }
 
+/* ── 병기별 손잡이 ──────────────────────────────────────────
+   병 노드 정의(BOSS[key])가 병기마다 다른 값을 적어 둘 수 있다. 안 적으면
+   지금까지 쓰던 전역값이 그대로 나온다 — 세 자는 그 갈림만 맡는다.
+   「만들기 · 병 노드」가 커스텀 병 노드를 여기에 적는다. */
+//@ 스토리.병기시계 — 이 병기의 시계가 몇 턴인가
+function stageTurns(bossKey, stage){
+  const c = (BOSS[bossKey]||{}).clock;
+  return (c && c[stage]) || SR.STAGE_TURNS;
+}
+
+//@ 스토리.병기수치 — 이 병기의 병 노드 수치
+function stageDisVal(bossKey, stage){
+  const v = (BOSS[bossKey]||{}).disVal;
+  return (v && v[stage]) || SR.DIS_BASE[SLV(bossKey,'dis',stage)];
+}
+
+/* 병기가 오를 때 깎아 둔 몫을 얼마나 들고 가는가 — 0 ~ 1.
+     1  깎아 둔 비율이 그대로 유지된다 (비례 이월)
+     0  새 병기의 수치로 되돌아간다 — 깎아 둔 것이 통째로 없던 일이 된다
+     사이  그만큼만 들고 간다
+   적어 두지 않으면 null 이고, 그때는 창 기믹(SR.GIMMICK.PRORATE)이 정하던
+   지금까지의 셈을 그대로 쓴다 — 권위본 병기 셋은 한 자리도 안 움직인다.
+   PRORATE=false 의 '절대 이월'(늘어난 몫만 얹는다)은 이 0~1 자로는 적을 수 없다.
+   결이 다른 셈이라 억지로 한 자에 욱여넣지 않고 기믹 쪽에 남겨 둔다. */
+//@ 스토리.이월 — 병기가 오를 때 깎아 둔 몫을 얼마나 들고 가는가
+function stageCarry(bossKey, stage){
+  const c = (BOSS[bossKey]||{}).carry;
+  return (c && c[stage]!==undefined && c[stage]!==null)
+    ? Math.max(0, Math.min(1, +c[stage])) : null;
+}
+
 /* ── 판 짓기 ── */
 function makeDisease(key, rng){
   const b = BOSS[key];
   const stage = b.stage0;
-  const dis = {sym:'병', role:'disease', init:SR.DIS_BASE[SLV(key,'dis',stage)], val:SR.DIS_BASE[SLV(key,'dis',stage)],
+  const v0 = stageDisVal(key, stage);
+  const dis = {sym:'병', role:'disease', init:v0, val:v0,
     shielded:false, shReduc:0, stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false,
     dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
     diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false, spawned:false,
-    stage, stageMax:b.stageMax, stageClock:SR.STAGE_TURNS, beat:0};
+    stage, stageMax:b.stageMax, stageClock:stageTurns(key, stage), beat:0};
   const nodes=[dis];
   b.seed.forEach((s,i)=>{
     const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
@@ -277,23 +309,30 @@ function stageUp(S, dis){
   if(dis.stage >= dis.stageMax){
     dis.finished = true;                                   // 「편하게」 승리 신호는 여기서 한 번 뜬다
     if(!(SR.GIMMICK.LOOP && b.roster)) return false;
-    dis.beat = 0; dis.stageClock = SR.STAGE_TURNS;         // 악보를 처음으로 되돌린다
+    dis.beat = 0; dis.stageClock = stageTurns(S.board.boss, dis.stage);   // 악보를 처음으로 되돌린다
     layStage(S, dis);
     return false;                                          // 병기는 안 오른다
   }
+  const was = dis.stage;
   dis.stage++;
   if(dis.stage >= dis.stageMax) dis.finished = true;      // 최종 병기에 「닿는」 순간이 편하게의 승리다
-  const dLv = SLV(S.board.boss,'dis',dis.stage), dLvPrev = SLV(S.board.boss,'dis',dis.stage-1);
-  if(SR.GIMMICK.PRORATE){                                  // 비례 이월 — 깎아 둔 비율이 유지된다
-    const ratio = dis.val / dis.init;
-    dis.init = SR.DIS_BASE[dLv];
-    dis.val = Math.ceil(dis.init * ratio);
-  }else{
-    const add = SR.DIS_BASE[dLv] - SR.DIS_BASE[dLvPrev];
-    dis.val += add; dis.init = SR.DIS_BASE[dLv];
+  const carry = stageCarry(S.board.boss, dis.stage);
+  const next = stageDisVal(S.board.boss, dis.stage);
+  const ratio = dis.val / dis.init;
+  if(carry !== null){
+    /* 적어 둔 이월 비율 — 깎아 둔 몫(1−ratio)을 그만큼만 들고 간다.
+       1 이면 비례 이월과 같고, 0 이면 새 수치 그대로다 */
+    dis.init = next;
+    dis.val = Math.ceil(next * (1 - carry*(1 - ratio)));
+  }else if(SR.GIMMICK.PRORATE){                            // 비례 이월 — 깎아 둔 비율이 그대로 유지된다
+    dis.init = next;
+    dis.val = Math.ceil(next * ratio);
+  }else{                                                   // 절대 이월 — 늘어난 몫만 얹는다
+    dis.val += next - stageDisVal(S.board.boss, was);
+    dis.init = next;
   }
   dis.beat = 0;
-  dis.stageClock = SR.STAGE_TURNS;
+  dis.stageClock = stageTurns(S.board.boss, dis.stage);
   layStage(S, dis);
   return true;
 }

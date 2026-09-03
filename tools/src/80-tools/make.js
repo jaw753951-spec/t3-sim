@@ -65,11 +65,86 @@ function mkKwMod(i, k, on){
 
 function mkDelEnh(i){ CUSTOM.enh.splice(i,1); renderMake() }
 
+/* 병 노드 하나를 새로 뜬다 — 고른 병 노드를 밑그림 삼아 통째로 베낀다.
+   ★ 커스텀 병 노드는 '보스 정의 한 벌'이다. 전에는 {boss, stage, init, clock} 몇 칸만
+     들고 나머지는 빌려 쓴 보스에게 물었는데, 그러면 SLV·stageBand·명부·자리 상한이
+     전부 남의 것이라 손댈 자리가 없었다. 같은 모양으로 들고 있으면 커널의 모든
+     조회가 그대로 통한다 — 고칠 곳이 없다. */
+/* 손으로 짠 병 노드가 BOSS 표에 앉는 이름. 판이 이 이름을 board.boss 로 들고,
+   커널의 모든 조회(SLV · stageBand · 명부 · 자리 상한 · 악보)가 보통 보스처럼 읽는다 */
+const DIS_KEY = '커스텀';
+
+/* 편집 중인 정의를 BOSS 표에 올린다. 저장한 병 노드는 제 이름으로 따로 앉는다 */
+//@ 만들기.병노드등록 — 손으로 짠 정의를 BOSS 표에 올린다
+function disRegister(d, key){
+  const sts = disStages(d);
+  const only = o => Object.fromEntries(sts.filter(s=>o && o[s]!=null).map(s=>[s, o[s]]));
+  const b = {
+    name: d.name || '커스텀 병 노드',
+    stage0: +d.stage, stageMax: +d.stageMax,
+    noDeath: !!d.noDeath,
+    tags: (d.tags||[]).slice(),
+    seed: (d.seed||[]).slice(),
+    lv: {...(d.lv||{})},
+    disVal: only(d.disVal), clock: only(d.clock), carry: only(d.carry),
+    /* 손으로 적은 악보는 커널에 들기 전에 훑는다 — 모르는 이름은 scoreClean 이 떨군다.
+       비면 병이 할 일이 없어지므로 최소한의 악보를 깔아 준다 */
+    beats: Object.fromEntries(sts.map(s => {
+      const line = scoreClean({[s]: (d.beats||{})[s] || []});
+      return [s, line ? line[s] : ['분화','성장']];
+    })),
+    policy: (BOSS[d.from] || {}).policy,       // 방침 설명문은 밑그림 것을 빌린다
+    custom: true,
+  };
+  if(d.dupType) b.dupType = d.dupType;
+  /* 명부 — 병기마다 자리 이름을 적어 두면 그 순서가 곧 밴드 배정 순서다.
+     한 병기라도 비어 있으면 명부 없는 보스로 돈다 (자리 상한까지 분화가 뿜는다) */
+  const named = sts.filter(s => d.syms && d.syms[s] && d.syms[s].length);
+  if(named.length === sts.length){
+    b.syms = Object.fromEntries(sts.map(s => [s, d.syms[s].slice()]));
+    b.roster = {};
+  }
+  BOSS[key || DIS_KEY] = b;
+  /* 명부의 밴드는 등록한 뒤에 매긴다 — stageBand 가 방금 올린 lv 를 봐야 한다 */
+  if(b.syms) for(const s of sts)
+    b.roster[s] = b.syms[s].map((sym,i)=>[sym, stageBand(key || DIS_KEY, s, i)]);
+  return b;
+}
+
+/* 이 정의가 도는 병기들 */
+function disStages(d){
+  const a = Math.max(3, Math.min(5, +d.stage || 3));
+  const b = Math.max(3, Math.min(5, +d.stageMax || a));
+  const out = [];
+  for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
+  return out;
+}
+
+//@ 만들기.병노드뜨기 — 고른 병 노드를 통째로 베껴 온다
+function disFrom(key){
+  const b = BOSS[key];
+  const sts = [];
+  for(let s=b.stage0; s<=b.stageMax; s++) sts.push(s);
+  const pick = (o, dflt) => Object.fromEntries(sts.map(s => [s, o ? o[s] : dflt(s)]));
+  return {
+    from: key,                                   // 어느 병 노드를 밑그림으로 떴는가
+    name: b.name,
+    stage: b.stage0, stageMax: b.stageMax,
+    noDeath: !!b.noDeath,
+    tags: (b.tags||[]).slice(),
+    seed: (b.seed||[]).slice(),
+    dupType: b.dupType || '',
+    lv: {...(b.lv||{})},                         // 항목별 레벨 — band · evo · spots · dis · enh
+    disVal: pick(null, s => stageDisVal(key, s)),   // 병기별 병 노드 수치
+    clock:  pick(null, s => stageTurns(key, s)),    // 병기별 시계
+    carry:  pick(null, s => stageCarry(key, s)),    // 병기별 이월 비율
+    syms:   Object.fromEntries(sts.map(s => [s, b.syms && b.syms[s] ? b.syms[s].slice() : null])),
+    beats:  Object.fromEntries(sts.map(s => [s, bossScore(key, s).slice()])),
+  };
+}
+
 function mkToggleDis(){
-  CUSTOM.dis = CUSTOM.dis ? null
-    : {boss:'아이', stage:3, stageMax:5, init:SR.DIS_BASE[3], clock:SR.STAGE_TURNS, noDeath:true};
-  /* 병 노드를 끄면 악보도 함께 버린다 — 붙을 데가 없는 악보는 남겨 두면 거짓말이 된다 */
-  if(!CUSTOM.dis){ CUSTOM.score = null; CUSTOM.scoreFrom = null }
+  CUSTOM.dis = CUSTOM.dis ? null : disFrom('아이');
   renderMake();
 }
 
@@ -122,16 +197,15 @@ function buildCustom(){
     script:{name:CUSTOM.name, talk:+CUSTOM.talk||0, tried:'없음', lv:lvl}};
   if(CUSTOM.dis){
     const d=CUSTOM.dis;
-    const dis={sym:'병', role:'disease', init:+d.init, val:+d.init, shielded:false, shReduc:0,
+    disRegister(d);                       // BOSS['커스텀'] 로 올린다 — 커널은 보통 보스로 읽는다
+    const st = +d.stage, v0 = stageDisVal(DIS_KEY, st);
+    const dis={sym:'병', role:'disease', init:v0, val:v0, shielded:false, shReduc:0,
       stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigUp:0,
-      weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
-      spawned:false, stage:+d.stage, stageMax:+d.stageMax, stageClock:+d.clock, beat:0};
+      weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false,
+      demoted:false, revealed:false,
+      spawned:false, stage:st, stageMax:+d.stageMax, stageClock:stageTurns(DIS_KEY, st), beat:0};
     board.nodes = [dis, ...syms];
-    board.boss = d.boss; board.core='병'; board.noDeath = !!d.noDeath;
-    /* 손으로 짠 악보가 있으면 판에 싣는다 — scoreOf 가 보스 악보보다 먼저 본다.
-       모르는 이름과 빈 병기는 scoreClean 이 떨군다 */
-    const sc = scoreClean(CUSTOM.score);
-    if(sc) board.score = sc;
+    board.boss = DIS_KEY; board.core='병'; board.noDeath = !!d.noDeath;
   }
   board.S = S_of({nodes:syms, enh:board.enh, evoBase:board.evoBase});
   board.lvCalc = lv_of(board.S);

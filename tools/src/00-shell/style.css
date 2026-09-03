@@ -412,3 +412,9 @@ body.pnon{overflow:hidden}
    .bar .right 로 넓게 걸었더니 손패 줄의 자판 안내(같은 class)까지 flex 가 돼서
    글이 한 칸 벌어졌다 — 판을 좁혀 둔다 */
 #pane-score .bar .right{display:flex;gap:6px;align-items:center}
+
+/* 저장 창 — 판 안에 접혀 나온다. 덮개를 따로 두지 않는다 (판을 보며 이름을 짓는다) */
+.scsave{border:1px solid var(--t3);background:rgba(138,106,16,.06);padding:10px 14px 14px;margin:14px 0 0}
+.scsave .mk{max-width:320px}
+.scrow{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font:12px var(--sans)}
+.scrow:last-child{border-bottom:0}

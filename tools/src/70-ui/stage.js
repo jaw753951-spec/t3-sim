@@ -20,6 +20,7 @@ let STAGE_CARD = null;        // 겨누고 있는 카드 id
 
 /* ── 열고 닫기 ──────────────────────────────────────────────── */
 //@ 무대.열기 — 작업대에서 전투로 넘어간다
+let SG_DEALT = null;                  // 첫 손을 낸 판 — 아래 stageOpen 이 본다
 function stageOpen(){
   if(!S) return;
   STAGE_ON = true; STAGE_MODE = null; STAGE_CARD = null;
@@ -32,6 +33,18 @@ function stageOpen(){
      다음 그리기까지 그대로 남는다 */
   const wasQuiet = STAGE_QUIET; STAGE_QUIET = false;
   try{ stageFit(); stageFlow() } finally { STAGE_QUIET = wasQuiet }
+  /* 첫 손도 뽑기다 — 그런데 setupDeck → drawTurn 은 무대를 열기 **전에** 돌아서
+     S.ev 가 아직 안 켜져 있다 (커널.사건 — 안 켜면 아무것도 안 쌓인다). 그래서
+     사건 줄로는 못 잡고 여는 자리에서 한 번 낸다. 매 턴은 커널이 낸 {t:'draw'}
+     사건이 잡는다 (연출.뽑기).
+     첫 턴 · 아직 아무 수도 안 둔 판만 — 작업대로 나갔다 되돌아오는 것은
+     새 손이 아니므로 그때 또 내면 안 된다. 판까지 기억해 두는 까닭은 세션에서
+     환자가 바뀌어도 turn 이 1 로 돌아오기 때문이다 */
+  if(S.turn<=1 && !S.acts && SG_DEALT !== S && (S.hand||[]).length){
+    SG_DEALT = S;
+    fxq(()=>FXE.dealHand(S.hand.length), ['hand']);
+    fxFlush();
+  }
 }
 
 function stageClose(){
@@ -307,6 +320,29 @@ function stageHand(){
         onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
+  fitHandText();
+}
+
+/* 글이 길면 **카드를 늘리지 말고 글을 줄인다.** 다른 카드 게임이 하는 것과 같다.
+   ★ 전에는 카드가 min-height 로 자랐다. 손패 줄은 바닥을 맞추므로(#sg_hand 의
+     align-items:flex-end) 자란 카드가 혼자 위로 솟아 판을 덮었다 —
+     「진행을 붙든다」가 재진과 진단 두 갈래를 다 적으면서 실제로 그렇게 됐다
+     (실측: 233 이어야 할 카드가 253, 머리가 줄 위끝보다 10px 높았다).
+   16px 에서 0.5px 씩 내려 11px 에서 멈춘다. 11 은 손패 줄이 통째로 0.8배로
+   줄어드는 것을 감안한 바닥이다 — 화면에서는 8.8px 이고, 그 아래로는 줄여도
+   읽히지 않으니 줄이는 값이 없다 (그때부터는 .cbody 의 overflow 가 자른다). */
+//@ 화면.카드글맞춤 — 칸은 그대로 두고 글자를 줄인다
+const FIT_MIN = 11;
+function fitHandText(){
+  for(const t of document.querySelectorAll('#sg_hand .ctext')){
+    const box = t.parentElement; if(!box) continue;      // .cbody 가 실제 칸이다
+    t.style.fontSize = '';
+    let px = parseFloat(getComputedStyle(t).fontSize) || 16;
+    /* scrollHeight 는 transform 을 안 보므로 0.8배 축소와 무관하게 잰다 */
+    while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
+      px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
+    }
+  }
 }
 
 /* ── 환자 흉상 ── 그림 파일 없이 실루엣 하나 ─────────────────
@@ -493,7 +529,7 @@ function fxMark(S){
 function fxPlanLog(log, before, plan){
   plan = plan || {};
   const cur = fxMark(S);
-  let killed = false, turned = false, turnHp = 0;
+  let killed = false, drew = 0, turnHp = 0;
   /* 연출이 무엇을 건드리는지 적어 준다 — 겹치지 않는 것끼리 한꺼번에 나간다
      (연출.배속 옆의 fxFlush). 자리는 번호로 센다. 이름으로 세면 같은 증상이
      둘일 때 서로 겹친 것으로 보고 줄을 세운다 */
@@ -548,8 +584,12 @@ function fxPlanLog(log, before, plan){
       /* 정신은 여기서 띄우지 않는다 — 한 손에 두세 번 흔들리는 일이 흔해서
          (억제로 악화 → 휴면 도달로 호전 …) 사건마다 띄우면 배너가 겹친다.
          결과만 아래에서 한 번 알린다. 게이지를 결과 한 번으로 내는 것과 같다. */
-      case 'turn':       turned = true; break;
-      /* 성장 · 뽑기 · 성장 정지는 계기판이 그리므로 연출을 따로 내지 않는다 */
+      /* 뽑기는 한 손에 여러 번 올 수 있다 (드로우 카드 → 턴 넘김). 합쳐서
+         마지막에 한 번만 낸다 — 뽑힌 카드는 다 손패 맨 뒤에 붙어 있다 */
+      case 'draw':       drew += e.k; break;
+      /* 성장 · 성장 정지는 계기판이 그리므로 연출을 따로 내지 않는다.
+         턴 넘김(case 'turn')도 마찬가지다 — 뽑기 연출을 그것에 매달아 두었더니
+         드로우 카드로 온 카드에는 연출이 안 붙었다 (연출.뽑기) */
     }
   }
 
@@ -593,7 +633,7 @@ function fxPlanLog(log, before, plan){
     if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c), [nk(S.nodes[i])]);
   }
 
-  if(turned) fxq(()=>FXE.dealHand(), ['hand']);
+  if(drew) fxq(()=>FXE.dealHand(drew), ['hand']);
   sayHpCheck();
 }
 

@@ -132,7 +132,12 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
   --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
   --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
   position:relative;flex:0 0 auto;                      /* 줄에 여럿 서도 찌그러지지 않는다 */
-  width:200px;min-height:292px;                         /* 액자 비율 519:760 */
+  /* 칸은 **못 자란다**. min-height 였을 때는 글이 길면 카드가 위로 자랐다 —
+     줄이 align-items:flex-end 로 바닥을 맞추므로(stage.css 의 #sg_hand) 자란
+     만큼 판 쪽으로 혼자 솟는다. 「진행을 붙든다」가 재진 · 진단 두 갈래를 다
+     적으면서 실제로 253(×0.8=203)이 되어 머리가 줄 위끝보다 10px 높이 나갔다.
+     길면 카드를 늘리지 말고 글을 줄인다 (fitHandText). */
+  width:200px;height:292px;                             /* 액자 비율 519:760 */
   border:2px solid var(--cd-rule);color:var(--cd-ink);
   padding:13px 26px 13px 13px;                          /* 오른쪽 26px 은 제본 띠 몫 */
   gap:7px;
@@ -170,8 +175,10 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
   font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+/* 넘치면 자른다 — fitHandText 가 글자를 줄여 웬만하면 여기까지 안 오지만,
+   바닥(11px)까지 줄여도 안 들어가는 글이 카드 밖으로 새지는 않게 한다 */
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
-  padding:7px 9px}
+  padding:7px 9px;overflow:hidden;min-height:0}
 #sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
 #sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}

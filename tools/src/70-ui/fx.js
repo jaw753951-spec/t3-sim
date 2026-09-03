@@ -320,9 +320,23 @@ const FXE = {
     c.classList.add('deny'); setTimeout(()=>c.classList.remove('deny'), fxDur(360));
     await fxWait(120);
   },
-  async dealHand(){
-    const cs = document.querySelectorAll('#sg_hand .card');
-    cs.forEach((e,i)=>{ e.classList.add('dealt'); e.style.animationDelay = (i*90)+'ms' });
+  /* 뽑기 — **새로 온 카드에만**, 그리고 **한꺼번에** 낸다.
+     ★ 전에는 손패 줄 전체에 걸고 90ms 씩 밀어 한 장씩 넘겼다. 셋이 틀렸다:
+       ㄱ) 지속으로 남아 있던 카드가 새로 온 것처럼 같이 넘어갔다.
+       ㄴ) 90ms 씩 밀린 다섯째 장은 360ms 뒤에 서는데 손 하나가 440ms 라,
+           마지막 장이 서기 전에 다음 연출이 나갔다.
+       ㄷ) 「2장 뽑는다」로 온 카드는 이 손을 아무도 안 불러서 연출이 없었다
+           (턴 넘김의 case 'turn' 에만 매달려 있었다). 이제 커널의
+           {t:'draw', k} 사건이 부르므로 턴 시작과 드로우 카드가 같은 길이다.
+     뽑은 카드는 S.hand 맨 뒤에 붙으므로(카드.덱조작 draw) 뒤에서 k 장이 새것이다.
+     손패를 먼저 세워야 그 위에 걸 수 있다 — 연출 도중에는 stageSync 만 돌고
+     손패는 fxFlush 가 끝난 뒤에야 다시 그려진다. */
+  async dealHand(k){
+    if(!k) return;                       // slice(-0) 은 줄 전체다 — 0 을 걸러야 한다
+    stageHand();
+    const cs = [...document.querySelectorAll('#sg_hand .card')].slice(-k);
+    if(!cs.length) return;
+    cs.forEach(e=>{ e.style.animationDelay = '0ms'; e.classList.add('dealt') });
     await fxWait(440);
   },
   async pause(ms){ await fxWait(ms) },

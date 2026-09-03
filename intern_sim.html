@@ -122,7 +122,8 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
   --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
   --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
   position:relative;flex:0 0 auto;                      
-  width:200px;min-height:292px;                         
+  
+  width:200px;height:292px;                             
   border:2px solid var(--cd-rule);color:var(--cd-ink);
   padding:13px 26px 13px 13px;                          
   gap:7px;
@@ -157,8 +158,9 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
   font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
-  padding:7px 9px}
+  padding:7px 9px;overflow:hidden;min-height:0}
 #sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
 #sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}
@@ -5922,9 +5924,12 @@ const FXE = {
     c.classList.add('deny'); setTimeout(()=>c.classList.remove('deny'), fxDur(360));
     await fxWait(120);
   },
-  async dealHand(){
-    const cs = document.querySelectorAll('#sg_hand .card');
-    cs.forEach((e,i)=>{ e.classList.add('dealt'); e.style.animationDelay = (i*90)+'ms' });
+  async dealHand(k){
+    if(!k) return;                       // slice(-0) 은 줄 전체다 — 0 을 걸러야 한다
+    stageHand();
+    const cs = [...document.querySelectorAll('#sg_hand .card')].slice(-k);
+    if(!cs.length) return;
+    cs.forEach(e=>{ e.style.animationDelay = '0ms'; e.classList.add('dealt') });
     await fxWait(440);
   },
   async pause(ms){ await fxWait(ms) },
@@ -6581,6 +6586,7 @@ let STAGE_MODE = null;        // null | 'card' | 'treat'  — 자리를 겨누�
 let STAGE_CARD = null;        // 겨누고 있는 카드 id
 
 //@ 무대.열기 — 작업대에서 전투로 넘어간다
+let SG_DEALT = null;                  // 첫 손을 낸 판 — 아래 stageOpen 이 본다
 function stageOpen(){
   if(!S) return;
   STAGE_ON = true; STAGE_MODE = null; STAGE_CARD = null;
@@ -6590,6 +6596,11 @@ function stageOpen(){
   document.body.classList.add('sgon');
   const wasQuiet = STAGE_QUIET; STAGE_QUIET = false;
   try{ stageFit(); stageFlow() } finally { STAGE_QUIET = wasQuiet }
+  if(S.turn<=1 && !S.acts && SG_DEALT !== S && (S.hand||[]).length){
+    SG_DEALT = S;
+    fxq(()=>FXE.dealHand(S.hand.length), ['hand']);
+    fxFlush();
+  }
 }
 
 function stageClose(){
@@ -6810,6 +6821,20 @@ function stageHand(){
         onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
     }).join('') || '<div class="empty">손이 비었다.</div>';
+  fitHandText();
+}
+
+//@ 화면.카드글맞춤 — 칸은 그대로 두고 글자를 줄인다
+const FIT_MIN = 11;
+function fitHandText(){
+  for(const t of document.querySelectorAll('#sg_hand .ctext')){
+    const box = t.parentElement; if(!box) continue;      // .cbody 가 실제 칸이다
+    t.style.fontSize = '';
+    let px = parseFloat(getComputedStyle(t).fontSize) || 16;
+    while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
+      px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
+    }
+  }
 }
 
 const MIND_FACE = {
@@ -6961,7 +6986,7 @@ function fxMark(S){
 function fxPlanLog(log, before, plan){
   plan = plan || {};
   const cur = fxMark(S);
-  let killed = false, turned = false, turnHp = 0;
+  let killed = false, drew = 0, turnHp = 0;
   const nk = n => 'n' + S.nodes.indexOf(n);
 
   for(const e of (log||[])){
@@ -6995,7 +7020,7 @@ function fxPlanLog(log, before, plan){
         if(e.why==='bleed') fxq(()=>FXE.patPay(e.amt), ['pat']);
         else                turnHp += e.amt;
         break;
-      case 'turn':       turned = true; break;
+      case 'draw':       drew += e.k; break;
     }
   }
 
@@ -7028,7 +7053,7 @@ function fxPlanLog(log, before, plan){
     if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c), [nk(S.nodes[i])]);
   }
 
-  if(turned) fxq(()=>FXE.dealHand(), ['hand']);
+  if(drew) fxq(()=>FXE.dealHand(drew), ['hand']);
   sayHpCheck();
 }
 

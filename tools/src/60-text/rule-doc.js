@@ -121,7 +121,7 @@ const RULE_DOC = {
   BLEED_FLOOR:'사혈 뒤 남아야 하는 체력',
   REM_MAX:'관해도 상한', REM_START:'관해 개시 시 관해도', REM_UPKEEP:'매 턴 빠지는 관해도',
   REM_GAIN:'관해 중 내과 카드 한 장당 관해도', REM_DIAG_BONUS:'관해 중 진단 보정',
-  DELAY_GROW:'지연 1턴당 노드 수치 증가 (초기값 기준)',
+  DELAY_GROW:'지연 1턴당 노드 수치 증가 (지금 수치 기준)',
   COMFORT_CUT:'「편하게」 완화 한 겹이 방침 배수에서 빼는 값',
   DIS_BASE:'레벨별 병 노드 기본 수치 (LVTAB.dis 에서 온다)', STAGE_TURNS:'병기 시계 기본 턴',
   PARAM_NEED:'증거 하나에 드는 검사 파라미터', EVID_TOTAL:'병마다 있는 증거 수',

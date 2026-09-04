@@ -1958,13 +1958,14 @@ function doBleed(S,tier){
   return true;
 }
 
-//@ 커널.지연 — 진화를 미루고 그만큼 수치를 키운다
+//@ 커널.지연 — 진화를 미루고 그만큼 지금 수치를 키운다
 function delay(S,n,k){
   if(n.dead || immune(S,n)) return 0;
   n.evoLeft += k;
   n.delayed = (n.delayed||0) + k;
-  const add = Math.ceil(n.init * R.DELAY_GROW) * k;
+  const add = Math.ceil(n.val * R.DELAY_GROW) * k;
   n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val + add);
+  n.delayAdd = (n.delayAdd||0) + add;
   ev(S,{t:'delay', n, add});
   return add;
 }
@@ -3433,7 +3434,8 @@ get '관해'(){ return TT('관해 · 내과',
 get '관해도'(){ return TT('관해도 · 내과',
   `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 감소하며 부족할 시 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
 get '지연'(){ return TT('지연 · 내과',
-  `진화 카운터를 <b>N 늘린다</b>.<br>미룬 턴 1당 노드 수치가 초기값의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.`) },
+  `진화 카운터를 <b>N 늘린다</b>.<br>미룬 턴 1당 노드 수치가 <b>지금 수치</b>의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.`
+  + `<br><span class="d">깎아 둔 자리는 미루는 값이 싸고, 부푼 자리는 비싸다.</span>`) },
 get '설치'(){ const rig = CARDS['거치'].v.rig, cap = Math.max(R.RIG_CAP_MIN, rig*R.RIG_CAP_MUL);
   return TT('설치 · 의공학',
   `노드에 매 턴 자동으로 억제하는 설치물을 설치한다.<br>같은 설치물에 설치 카드를 다시 쓰면 자동 억제 수치가 증가한다.<br>상한은 <b>설치한 카드 수치의 ${R.RIG_CAP_MUL}배</b>(최소 ${R.RIG_CAP_MIN}).<br>설치물은 <b>보호막을 무시</b>한다. 노드를 처치하면 설치물도 사라진다.`) },
@@ -3741,7 +3743,7 @@ const RULE_DOC = {
   BLEED_FLOOR:'사혈 뒤 남아야 하는 체력',
   REM_MAX:'관해도 상한', REM_START:'관해 개시 시 관해도', REM_UPKEEP:'매 턴 빠지는 관해도',
   REM_GAIN:'관해 중 내과 카드 한 장당 관해도', REM_DIAG_BONUS:'관해 중 진단 보정',
-  DELAY_GROW:'지연 1턴당 노드 수치 증가 (초기값 기준)',
+  DELAY_GROW:'지연 1턴당 노드 수치 증가 (지금 수치 기준)',
   COMFORT_CUT:'「편하게」 완화 한 겹이 방침 배수에서 빼는 값',
   DIS_BASE:'레벨별 병 노드 기본 수치 (LVTAB.dis 에서 온다)', STAGE_TURNS:'병기 시계 기본 턴',
   PARAM_NEED:'증거 하나에 드는 검사 파라미터', EVID_TOTAL:'병마다 있는 증거 수',
@@ -4640,7 +4642,7 @@ function stateHTML(){
   if(dls.length){
     rows.push(`<div class="st"${tip(KWTIP['지연'])}>
       <div class="stt"><span>지연</span><b>${dls.reduce((a,n)=>a+n.delayed,0)}</b></div>
-      <div class="stnote">${dls.map(n=>`${n.sym} +${n.delayed}턴 · 수치 +${Math.ceil(n.init*R.DELAY_GROW)*n.delayed}`).join('<br>')}</div></div>`);
+      <div class="stnote">${dls.map(n=>`${n.sym} +${n.delayed}턴 · 수치 +${n.delayAdd||0}`).join('<br>')}</div></div>`);
   }
   const rv = ns.filter(n=>n.diagRound>=1);
   const held = [...new Set([...Object.keys(S.revisitOn||{}).filter(k=>S.revisitOn[k]),

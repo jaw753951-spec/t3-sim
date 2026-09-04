@@ -388,7 +388,7 @@ function stateHTML(){
   if(dls.length){
     rows.push(`<div class="st"${tip(KWTIP['지연'])}>
       <div class="stt"><span>지연</span><b>${dls.reduce((a,n)=>a+n.delayed,0)}</b></div>
-      <div class="stnote">${dls.map(n=>`${n.sym} +${n.delayed}턴 · 수치 +${Math.ceil(n.init*R.DELAY_GROW)*n.delayed}`).join('<br>')}</div></div>`);
+      <div class="stnote">${dls.map(n=>`${n.sym} +${n.delayed}턴 · 수치 +${n.delayAdd||0}`).join('<br>')}</div></div>`);
   }
   /* 재진 */
   const rv = ns.filter(n=>n.diagRound>=1);

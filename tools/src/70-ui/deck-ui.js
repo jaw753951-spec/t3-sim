@@ -129,7 +129,7 @@ function deckLine(id, list, cap){
 
 function openDeckOne(){
   openDeck({pool:POOL.d3, cap:ONE_CAP, min:3, init:ONE_DECK, title:'단판 가방',
-    note:'분과 보급 6장과 NPC 6장이 모두 열려 있다.',
+    note:`분과 보급 ${DEPT_ALL.length}장과 NPC ${NPC6.length}장이 모두 열려 있다.`,
     cb:list=>{ ONE_DECK=list; deckLine('one_deck',ONE_DECK,ONE_CAP);
                log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
 }

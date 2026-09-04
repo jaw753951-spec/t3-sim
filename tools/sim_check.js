@@ -151,31 +151,59 @@ const INVARIANTS = `(() => {
       for (const id of pool.slice(1))
         if (inPack[id]) bad.push('대체 카드 「' + id + '」 가 카드팩 「' + inPack[id] + '」 에도 있다');
     }
-    /* 어느 편성으로 짜도 1종 1장이고 상한을 넘지 않는가.
-       묶음에서는 하나만 드므로 가장 큰 편성은 '묶음마다 하나 + 묶음 아닌 팩 전부' 다.
+  }
+
+  /* ③ㄴ' 「고르는 자리 PACK_PICK 개」 — 옛 판은 묶음(group)으로 짰으므로 이 규칙
+     자체가 없다. 견주기 상대가 옛 판일 때 새 잣대를 들이대면 있지도 않은 규칙을
+     어겼다고 한다. 위 if (C.PACKS) 와 같은 손이다.
+     ★ 여기서 return 으로 빠져나가면 안 된다 — 이 대목은 IIFE 한복판이라
+       뒤에 오는 불변 조건(③ㄷ 병 노드 비트 …)이 옛 파일에서 통째로 안 돌게 된다.
+       실제로 한 번 그렇게 적었다가 알아채고 되돌렸다. */
+  if (C.PACKS && C.PACK_PICK !== undefined) {
+    /* 고르는 팩은 장수가 전부 같아야 한다 — 아니면 어느 조합을 고르느냐로
+       가방 장수가 들쭉날쭉해지고, STORY_N 이 아무 팩에서나 읽는 값이라 거짓이 된다 */
+    const pick = C.PACKS.filter(p => !p.fixed);
+    for (const p of pick)
+      if (p.cards.length !== pick[0].cards.length)
+        bad.push('카드팩 「' + p.name + '」 이 ' + p.cards.length + '장이다 — 고르는 팩은 ' +
+                 pick[0].cards.length + '장으로 같아야 한다');
+
+    /* 고를 수 있는 **모든** 편성이 1종 1장이고 딱 STORY_N 장인가.
+       상한이 아니라 정해진 장수다 — 넘는 것도 모자란 것도 틀린 것이다.
        자리를 전부 대체 카드로 바꾼 편성도 같이 본다. */
-    const groups = {};
-    for (const p of C.PACKS) if (p.group) (groups[p.group] = groups[p.group] || []).push(p.id);
     const swap = {}; for (const pool of C.SWAP) swap[pool[0]] = pool[pool.length - 1];
-    let combos = [{}];
-    for (const g in groups) combos = combos.flatMap(o => groups[g].map(id => Object.assign({}, o, {[id]: 1})));
-    for (const p of C.PACKS) if (!p.fixed && !p.group) combos = combos.map(o => Object.assign({}, o, {[p.id]: 1}));
+    const combos = [];
+    (function walk(at, on) {
+      if (Object.keys(on).length === C.PACK_PICK) { combos.push(on); return }
+      for (let i = at; i < pick.length; i++) walk(i + 1, Object.assign({}, on, {[pick[i].id]: 1}));
+    })(0, {});
+    if (!combos.length) bad.push('고를 수 있는 팩 편성이 하나도 없다');
     for (const on of combos) for (const s of [{}, swap]) {
       const deck = C.packDeck(on, s), cnt = {};
       for (const id of deck) { if (cnt[id]) bad.push('스토리 가방에 「' + id + '」 가 두 장이다'); cnt[id] = 1 }
-      if (deck.length > C.STORY_CAP)
-        bad.push('스토리 가방이 상한을 넘는다 — ' + deck.length + '/' + C.STORY_CAP +
-                 ' (' + Object.keys(on).join(' · ') + ')');
+      if (deck.length !== C.STORY_N)
+        bad.push('스토리 가방이 ' + deck.length + '/' + C.STORY_N + '장이다 — ' +
+                 '정해진 장수여야 한다 (' + Object.keys(on).join(' · ') + ')');
     }
 
-    /* 묶음 팩을 차례로 골라도 둘이 되지 않는가 — packPick 이 규칙을 지키는지 본다 */
-    for (const g in groups) {
-      let on = {};
-      for (const id of groups[g]) on = C.packPick(on, id);
-      const got = groups[g].filter(id => on[id]);
-      if (got.length !== 1) bad.push('묶음 「' + g + '」 에서 팩이 ' + got.length + '개 들렸다 — 하나여야 한다');
-      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 묶음에서는 하나를 반드시 든다 */
-      if (!C.packPick(on, got[0])[got[0]]) bad.push('묶음 「' + g + '」 의 고른 팩이 다시 누르니 빠졌다');
+    /* packPick 이 자리 수를 지키는가 — 팩을 차례로 다 눌러도 늘 PACK_PICK 개이고,
+       든 것을 다시 눌러도 안 빠진다 (빈 자리는 없다) */
+    let on = {};
+    for (const p of pick) {
+      on = C.packPick(on, p.id);
+      const n = Object.keys(on).length;
+      if (n > C.PACK_PICK) bad.push('팩을 고르니 ' + n + '개가 들렸다 — ' + C.PACK_PICK + '개여야 한다');
+    }
+    if (Object.keys(on).length !== C.PACK_PICK)
+      bad.push('팩을 다 눌렀는데 ' + Object.keys(on).length + '개만 들렸다');
+    for (const id of Object.keys(on))
+      if (!C.packPick(on, id)[id]) bad.push('든 팩 「' + id + '」 을 다시 누르니 빠졌다');
+    /* 밀려나는 것을 화면에 알려 주는 자도 규칙과 같은 답을 내는가 */
+    const off = pick.find(p => !on[p.id]);
+    if (off) {
+      const out = C.packOut(on, off.id);
+      if (out.length !== 1 || out[0] !== Object.keys(on)[0])
+        bad.push('packOut 이 밀려나는 팩을 잘못 짚는다 — ' + out.join(' · '));
     }
   }
 

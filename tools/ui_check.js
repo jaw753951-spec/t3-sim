@@ -188,38 +188,40 @@ async function probe(browser, file){
   snap.packs = await page.evaluate(() => {
     const bad = [];
     if (typeof openPackStory !== 'function') return bad;   // 팩이 없던 파일
+    /* 옛 판은 「보급 셋 중 하나」 묶음으로 짰다 — 자리 수 규칙이 없다.
+       견주기 상대가 옛 판일 때 새 잣대를 들이대면 있지도 않은 규칙을 어겼다고
+       한다. 위 줄과 같은 손이다: 그 규칙이 없던 파일은 이 대목을 건너뛴다 */
+    if (typeof PACK_PICK === 'undefined') return bad;
     const deck = () => packDeck(PK.on, PK.swap);
     setMode('story'); openPackStory();
-    const p = PACKS.find(x => !x.fixed && !x.group), n0 = deck().length;
+    const pick = PACKS.filter(x => !x.fixed), n0 = deck().length;
 
-    /* ① 묶음이 아닌 팩 — 빼면 통째로 빠지고, 다시 들이면 통째로 돌아온다 */
-    pkToggle(p.id);
-    for (const id of p.cards)
-      if (deck().includes(id)) bad.push(`카드팩 — 「${p.name}」 을 뺐는데 「${id}」 가 가방에 남았다`);
-    if (deck().length !== n0 - p.cards.length)
-      bad.push(`카드팩 — 뺀 장수가 팩 장수와 다르다. ${n0} → ${deck().length} · 팩 ${p.cards.length}장`);
-    pkToggle(p.id);
-    if (deck().length !== n0) bad.push('카드팩 — 다시 들였는데 장수가 안 돌아왔다');
-    /* 늘 드는 팩은 뺄 손잡이가 아예 없어야 한다 */
+    /* ① 늘 드는 팩은 뺄 손잡이가 아예 없고, 가방에 늘 있다 */
     const fixed = PACKS.find(x => x.fixed);
     for (const id of fixed.cards)
       if (!deck().includes(id)) bad.push(`카드팩 — 늘 드는 팩의 「${id}」 가 가방에 없다`);
+    if (n0 !== STORY_N) bad.push(`카드팩 — 시작 편성이 ${n0}/${STORY_N}장이다`);
 
-    /* ①ㄴ 묶음 팩 — 하나를 고르면 같은 묶음의 나머지가 빠진다. 장수는 그대로다 */
-    const supply = PACKS.filter(x => x.group === 'supply');
-    for (const q of supply) {
+    /* ①ㄴ 고르는 팩 — 어느 것을 눌러도 자리 수는 PACK_PICK 개, 장수는 STORY_N 이다.
+       고른 것은 가방에 다 들어오고, 밀려난 것은 한 장도 안 남는다.
+       ★ 전에는 「보급 셋 중 하나」를 봤다. 그 묶음은 걷혔다 (카드.팩) — 이제
+         자리 수가 규칙이라 어느 팩이든 같은 잣대로 본다 */
+    for (const q of pick) {
+      const before = PACKS.filter(x => !x.fixed && PK.on[x.id]);
       pkToggle(q.id);
-      const d = deck();
+      const d = deck(), onNow = pick.filter(x => PK.on[x.id]);
+      if (onNow.length !== PACK_PICK)
+        bad.push(`카드팩 — 「${q.name}」 을 고르니 팩이 ${onNow.length}개다 — ${PACK_PICK}개여야 한다`);
+      if (d.length !== STORY_N)
+        bad.push(`카드팩 — 「${q.name}」 편성이 ${d.length}/${STORY_N}장이다`);
       for (const id of q.cards)
-        if (!d.includes(id)) bad.push(`보급 — 「${q.name}」 을 골랐는데 「${id}」 가 가방에 없다`);
-      for (const other of supply) if (other !== q) for (const id of other.cards)
-        if (d.includes(id)) bad.push(`보급 — 「${q.name}」 을 골랐는데 「${other.name}」 의 「${id}」 가 남았다`);
-      if (d.length !== n0) bad.push(`보급 — 분과를 바꿨는데 장수가 달라졌다. ${n0} → ${d.length}`);
-      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 묶음에서는 하나를 반드시 든다 */
+        if (!d.includes(id)) bad.push(`카드팩 — 「${q.name}」 을 골랐는데 「${id}」 가 가방에 없다`);
+      for (const other of before) if (!PK.on[other.id]) for (const id of other.cards)
+        if (d.includes(id)) bad.push(`카드팩 — 「${other.name}」 이 밀려났는데 「${id}」 가 남았다`);
+      /* 고른 팩을 다시 눌러도 빠지지 않는다 — 빈 자리는 없다 */
       pkToggle(q.id);
-      if (deck().length !== n0) bad.push(`보급 — 고른 「${q.name}」 을 다시 눌렀더니 편성이 달라졌다`);
-      /* 어느 편성이든 상한을 넘지 않는다 */
-      if (deck().length > STORY_CAP) bad.push(`상한 — 「${q.name}」 편성이 ${deck().length}/${STORY_CAP}장`);
+      if (deck().length !== STORY_N || !PK.on[q.id])
+        bad.push(`카드팩 — 고른 「${q.name}」 을 다시 눌렀더니 편성이 달라졌다`);
     }
 
     /* ② 대체 — 자리가 바뀌되 자리 수는 늘지 않는다 */
@@ -267,16 +269,22 @@ async function probe(browser, file){
       pkClose();
     }
 
-    /* ⑤ 확정하기 전에는 판의 가방이 안 바뀐다 */
+    /* ⑤ 확정하기 전에는 판의 가방이 안 바뀐다.
+       ★ 「빼고 다시 들인다」로 되돌리던 것을 「도로 고른다」로 바꿨다 — 이제 팩은
+         빠지지 않고 **밀려난다** (카드.팩). 원래 편성으로 돌아가려면 그때 들었던
+         팩을 차례로 다시 고르면 된다: 셋을 차례로 밀면 처음 둘이 도로 선다 */
     const keep = STORY_DECK.slice();
-    pkToggle(p.id);
+    const on0  = pick.filter(x => STORY_PACKS[x.id]).map(x => x.id);
+    const off  = pick.find(x => !STORY_PACKS[x.id]);
+    openPackStory(); pkToggle(off.id);
     if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 확정하기 전에 판의 가방이 바뀌었다');
     pkCancel();
     if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 그만뒀는데 판의 가방이 바뀌었다');
-    openPackStory(); pkToggle(p.id); pkDone();
+    openPackStory(); pkToggle(off.id); pkDone();
     if (STORY_DECK.join() === keep.join()) bad.push('편성 — 확정했는데 판의 가방이 그대로다');
-    openPackStory(); pkToggle(p.id); pkDone();
-    if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 도로 들였는데 가방이 안 돌아왔다');
+    if (STORY_DECK.length !== STORY_N) bad.push(`편성 — 확정한 가방이 ${STORY_DECK.length}/${STORY_N}장`);
+    openPackStory(); for (const id of on0) pkToggle(id); pkDone();
+    if (STORY_DECK.join() !== keep.join()) bad.push('편성 — 도로 골랐는데 가방이 안 돌아왔다');
     return bad;
   });
 

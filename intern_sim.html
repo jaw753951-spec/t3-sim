@@ -1369,7 +1369,7 @@ const VAL_KIND = {
   cost:'코스트',
 };
 
-//@ 카드.목록 — 데모 22장. 카드를 더하거나 고치는 자리
+//@ 카드.목록 — 데모 25장. 카드를 더하거나 고치는 자리
 const CARDS = {
 '소독하겠습니다': {cost:0, dept:'공통', verb:'억제', target:'none', v:{sup:5},
   text:'수치가 가장 낮은 자리에 억제 −{sup}',
@@ -1414,6 +1414,9 @@ const CARDS = {
   text:'억제 −{sup}. 기세를 전부 소비하고 소비한 기세 당 추가 억제 −{per}',
   raw:(S,n,v)=> v.sup + (S.rush||0)*v.per,
   fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.ev(S,{t:'rush', v:0}); K.suppress(S,n, v.sup + st*v.per) }},
+'피를 본다': {cost:0, dept:'외과', verb:'보조', kw:'사혈', bleed:1, target:'none', v:{draw:2},
+  text:'사혈 {bleed}단 · {draw}장 뽑는다',
+  fx:(S,n,a,v)=>draw(S,v.draw)},
 '관해 유도': {cost:2, dept:'내과', verb:'보조', kw:'관해', target:'none', v:{},
   costWhen:S=>S.rem?0:CARDS['관해 유도'].cost,   // 관해 중에는 0코스트로 되돌린다
   text:'관해 시작. 관해 중 재사용 시 관해를 즉시 끝낸다',
@@ -1426,6 +1429,9 @@ const CARDS = {
                      S.revisitOn=S.revisitOn||{}; S.diagPlus=S.diagPlus||{};
                      if(S.revisitOn[id]) S.diagPlus[id] = (S.diagPlus[id]||0)+v.diagPlus;
                      else S.revisitOn[id] = true }},
+'하루만 더': {cost:1, dept:'내과', verb:'보조', kw:'지연', target:'node', v:{delay:2},
+  text:'지연 {delay}',
+  fx:(S,n,a,v)=>K.delay(S,n,v.delay)},
 '거치': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', v:{rig:4},
   need:n=>canRig(n, CARDS['거치'].v.rig),
   text:'설치 {rig}',
@@ -1434,6 +1440,11 @@ const CARDS = {
   need:n=>n.rig>0,
   text:'설치물을 태운다 — 설치 수치의 {mult}배로 한 방에 억제한다',
   fx:(S,n,a,v)=>{ rigOpen(S,n,v.mult) }},
+
+'덧대기': {cost:0, dept:'의공학', verb:'억제', kw:'설치', target:'node', v:{rig:2},
+  need:n=>n.rig>0 && canRig(n, CARDS['덧대기'].v.rig),
+  text:'이미 선 설치물에 설치 +{rig}',
+  fx:(S,n,a,v)=>{ rigSet(S,n,v.rig) }},
 
 '그물': {cost:2, dept:'외과', verb:'억제', target:'all', v:{sup:6},
   text:'판 위 모든 자리에 억제 −{sup}',
@@ -1474,12 +1485,12 @@ const BASE10 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여
                 '창상봉합술','지혈 압박','붕대 감기','도와드릴까요?','소매를 걷습니다'];
 
 const SUPPLY = {
-  외과:   ['박리','몰아붙인다'],
-  내과:   ['관해 유도','진행을 붙든다'],
-  의공학: ['거치','출력 개방'],
+  외과:   ['박리','몰아붙인다','피를 본다'],
+  내과:   ['관해 유도','진행을 붙든다','하루만 더'],
+  의공학: ['거치','출력 개방','덧대기'],
 };
 
-const DEPT6  = [...SUPPLY.외과, ...SUPPLY.내과, ...SUPPLY.의공학];
+const DEPT_ALL = [...SUPPLY.외과, ...SUPPLY.내과, ...SUPPLY.의공학];
 
 const NPC6   = ['그물','곗날','손이 기억한다','빌려온 물건','매듭 짓다','눈 딱 감고'];
 
@@ -1487,19 +1498,19 @@ const NPC6   = ['그물','곗날','손이 기억한다','빌려온 물건','매�
 const POOL = {
   d1:['소독하겠습니다','멈춰!','감초 탕약','수액 투여','창상봉합술','지혈 압박','붕대 감기','소매를 걷습니다'],
   d2:['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요','창상봉합술','지혈 압박','붕대 감기','소매를 걷습니다'],
-  d3:[...BASE10, ...DEPT6, ...NPC6],
+  d3:[...BASE10, ...DEPT_ALL, ...NPC6],
 };
 
 //@ 카드.팩 — 스토리 가방을 이루는 카드팩
 const PACKS = [
-  {id:'base',   name:'기본 카드팩',        fixed:true,     cards:BASE10},
-  {id:'surg',   name:'외과 보급 카드팩',   group:'supply', cards:SUPPLY.외과},
-  {id:'med',    name:'내과 보급 카드팩',   group:'supply', cards:SUPPLY.내과},
-  {id:'eng',    name:'의공학 보급 카드팩', group:'supply', cards:SUPPLY.의공학},
+  {id:'base',   name:'기본 카드팩',        fixed:true, cards:BASE10},
+  {id:'surg',   name:'외과 보급 카드팩',   cards:SUPPLY.외과},
+  {id:'med',    name:'내과 보급 카드팩',   cards:SUPPLY.내과},
+  {id:'eng',    name:'의공학 보급 카드팩', cards:SUPPLY.의공학},
   {id:'settle', name:'정착지 의사 카드팩', cards:['빌려온 물건','손이 기억한다','매듭 짓다']},
 ];
 
-const PACK_GROUP = {supply:'보급 카드팩 — 셋 중 하나'};
+const PACK_PICK = 2;
 
 //@ 카드.대체풀 — 한 자리에 놓을 수 있는 카드
 const SWAP = [
@@ -1521,17 +1532,22 @@ function packDeck(on, swap){
 
 function packPick(on, id){
   const p = PACKS.find(x=>x.id===id); if(!p || p.fixed) return {...on};
-  const next = {...on};
-  if(p.group){
-    for(const q of PACKS) if(q.group===p.group) delete next[q.id];
-    next[id]=1;
-  }
-  else if(next[id]) delete next[id];
-  else next[id]=1;
+  if(on[id]) return {...on};                      // 든 것을 다시 눌렀다 — 자리는 빌 수 없다
+  const next = {...on, [id]:1};
+  const picked = Object.keys(next);
+  while(picked.length > PACK_PICK) delete next[picked.shift()];
   return next;
 }
 
-const ONE_CAP = 8, STORY_CAP = 15;
+function packOut(on, id){
+  const before = Object.keys(on);
+  const after  = Object.keys(packPick(on, id));
+  return before.filter(x => !after.includes(x));
+}
+
+const ONE_CAP = 8;
+const STORY_N = PACKS.find(p=>p.fixed).cards.length
+              + PACK_PICK * PACKS.find(p=>!p.fixed).cards.length;
 
 let ONE_DECK   = DECK_D2.slice();
 
@@ -3373,7 +3389,7 @@ const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BA
 
 const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,BODY_HP,hpOfTags,ATK_W,ATK_TARGET};
 
-const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,STORY_CAP,packDeck,packPick,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
+const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,STORY_N,PACK_PICK,packDeck,packPick,packOut,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,cardNums,cardRaw,hasRevisit,rigTotal,handPicks,pickNeed,VAL_KIND};
 
 const P={SCRIPT,SESSIONS,makePatient};
@@ -5013,7 +5029,7 @@ function deckLine(id, list, cap){
 
 function openDeckOne(){
   openDeck({pool:POOL.d3, cap:ONE_CAP, min:3, init:ONE_DECK, title:'단판 가방',
-    note:'분과 보급 6장과 NPC 6장이 모두 열려 있다.',
+    note:`분과 보급 ${DEPT_ALL.length}장과 NPC ${NPC6.length}장이 모두 열려 있다.`,
     cb:list=>{ ONE_DECK=list; deckLine('one_deck',ONE_DECK,ONE_CAP);
                log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
 }
@@ -5074,10 +5090,14 @@ function openPackStory(){
 }
 
 function pkToggle(id){
-  const p = PACKS.find(x=>x.id===id), was = !!PK.on[id];
+  const p = PACKS.find(x=>x.id===id);
+  if(PK.on[id]){                                      // 든 것을 다시 눌렀다 — 자리는 빌 수 없다
+    PK.msg = `${p.name}${eul(p.name)} 빼려면 다른 팩을 고른다 — 카드팩은 늘 ${PACK_PICK}개다.`;
+    PK.open = null; renderPack(); return;
+  }
+  const out = packOut(PK.on, id).map(x => (PACKS.find(q=>q.id===x)||{}).name).filter(Boolean);
   PK.on = packPick(PK.on, id);
-  PK.msg = was && PK.on[id] ? ''                      // 고른 팩을 다시 누른 것 — 달라진 게 없다
-         : `${p.name}${eul(p.name)} ${!PK.on[id] ? '뺐다' : p.group ? '골랐다' : '들였다'} — ${p.cards.join(' · ')}.`;
+  PK.msg = `${p.name}${eul(p.name)} 골랐다${out.length?` — 「${out.join(' · ')}」 이 빠진다`:''}. ${p.cards.join(' · ')}.`;
   PK.open = null; renderPack();
 }
 
@@ -5116,7 +5136,7 @@ function renderPack(){
   const onN = PACKS.filter(p=>p.fixed||PK.on[p.id]).length;
 
   $('dk_body').innerHTML =
-      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장</div>`
+      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_N}장</div>`
     + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
         <span class="right">${PK.msg?`<i>${esc(PK.msg)}</i>`:''}</span></div>`
     + packsHTML()
@@ -5134,11 +5154,12 @@ function renderPack(){
 }
 
 function packsHTML(){
-  let out = '', group = null;
+  let out = '', headed = false;
   for(const p of PACKS){
-    if(p.group !== group){
-      group = p.group;
-      if(group) out += `<div class="bar">${esc(PACK_GROUP[group]||'')}</div>`;
+    if(!p.fixed && !headed){
+      headed = true;
+      out += `<div class="bar">고르는 카드팩 — ${PACK_PICK}개<span class="right d">`
+           + `${Object.keys(PK.on).length}/${PACK_PICK} 골랐다</span></div>`;
     }
     out += packHTML(p);
   }
@@ -5147,10 +5168,10 @@ function packsHTML(){
 
 function packHTML(p){
   const on = p.fixed || !!PK.on[p.id];
+  const full = Object.keys(PK.on).length >= PACK_PICK;
   const knob = p.fixed ? `<span class="right d">늘 든다</span>`
-             : p.group ? (on ? `<span class="right d">골랐다</span>`
-                             : `<button class="mini right go" onclick="pkToggle('${p.id}')">이걸로 고른다</button>`)
-                       : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`;
+             : on ? `<span class="right d">골랐다</span>`
+                  : `<button class="mini right go" onclick="pkToggle('${p.id}')">${full?'이걸로 바꾼다':'이걸로 고른다'}</button>`;
   return `<div class="pack ${on?'':'off'}">
     <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장</span>${knob}</div>
     <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
@@ -5205,7 +5226,7 @@ addEventListener('resize', ()=>{ if(PK && PK.open) pkPlace() });
 function packLine(){
   const by={외과:0,내과:0,의공학:0,공통:0}; for(const c of STORY_DECK) by[CARDS[c].dept]++;
   const onN = PACKS.filter(p=>p.fixed||STORY_PACKS[p.id]).length;
-  $('story_deck').innerHTML = `팩 <b>${onN}</b> · <b>${STORY_DECK.length}</b>/${STORY_CAP}장`
+  $('story_deck').innerHTML = `팩 <b>${onN}</b> · <b>${STORY_DECK.length}</b>/${STORY_N}장`
     + ` · 외 ${by.외과} 내 ${by.내과} 공학 ${by.의공학} 공통 ${by.공통}`;
 }
 

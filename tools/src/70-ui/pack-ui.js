@@ -23,10 +23,16 @@ function openPackStory(){
 }
 
 function pkToggle(id){
-  const p = PACKS.find(x=>x.id===id), was = !!PK.on[id];
+  const p = PACKS.find(x=>x.id===id);
+  if(PK.on[id]){                                      // 든 것을 다시 눌렀다 — 자리는 빌 수 없다
+    PK.msg = `${p.name}${eul(p.name)} 빼려면 다른 팩을 고른다 — 카드팩은 늘 ${PACK_PICK}개다.`;
+    PK.open = null; renderPack(); return;
+  }
+  /* 무엇이 밀려나는지는 규칙에게 묻는다 (카드.팩) — 여기서 「가장 먼저 든 것」을
+     다시 셈하면 미는 규칙이 두 벌이 된다 */
+  const out = packOut(PK.on, id).map(x => (PACKS.find(q=>q.id===x)||{}).name).filter(Boolean);
   PK.on = packPick(PK.on, id);
-  PK.msg = was && PK.on[id] ? ''                      // 고른 팩을 다시 누른 것 — 달라진 게 없다
-         : `${p.name}${eul(p.name)} ${!PK.on[id] ? '뺐다' : p.group ? '골랐다' : '들였다'} — ${p.cards.join(' · ')}.`;
+  PK.msg = `${p.name}${eul(p.name)} 골랐다${out.length?` — 「${out.join(' · ')}」 이 빠진다`:''}. ${p.cards.join(' · ')}.`;
   PK.open = null; renderPack();
 }
 
@@ -69,7 +75,7 @@ function renderPack(){
   const onN = PACKS.filter(p=>p.fixed||PK.on[p.id]).length;
 
   $('dk_body').innerHTML =
-      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장</div>`
+      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_N}장</div>`
     + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
         <span class="right">${PK.msg?`<i>${esc(PK.msg)}</i>`:''}</span></div>`
     + packsHTML()
@@ -86,13 +92,16 @@ function renderPack(){
   }
 }
 
-/* 팩을 차례로 그리되, 묶음이 시작되는 자리에 묶음 머리를 한 줄 건다 */
+/* 늘 드는 팩이 먼저, 고르는 팩이 그 아래. 사이에 고르는 자리가 몇인지 한 줄 건다.
+   ★ 묶음 머리(PACK_GROUP)를 걷었다 — 묶음이 없어졌기 때문이다 (카드.팩).
+     자리 수는 팩 하나하나가 아니라 이 줄 하나가 말한다 */
 function packsHTML(){
-  let out = '', group = null;
+  let out = '', headed = false;
   for(const p of PACKS){
-    if(p.group !== group){
-      group = p.group;
-      if(group) out += `<div class="bar">${esc(PACK_GROUP[group]||'')}</div>`;
+    if(!p.fixed && !headed){
+      headed = true;
+      out += `<div class="bar">고르는 카드팩 — ${PACK_PICK}개<span class="right d">`
+           + `${Object.keys(PK.on).length}/${PACK_PICK} 골랐다</span></div>`;
     }
     out += packHTML(p);
   }
@@ -101,11 +110,12 @@ function packsHTML(){
 
 function packHTML(p){
   const on = p.fixed || !!PK.on[p.id];
-  /* 묶음 팩은 넣고 빼는 것이 아니라 고르는 것이다 — 고른 팩에는 뺄 손잡이가 없다 */
+  /* 넣고 빼는 것이 아니라 고르는 것이다 — 고른 팩에는 뺄 손잡이가 없다.
+     자리가 다 찼을 때 다른 팩을 고르면 가장 먼저 든 것과 바뀐다 */
+  const full = Object.keys(PK.on).length >= PACK_PICK;
   const knob = p.fixed ? `<span class="right d">늘 든다</span>`
-             : p.group ? (on ? `<span class="right d">골랐다</span>`
-                             : `<button class="mini right go" onclick="pkToggle('${p.id}')">이걸로 고른다</button>`)
-                       : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`;
+             : on ? `<span class="right d">골랐다</span>`
+                  : `<button class="mini right go" onclick="pkToggle('${p.id}')">${full?'이걸로 바꾼다':'이걸로 고른다'}</button>`;
   return `<div class="pack ${on?'':'off'}">
     <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장</span>${knob}</div>
     <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
@@ -168,6 +178,6 @@ addEventListener('resize', ()=>{ if(PK && PK.open) pkPlace() });
 function packLine(){
   const by={외과:0,내과:0,의공학:0,공통:0}; for(const c of STORY_DECK) by[CARDS[c].dept]++;
   const onN = PACKS.filter(p=>p.fixed||STORY_PACKS[p.id]).length;
-  $('story_deck').innerHTML = `팩 <b>${onN}</b> · <b>${STORY_DECK.length}</b>/${STORY_CAP}장`
+  $('story_deck').innerHTML = `팩 <b>${onN}</b> · <b>${STORY_DECK.length}</b>/${STORY_N}장`
     + ` · 외 ${by.외과} 내 ${by.내과} 공학 ${by.의공학} 공통 ${by.공통}`;
 }

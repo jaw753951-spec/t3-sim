@@ -145,7 +145,7 @@ function nodeMarks(S, n){
     n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
     n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
     n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
-    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)} · 부품 ${n.rigPart||0}/${n.rigPartMax||0}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
     n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
     gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
     n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',

@@ -24,8 +24,20 @@
 /* 한 자리에 설치물 칸이 둘이다.
    rig     = 보통 설치물. 설치 카드로 쌓이고 개방으로 태운다. 상한은 설치 카드 수치의 3배(최소 3)
    rigLent = 「빌려온 물건」 전용 칸. 남의 손을 타지 않는다 — 쌓지도 태우지도 못한다.
-   둘 다 있으면 턴 종료 시 각각 따로 억제한다. */
-//@ 카드.설치 — 설치물 두 칸 · 개방
+   둘 다 있으면 턴 종료 시 각각 따로 억제한다.
+
+   설치물에는 **부품**을 붙일 수 있다. 설치와 부품은 다른 키워드다:
+     설치  설치물 자체를 놓거나 더 키운다. 막는 것은 **수치 상한**(rigCap)이다.
+     부품  이미 선 설치물에 덧붙인다. 막는 것은 **칸 수**(rigPartMax)다.
+   그래서 자리는 붙은 부품 수(rigPart)와 그 설치물이 받는 수(rigPartMax)를
+   따로 들고 있다. 부품도 수치 상한은 넘지 못한다 — 넘게 두면 계기 배지가
+   적어 둔 「상한 N」이 거짓이 된다. 두 잣대가 다 걸리는 셈이고, 지금 값에서는
+   대개 칸 수가 먼저 찬다.
+
+   ★ rigUp 이라는 칸이 있었다. rigSet 이 올릴 때마다 +1 했는데 **읽는 곳이
+     한 군데도 없었다** — 죽은 값이었다. 부품 수를 세는 자리로 되살렸다.
+     이름도 바꿨다: 「올린 횟수」가 아니라 「붙은 부품 수」다. */
+//@ 카드.설치 — 설치물 두 칸 · 부품 · 개방
 const rigTotal = n => (n.rig||0) + (n.rigLent||0);
 
 /* 설치 amt 로 처음 놓았을 때의 상한. 카드가 아니라 규칙이 정한다 */
@@ -34,25 +46,47 @@ const rigCapOf = amt => Math.max(R.RIG_CAP_MIN, amt * R.RIG_CAP_MUL);
    카드의 need 가 이것을 부른다. 화면이 낼 수 있는지 미리 보는 데 쓴다 */
 const canRig = (n, amt) => !(n.rig>0 && n.rig >= (n.rigCap || rigCapOf(amt)));
 
+/* 이 설치물이 받는 부품 수 · 남은 칸 */
+const rigPartMax  = n => n.rigPartMax || 0;
+const rigPartLeft = n => Math.max(0, rigPartMax(n) - (n.rigPart||0));
+/* 이 자리에 부품을 하나 더 붙일 수 있는가 — rigAddPart 와 같은 잣대다.
+   설치물이 서 있어야 하고, 칸이 남아야 하고, 수치 상한에 닿지 않아야 한다.
+   빌려온 물건(rigLent)은 여기 안 걸린다 — 「남의 손을 타지 않는다」 */
+const canPart = (n, amt) => !!n && n.rig>0 && rigPartLeft(n)>0
+  && n.rig < Math.max(R.RIG_CAP_MIN, n.rigCap || rigCapOf(amt));
+
 function rigSet(S,n,amt){
   if(n.rig>0){
     const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
     if(n.rig>=cap) return false;
-    n.rig = Math.min(cap, n.rig+amt); n.rigUp++;
+    /* 설치는 부품 칸을 안 먹는다 — 설치물을 더 키우는 것이지 붙이는 것이 아니다 */
+    n.rig = Math.min(cap, n.rig+amt);
   } else {
-    n.rig = amt; n.rigUp = 0; n.rigCap = rigCapOf(amt);
+    n.rig = amt; n.rigCap = rigCapOf(amt);
+    n.rigPart = 0; n.rigPartMax = R.RIG_PART_MAX;   // 이 설치물이 받는 칸 수를 여기서 정한다
   }
   K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
 
-/* 개방 — 보통 설치물만 태운다. 빌려온 물건은 대상이 아니다 */
+/* 부품 — 이미 선 설치물에 한 칸 붙인다. 칸이 차면 못 붙인다 */
+function rigAddPart(S,n,amt){
+  if(!canPart(n, amt)) return false;
+  const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
+  n.rig = Math.min(cap, n.rig+amt);
+  n.rigPart = (n.rigPart||0) + 1;
+  K.ev(S,{t:'rig', n, amt:n.rig});
+  return true;
+}
+
+/* 개방 — 보통 설치물만 태운다. 빌려온 물건은 대상이 아니다.
+   설치물이 사라지면 붙어 있던 부품도 같이 사라진다 — 칸도 되돌아온다 */
 function rigOpen(S,n,mult){
   if(!(n.rig>0)) return 0;
   const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
   K.ev(S,{t:'rigOpen', n, amt});
-  n.rig=0; n.rigUp=0; n.rigCap=0;
+  n.rig=0; n.rigCap=0; n.rigPart=0; n.rigPartMax=0;
   return got;
 }
 

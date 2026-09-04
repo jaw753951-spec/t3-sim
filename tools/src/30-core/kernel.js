@@ -598,7 +598,7 @@ function transmit(S, src, L, k, strong){
   const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
               grow: k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
               evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
-              evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
+              evolved:false, dead:false, dormT:0, rig:0, rigPart:0, rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0,
               diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
               revealed:false, spawned:true, born:S.turn, role:'sym'};
   S.nodes.push(nn);

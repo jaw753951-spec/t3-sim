@@ -106,11 +106,20 @@ function disSaveAll(all){
   try{ localStorage.setItem(DIS_STORE, JSON.stringify(all)); return true }
   catch(e){ return false }                  // 사생활 모드 · 저장 공간 참 — 조용히 실패하지 않는다
 }
-/* 저장한 것을 BOSS 표에 올린다. 부팅과 저장 직후에 부른다 */
+/* 저장한 것을 BOSS 표에 올린다. 부팅과 저장 직후에 부른다.
+   ★ 하나씩 감싼다. 전에는 고리 하나로 돌렸는데, 저장된 것 중 **하나만** 깨져도
+     (모르는 태그가 든 옛 판 · 손으로 고친 localStorage) 고리가 그 자리에서
+     끊겨 나머지가 전부 병기 고르개에서 사라졌다. 부팅의 try/catch 가 그 예외를
+     삼키므로 화면에는 아무 말도 안 뜬다 — 지워진 것처럼 보일 뿐이다.
+     깨진 것만 건너뛰고 이름을 돌려준다. */
 function disRegisterSaved(){
-  const all = disSaved();
-  for(const nm in all) disRegister(all[nm], nm);
-  return Object.keys(all);
+  const all = disSaved(), ok = [], bad = [];
+  for(const nm in all){
+    try{ disRegister(all[nm], nm); ok.push(nm) }
+    catch(e){ bad.push(nm) }
+  }
+  if(bad.length) log(`<i>저장한 병 노드 ${bad.length}개를 읽지 못했다 — ${esc(bad.join(' · '))}</i>`);
+  return ok;
 }
 
 let SC_SAVE_OPEN = false, SC_DIRTY = false;
@@ -133,6 +142,9 @@ function scSaveDo(){
 function scSaveLoad(nm){
   const all = disSaved(); if(!all[nm]) return;
   CUSTOM.dis = JSON.parse(JSON.stringify(all[nm]));
+  /* 브라우저에 있던 것은 밖에서 온 자료다 — 태그 칸이 hpOfTags 를 부르므로
+     모르는 이름 하나가 병 노드 탭을 통째로 못 그리게 만든다 (생성기.태그훑기) */
+  CUSTOM.dis.tags = tagsClean(CUSTOM.dis.tags);
   SC_DIRTY = false; SCORE_AIM = null;
   mkNote(`「${nm}」 을 불러왔다.`);
   renderScore();
@@ -212,6 +224,14 @@ function renderScore(){
        <b>1</b> 이면 깎아 둔 비율이 그대로 유지되고, <b>0</b> 이면 새 수치로 되돌아간다.
        시계는 그 병기가 몇 턴 만에 다음으로 넘어가는가다.</div>`;
 
+  /* 명부는 **전부 아니면 전무**다 (만들기.병노드등록) — 한 병기라도 비어 있으면
+     커널이 명부 없는 보스로 돌린다. 그래서 아래 줄은 '이 병기에 적힌 것'이 아니라
+     '실제로 서게 될 것'을 말해야 한다.
+     ★ 전에는 적힌 것만 보고 「명부대로」라 했다. 시작 병기 1 을 열자 아이(3~5만
+       적혀 있다)가 1 · 2 를 빈 채로 3 · 4 · 5 에서 「명부대로」라 말했는데,
+       실제로는 다섯 병기 모두 분화가 뿜는다. */
+  const rosterOn = sts.every(s => ((d.syms||{})[s]||[]).length);
+
   for(const st of sts){
     const roster = (d.syms||{})[st];
     h += `<div class="bar">병기 ${st}${st===+d.stage?' · 시작':''}${st===+d.stageMax?' · 최종':''}</div>
@@ -223,8 +243,10 @@ function renderScore(){
         <label class="mk">이월 비율<input type="number" min="0" max="1" step="0.1" value="${(d.carry||{})[st] ?? ''}"
                placeholder="${SR.GIMMICK.PRORATE?1:0}" onchange="scSetDis('carry.${st}',this.value)"></label>
       </div>
-      <div class="bar">활성 부수 <span class="right d">${roster&&roster.length
-          ? '명부대로 — 앞 '+Math.max(1,roster.length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
+      <div class="bar">활성 부수 <span class="right d">${
+          rosterOn ? '명부대로 — 앞 '+Math.max(1,(roster||[]).length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
+        : (roster&&roster.length)
+          ? '안 돈다 — 빈 병기('+sts.filter(s=>!((d.syms||{})[s]||[]).length).join(' · ')+')가 있어 명부 전체가 꺼진다'
           : '명부 없음 — 자리 상한('+SR.SPAWN_LV[SLV(d.from||'아이','spots',st)]+')까지 분화가 뿜는다'}</span></div>
       <div class="scline">`
       + (roster||[]).map((s,i)=>`<span class="beat">

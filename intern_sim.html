@@ -1234,16 +1234,14 @@ const bodyOf = tags => {
 };
 const bodyHp = tags => BODY_HP[bodyOf(tags)];
 
-const bodySet = (tags, t) => t===BODY_DEF
-  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
-  : tagAdd(tags, t);
-
 const HP_TAG = {
   '영양실조':0.85, '굶주림':0.85, '만성기저질환':0.85,
   '재진악화':0.85, '공황시작':0.85, 'T3이식다수':0.85, '노인':0.85,
 };
 
 const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG)]);
+
+const tagsClean = tags => (tags||[]).filter(t => TAG_KNOWN.has(t));
 
 const hpOfTags = tags => {
   let hp = bodyHp(tags);
@@ -2319,12 +2317,15 @@ function tagAdd(list, t){
   const g = tagGroupOf(t);
   const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  const body = out.filter(x => BODY_HP[x]!==undefined);
   const mult = out.filter(x => BODY_HP[x]===undefined);
-  while(body.length > 1) body.shift();
   while(mult.length > TAG_CAP) mult.shift();
-  return [...body, ...mult];
+  const has = out.some(x => BODY_HP[x]!==undefined);
+  return [...(has ? [BODY_HP[t]!==undefined ? t : bodyOf(out)] : []), ...mult];
 }
+
+const bodySet = (tags, t) => t===BODY_DEF
+  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
+  : tagAdd(tags, t);
 
 //@ 생성기.S산식 — 판 하나를 난이도 숫자 하나로 옮긴다
 function sFormula({n, valSum, basic, enh, evo, atkW, shN}){
@@ -7720,12 +7721,13 @@ const DIS_KEY = '커스텀';
 function disRegister(d, key){
   const sts = disStages(d);
   const only = o => Object.fromEntries(sts.filter(s=>o && o[s]!=null).map(s=>[s, o[s]]));
+  const tags = tagsClean(d.tags);
   const b = {
     name: d.name || '커스텀 병 노드',
-    stage0: +d.stage, stageMax: +d.stageMax,
+    stage0: sts[0], stageMax: sts[sts.length-1],
     noDeath: !!d.noDeath,
-    tags: (d.tags||[]).slice(),
-    hp: hpOfTags(d.tags||[]),
+    tags: tags.slice(),
+    hp: hpOfTags(tags),
     seed: (d.seed||[]).slice(),
     lv: {...(d.lv||{})},
     disVal: only(d.disVal), clock: only(d.clock), carry: only(d.carry),
@@ -7811,7 +7813,11 @@ function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); mkNot
 
 function mkFromJson(){
   try{ const o=JSON.parse($('mk_json').value); if(!o.nodes) throw new Error('nodes 가 없다');
-       CUSTOM=o; mkNote('읽어들였다.'); renderMake() }
+       const drop = (o.tags||[]).filter(t=>!TAG_KNOWN.has(t));
+       o.tags = tagsClean(o.tags);
+       CUSTOM=o;
+       mkNote('읽어들였다.' + (drop.length?` 모르는 태그는 뺐다 — ${drop.join(' · ')}`:''));
+       renderMake() }
   catch(e){ mkNote('읽지 못했다 — '+e.message) }
 }
 
@@ -8009,9 +8015,13 @@ function disSaveAll(all){
   catch(e){ return false }                  // 사생활 모드 · 저장 공간 참 — 조용히 실패하지 않는다
 }
 function disRegisterSaved(){
-  const all = disSaved();
-  for(const nm in all) disRegister(all[nm], nm);
-  return Object.keys(all);
+  const all = disSaved(), ok = [], bad = [];
+  for(const nm in all){
+    try{ disRegister(all[nm], nm); ok.push(nm) }
+    catch(e){ bad.push(nm) }
+  }
+  if(bad.length) log(`<i>저장한 병 노드 ${bad.length}개를 읽지 못했다 — ${esc(bad.join(' · '))}</i>`);
+  return ok;
 }
 
 let SC_SAVE_OPEN = false, SC_DIRTY = false;
@@ -8034,6 +8044,7 @@ function scSaveDo(){
 function scSaveLoad(nm){
   const all = disSaved(); if(!all[nm]) return;
   CUSTOM.dis = JSON.parse(JSON.stringify(all[nm]));
+  CUSTOM.dis.tags = tagsClean(CUSTOM.dis.tags);
   SC_DIRTY = false; SCORE_AIM = null;
   mkNote(`「${nm}」 을 불러왔다.`);
   renderScore();
@@ -8109,6 +8120,8 @@ function renderScore(){
        <b>1</b> 이면 깎아 둔 비율이 그대로 유지되고, <b>0</b> 이면 새 수치로 되돌아간다.
        시계는 그 병기가 몇 턴 만에 다음으로 넘어가는가다.</div>`;
 
+  const rosterOn = sts.every(s => ((d.syms||{})[s]||[]).length);
+
   for(const st of sts){
     const roster = (d.syms||{})[st];
     h += `<div class="bar">병기 ${st}${st===+d.stage?' · 시작':''}${st===+d.stageMax?' · 최종':''}</div>
@@ -8120,8 +8133,10 @@ function renderScore(){
         <label class="mk">이월 비율<input type="number" min="0" max="1" step="0.1" value="${(d.carry||{})[st] ?? ''}"
                placeholder="${SR.GIMMICK.PRORATE?1:0}" onchange="scSetDis('carry.${st}',this.value)"></label>
       </div>
-      <div class="bar">활성 부수 <span class="right d">${roster&&roster.length
-          ? '명부대로 — 앞 '+Math.max(1,roster.length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
+      <div class="bar">활성 부수 <span class="right d">${
+          rosterOn ? '명부대로 — 앞 '+Math.max(1,(roster||[]).length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
+        : (roster&&roster.length)
+          ? '안 돈다 — 빈 병기('+sts.filter(s=>!((d.syms||{})[s]||[]).length).join(' · ')+')가 있어 명부 전체가 꺼진다'
           : '명부 없음 — 자리 상한('+SR.SPAWN_LV[SLV(d.from||'아이','spots',st)]+')까지 분화가 뿜는다'}</span></div>
       <div class="scline">`
       + (roster||[]).map((s,i)=>`<span class="beat">

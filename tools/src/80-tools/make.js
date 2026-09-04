@@ -79,17 +79,22 @@ const DIS_KEY = '커스텀';
 function disRegister(d, key){
   const sts = disStages(d);
   const only = o => Object.fromEntries(sts.filter(s=>o && o[s]!=null).map(s=>[s, o[s]]));
+  /* 밖에서 들어온 태그는 훑는다 — 저장해 둔 병 노드와 JSON 이 여기로 온다 */
+  const tags = tagsClean(d.tags);
   const b = {
     name: d.name || '커스텀 병 노드',
-    stage0: +d.stage, stageMax: +d.stageMax,
+    /* 병기는 **자른 것**을 담는다 (disStages). 날것을 담았더니 9 를 적었을 때
+       stage0:9 로 앉고 악보 · 수치는 5까지만 있어서, makeDisease 가 init 도 val 도
+       undefined 인 병 노드를 세웠다 — 바로 아래 hp 와 똑같은 NaN 이 다시 났다 */
+    stage0: sts[0], stageMax: sts[sts.length-1],
     noDeath: !!d.noDeath,
-    tags: (d.tags||[]).slice(),
+    tags: tags.slice(),
     /* 체력은 태그에서 낸다 — 권위본 보스가 뜰 때 하는 것과 같은 줄이다
        (20-data/bosses.js 의 마무리 고리). 여기 빠뜨렸더니 손으로 짠 병 노드로
        스토리를 열면 mkBoard 가 b.hp 를 undefined 로 받아 첫 피해에서 체력이
        통째로 NaN 이 됐다 — 화면에는 「NaN / NaN」만 뜨고 판정도 영영 안 났다.
        규칙의 집은 hpOfTags 하나다. 값을 베끼지 말고 그 함수를 부른다 */
-    hp: hpOfTags(d.tags||[]),
+    hp: hpOfTags(tags),
     seed: (d.seed||[]).slice(),
     lv: {...(d.lv||{})},
     disVal: only(d.disVal), clock: only(d.clock), carry: only(d.carry),
@@ -185,7 +190,14 @@ function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); mkNot
 
 function mkFromJson(){
   try{ const o=JSON.parse($('mk_json').value); if(!o.nodes) throw new Error('nodes 가 없다');
-       CUSTOM=o; mkNote('읽어들였다.'); renderMake() }
+       /* 모르는 태그는 여기서 떨군다 (생성기.태그훑기). 그냥 실었더니 태그 칸이
+          부르는 hpOfTags 가 터져서, 한 번 잘못 읽어들이면 만들기 탭이 그 뒤로
+          영영 안 그려졌다 — 「읽어들였다」고 적힌 채로 */
+       const drop = (o.tags||[]).filter(t=>!TAG_KNOWN.has(t));
+       o.tags = tagsClean(o.tags);
+       CUSTOM=o;
+       mkNote('읽어들였다.' + (drop.length?` 모르는 태그는 뺐다 — ${drop.join(' · ')}`:''));
+       renderMake() }
   catch(e){ mkNote('읽지 못했다 — '+e.message) }
 }
 

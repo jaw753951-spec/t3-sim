@@ -116,8 +116,9 @@ get '부설'(){ return TT('부설 · 전이',
 const kwLabel = L => linkKws(L).join(' · ');
 const kwTip   = L => linkKws(L).map(k => LINKTIP[k] || TT(k, '')).join('<br><br>');
 
-/* 체력 태그가 무엇을 하는가 — 체격을 고르는 것과 곱하는 것을 한 줄로 적는다.
-   목록(TAG_LIST)은 10-config 이 쥐고, 그 이름표는 여기서 낸다 */
+/* 태그가 무엇을 하는가 — 체격을 고르는 것과 곱하는 것을 한 줄로 적는다.
+   목록(BODY_LIST · HP_TAG_LIST)은 10-config 이 쥐고, 그 이름표는 여기서 낸다.
+   화면은 BODY_HP · HP_TAG 를 직접 읽지 않는다 — 읽던 자리가 「소아 ×undefined」로 떴다 */
 //@ 문안.체력태그 — 태그 한 줄 이름표
 const tagLabel = t => {
   const part = [];

@@ -15,13 +15,26 @@ function tagAdd(list, t){
   const g = tagGroupOf(t);
   const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  const body = out.filter(x => BODY_HP[x]!==undefined);
   const mult = out.filter(x => BODY_HP[x]===undefined);
-  /* 체격이 둘 남았으면 새로 온 쪽만 남긴다 — 배열 뒤가 새것이다 */
-  while(body.length > 1) body.shift();
   while(mult.length > TAG_CAP) mult.shift();
-  return [...body, ...mult];
+  /* 체격은 하나만 남는다. 고른 것이 체격이면 그것이, 아니면 **칸이 이미 켜
+     놓고 있던 것**(bodyOf — 가장 얇은 쪽)이 남는다.
+     ★ 무조건 배열 뒤를 남기면 안 된다. 손으로 적은 옛 기록 ['소아','노동자']
+       에서 칸은 bodyOf 를 따라 소아(120)를 켜 놓고 있는데, 체력 태그를 하나
+       붙이는 순간 노동자만 남아 체력이 아무 말 없이 170 으로 뛰었다.
+       고르는 자와 보여 주는 자가 갈리면 이런 식으로 조용히 어긋난다. */
+  const has = out.some(x => BODY_HP[x]!==undefined);
+  return [...(has ? [BODY_HP[t]!==undefined ? t : bodyOf(out)] : []), ...mult];
 }
+
+/* 체격 고르기 — 성인은 「체격 태그 없음」이다. 태그 줄에 굳이 안 적는다.
+   곱하는 태그(노인 포함)는 건드리지 않는다 — 노인은 체격이 성인이면서
+   ×0.85 를 받는 자리라 성인을 고른다고 떨어지면 안 된다.
+   tagAdd 옆에 둔다: 10-config 에 뒀더니 그 층이 30-core 의 tagAdd 를 부르게 돼
+   앞의 층이 뒤의 층을 아는 꼴이 됐다 (층 규칙). 고르는 규칙은 둘 다 여기 산다 */
+const bodySet = (tags, t) => t===BODY_DEF
+  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
+  : tagAdd(tags, t);
 
 /* ── S 산식 (§5) ─────────────────────────────────────────── */
 //@ 생성기.S산식 — 판 하나를 난이도 숫자 하나로 옮긴다

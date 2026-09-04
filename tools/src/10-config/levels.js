@@ -60,13 +60,6 @@ const bodyOf = tags => {
 };
 const bodyHp = tags => BODY_HP[bodyOf(tags)];
 
-/* 체격 고르기 — 성인은 「체격 태그 없음」이다. 태그 줄에 굳이 안 적는다.
-   곱하는 태그(노인 포함)는 건드리지 않는다 — 노인은 체격이 성인이면서
-   ×0.85 를 받는 자리라 성인을 고른다고 떨어지면 안 된다. */
-const bodySet = (tags, t) => t===BODY_DEF
-  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
-  : tagAdd(tags, t);
-
 /* ── 체력 태그 — 체격을 고른 뒤에 곱한다. 전부 ×0.85 하나로 통일했다.
    한 환자에 둘까지 붙으므로 가장 얇아져도 0.7225 다.
    체격이 태그에서 빠졌으니 예전의 세 겹 누적(0.578)은 나올 수 없다. */
@@ -77,6 +70,16 @@ const HP_TAG = {
 
 /* 아는 태그 — 체격을 고르는 것과 체력을 곱하는 것을 합친 것. 두 표가 곧 목록이다 */
 const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG)]);
+
+/* 모르는 태그를 떨군다.
+   ★ hpOfTags 는 모르는 이름에 예외를 던진다 — 보스 표의 오타를 판 짓는 중에
+     잡으려고 일부러 그렇게 뒀다. 그런데 그 예외가 **그리는 길** 위에 서면
+     화면이 통째로 안 뜬다: 태그 칸이 hpOfTags 를 부르게 되면서, 오타가 든
+     JSON 을 읽어들이면 만들기 탭이 그 뒤로 영영 안 그려졌다.
+   그러니 예외는 그대로 두고, **밖에서 들어오는 자료**만 들어올 때 한 번 훑는다
+   (JSON 읽어들이기 · 브라우저에 저장한 병 노드). 악보에 scoreClean 을 두는 것과
+   같은 잣대다 — 안쪽은 여전히 시끄럽게 터진다. */
+const tagsClean = tags => (tags||[]).filter(t => TAG_KNOWN.has(t));
 
 /* 태그 목록에서 최종 체력을 낸다 — 생성기와 보스 표가 같은 자를 쓴다 */
 const hpOfTags = tags => {

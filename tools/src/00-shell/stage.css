@@ -192,7 +192,13 @@ body.sgon{overflow:hidden}
 #sg .gz .face{position:absolute;inset:12%;border-radius:50%;overflow:hidden;transition:filter .9s;
   background:radial-gradient(circle at 40% 32%,var(--hanjiW),var(--hanji) 70%,#bfae8b);
   box-shadow:inset 0 3px 9px rgba(50,38,18,.45)}
-#sg .gz .stg{position:absolute;inset:0}
+/* 문자판 그림은 **전부 손이 안 닿는다.** 장식이라 눌릴 일도 설명이 붙을 일도 없다.
+   ★ 여기를 비워 뒀더니 발열의 안개(.fog, z 3)가 이름 아치가 앉은 .dial(z 2) 위를
+     통째로 덮어, 여섯 증상 중 **발열만** 툴팁이 안 떴다. 마우스가 .fog 에 닿고
+     그 위로는 [data-tip] 이 없어 closest 가 빈손으로 돌아온 것이다 (서리 .frost 도
+     같은 z 3 이라 성장 정지 · 지연이 걸린 자리는 증상을 안 가리고 같은 일이 났다).
+     조각마다 붙이지 않고 담는 칸에 한 번 건다 — 다음에 그림이 늘어도 안 되풀이된다. */
+#sg .gz .stg{position:absolute;inset:0;pointer-events:none}
 #sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
 #sg .gz .dial .shg{cursor:help}
 #sg .gz .dial .nmg{cursor:help}

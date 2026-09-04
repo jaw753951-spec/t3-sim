@@ -5,26 +5,29 @@
 /* ═══ 단판 ═══════════════════════════════════════════════════ */
 /* 사이드바 체력 태그 — 상한과 배타를 화면에서 바로 반영한다 */
 //@ 화면.단판 — §9.12 단판 모드
-/* 체력 태그 칸 — 표에서 만든다.
+/* 체격 · 체력 태그 칸 — 표에서 만든다 (화면.태그칸).
    전에는 일곱 개를 마크업에 손으로 적어 뒀는데, HP_TAG 에는 열한 개가 있고
    「환자 만들기」는 열한 개를 다 보여 주고 있었다. 두 화면이 서로 다른 목록을
    내놓던 셈이다. 아래 설명도 TAG_CAP · TAG_GROUP 을 글로 베껴 놔서
-   상한이나 묶음을 고치면 곧바로 거짓말이 됐다. */
-//@ 화면.태그칸 — 체력 태그 칸을 표에서 만든다
+   상한이나 묶음을 고치면 곧바로 거짓말이 됐다.
+
+   ★ 고른 것을 **DOM 에서 읽어 오지 않는다.** 전에는 newGame 이
+     `.tag:checked` 를 긁어 갔는데, 그러면 체크상자가 곧 상태라 두 겹으로
+     나눌 수도(라디오는 '안 고름'이 없다) 없고 규칙(tagAdd)을 화면에서 다시
+     흉내 내야 했다 — 실제로 tagPick 이 그러고 있었다. 배열 하나를 들고
+     그것을 그린다. */
+let ONE_TAGS = [];
 function renderTagBox(){
   const box = $('tagbox'); if(!box) return;
-  box.innerHTML = TAG_LIST().map(t =>
-    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">${tagLabel(t)}</span></label>`).join('');
+  box.innerHTML = tagBoxHTML(ONE_TAGS, 'one', 'tagBody', 'tagPick');
   const note = $('tagnote');
-  if(note) note.textContent = `${TAG_CAP}개까지 · `
-    + TAG_GROUP.map(g=>g.join('↔')).join(' · ') + ' 은 함께 붙지 않는다';
+  if(note) note.textContent = TAG_GROUP.map(g=>g.join(' ↔ ')).join(' · ') + ' 은 함께 붙지 않는다';
 }
 
+function tagBody(t){ ONE_TAGS = bodySet(ONE_TAGS, t); renderTagBox() }
 function tagPick(t){
-  const box = [...document.querySelectorAll('.tag')];
-  const on = box.filter(x=>x.checked).map(x=>x.value);
-  const next = box.find(x=>x.value===t).checked ? tagAdd(on.filter(x=>x!==t), t) : on.filter(x=>x!==t);
-  for(const x of box) x.checked = next.includes(x.value);
+  ONE_TAGS = ONE_TAGS.includes(t) ? ONE_TAGS.filter(x=>x!==t) : tagAdd(ONE_TAGS, t);
+  renderTagBox();
 }
 
 function reseed(){ $('seed').value = (Math.random()*1e9)|0 }
@@ -40,8 +43,7 @@ function newGame(){
     BOARD = buildCustom();
   }
   else if(src==='level'){
-    const tags=[...document.querySelectorAll('.tag:checked')].map(x=>x.value);
-    BOARD = makeBoard(+$('lv').value, mulberry32(seed), {tags});
+    BOARD = makeBoard(+$('lv').value, mulberry32(seed), {tags:ONE_TAGS.slice()});
   } else BOARD = makePatient(src, seed);
   S = newState(BOARD,{mind:$('mind').value}); S.board=BOARD;
   setupDeck(S, ONE_DECK, mulberry32(seed+1)); S.rng=mulberry32(seed);

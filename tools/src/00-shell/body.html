@@ -42,9 +42,9 @@
     <button id="btn_deck_one" onclick="openDeckOne()">가방을 연다</button>
     <label>시작 정신 상태</label>
     <select id="mind"><option selected>평정</option><option>불안</option><option>공황</option><option>의식불명</option></select>
-    <label>체력 태그</label>
-    <!-- 태그 칸과 그 아래 설명은 HP_TAG · TAG_CAP · TAG_GROUP 에서 만든다 (renderTagBox) -->
-    <div class="tags" id="tagbox"></div>
+    <!-- 이름표는 칸 안에서 겹마다 낸다 (체격 · 체력 태그) — 밖에 하나만 두면 거짓말이 된다.
+         칸과 그 아래 설명은 BODY_HP · HP_TAG · TAG_CAP · TAG_GROUP 에서 만든다 (renderTagBox) -->
+    <div id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
     <!-- 전투 화면으로 들어가는 문. 새 판이 아니라 지금 깔린 판을 그대로 띄운다 -->

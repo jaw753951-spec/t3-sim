@@ -190,13 +190,11 @@ function renderScore(){
      <div class="bar">이름과 몸</div>
      <div class="mkgrid">
        <label class="mk">이름<input value="${esc(d.name||'')}" onchange="scSetDis('name',this.value)"></label>
-       <label class="mk">시작 병기<input type="number" min="3" max="5" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
-       <label class="mk">최종 병기<input type="number" min="3" max="5" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
+       <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
+       <label class="mk">최종 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
        <label class="mk">체력 0이 안 된다<input type="checkbox" ${d.noDeath?'checked':''} onchange="scSetDis('noDeath',this.checked)"></label>
      </div>
-     <div class="bar">체격 · 체력 태그 <span class="right d">체력 ${hp}</span></div>
-     <div class="tags">${TAG_LIST().map(x=>`<label><input type="checkbox" ${(d.tags||[]).includes(x)?'checked':''}
-        onchange="scTag('${esc(x)}')">${esc(x)} <span class="d">${esc(tagLabel(x))}</span></label>`).join('')}</div>
+     ${tagBoxHTML(d.tags, 'sc', 'scBody', 'scTag')}
 
      <div class="bar">씨앗 자리 <span class="right d">3막에 들어설 때 이미 서 있는 자리</span></div>
      <div class="scline">`
@@ -326,6 +324,7 @@ function scTag(x){
   d.tags = (d.tags||[]).includes(x) ? d.tags.filter(y=>y!==x) : tagAdd(d.tags||[], x);
   scTouch(); renderScore();
 }
+function scBody(x){ const d = CUSTOM.dis; d.tags = bodySet(d.tags, x); scTouch(); renderScore() }
 function scSeedAdd(){ const d=CUSTOM.dis; d.seed=(d.seed||[]).concat(ALLSYM[0]); scTouch(); renderScore() }
 function scSeedSet(i,v){ CUSTOM.dis.seed[i]=v; scTouch(); renderScore() }
 function scSeedDel(i){ CUSTOM.dis.seed.splice(i,1); scTouch(); renderScore() }

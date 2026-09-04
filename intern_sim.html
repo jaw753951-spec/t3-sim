@@ -507,7 +507,8 @@ body.sgon{overflow:hidden}
 #sg .gz .face{position:absolute;inset:12%;border-radius:50%;overflow:hidden;transition:filter .9s;
   background:radial-gradient(circle at 40% 32%,var(--hanjiW),var(--hanji) 70%,#bfae8b);
   box-shadow:inset 0 3px 9px rgba(50,38,18,.45)}
-#sg .gz .stg{position:absolute;inset:0}
+
+#sg .gz .stg{position:absolute;inset:0;pointer-events:none}
 #sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
 #sg .gz .dial .shg{cursor:help}
 #sg .gz .dial .nmg{cursor:help}
@@ -823,9 +824,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <button id="btn_deck_one" onclick="openDeckOne()">가방을 연다</button>
     <label>시작 정신 상태</label>
     <select id="mind"><option selected>평정</option><option>불안</option><option>공황</option><option>의식불명</option></select>
-    <label>체력 태그</label>
     
-    <div class="tags" id="tagbox"></div>
+    <div id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
     
@@ -1194,6 +1194,10 @@ const LVTAB = {
   5:{n:[4,5], main:'V',  sub:'III', atkCap:3, basic:[3,4], enh:[2,3], evo:4, shield:'all',  dis:250},
 };
 
+//@ 커널.병기범위 — 레벨표가 곧 병기 범위다
+const STAGE_LO = () => Math.min(...Object.keys(LVTAB).map(Number));
+const STAGE_HI = () => Math.max(...Object.keys(LVTAB).map(Number));
+
 const EVO_ADJ = {출혈:-1, 통증:+1, 호흡곤란:+1};
 
 const BAND_ORDER = ['I','II','III','IV','V'];
@@ -1213,20 +1217,26 @@ const MINDS = ['평정','불안','공황'];
 
 //@ 파일.10-config/levels
 
-//@ 생성기.체력태그 — 환자 체력 태그. 둘까지 붙고 같은 묶음끼리는 안 붙는다
+//@ 생성기.체력태그 — 체격은 하나, 곱하는 태그는 둘까지
 const TAG_CAP = 2;
 
 const TAG_GROUP = [['노인','소아'], ['노동자','군인','상층']];
 
-const TAG_LIST = () => [...Object.keys(BODY_HP).filter(t=>t!==BODY_DEF), ...Object.keys(HP_TAG)];
+const BODY_LIST   = () => Object.keys(BODY_HP);
+const HP_TAG_LIST = () => Object.keys(HP_TAG);
 
 //@ 생성기.체격 — 환자 체력의 출발점. 태그가 어느 체격을 볼지 고른다
 const BODY_HP = { '소아':120, '성인':170, '상층':170, '노동자':200, '군인':200 };
 const BODY_DEF = '성인';
-const bodyHp = tags => {
-  const hit = (tags||[]).filter(t => BODY_HP[t]!==undefined).map(t => BODY_HP[t]);
-  return hit.length ? Math.min(...hit) : BODY_HP[BODY_DEF];
+const bodyOf = tags => {
+  const hit = (tags||[]).filter(t => BODY_HP[t]!==undefined);
+  return hit.length ? hit.reduce((a,b)=> BODY_HP[b] < BODY_HP[a] ? b : a) : BODY_DEF;
 };
+const bodyHp = tags => BODY_HP[bodyOf(tags)];
+
+const bodySet = (tags, t) => t===BODY_DEF
+  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
+  : tagAdd(tags, t);
 
 const HP_TAG = {
   '영양실조':0.85, '굶주림':0.85, '만성기저질환':0.85,
@@ -2307,10 +2317,13 @@ const tagGroupOf = t => TAG_GROUP.find(g=>g.includes(t)) || null;
 
 function tagAdd(list, t){
   const g = tagGroupOf(t);
-  let out = list.filter(x=>x!==t && !(g && g.includes(x)));
+  const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  while(out.length > TAG_CAP) out.shift();
-  return out;
+  const body = out.filter(x => BODY_HP[x]!==undefined);
+  const mult = out.filter(x => BODY_HP[x]===undefined);
+  while(body.length > 1) body.shift();
+  while(mult.length > TAG_CAP) mult.shift();
+  return [...body, ...mult];
 }
 
 //@ 생성기.S산식 — 판 하나를 난이도 숫자 하나로 옮긴다
@@ -3928,6 +3941,22 @@ function driftSpan(base, eff, body, upIsGood=true){
   return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
 }
 
+//@ 화면.태그칸 — 체격(하나) · 체력 태그(둘까지)
+function tagBoxHTML(tags, pre, fnBody, fnTag){
+  const t = tags || [], body = bodyOf(t), mult = t.filter(x => HP_TAG[x]!==undefined);
+  const row = (lab, note, items) =>
+    `<div class="bar sub">${lab}<span class="right d">${note}</span></div>`
+    + `<div class="tags">${items}</div>`;
+  return row('체격', '',
+      BODY_LIST().map(x=>`<label><input type="radio" name="${esc(pre)}_body" value="${esc(x)}"`
+        + `${x===body?' checked':''} onchange="${fnBody}('${esc(x)}')">${esc(x)}`
+        + ` <span class="d">${esc(tagLabel(x))}</span></label>`).join(''))
+  + row('체력 태그', `${mult.length}/${TAG_CAP} · 체력 ${hpOfTags(t)}`,
+      HP_TAG_LIST().map(x=>`<label><input type="checkbox" ${t.includes(x)?'checked':''}`
+        + ` onchange="${fnTag}('${esc(x)}')">${esc(x)}`
+        + ` <span class="d">${esc(tagLabel(x))}</span></label>`).join(''));
+}
+
 //@ 파일.70-ui/tooltip
 
 //@ 화면.툴팁 — §9.2 설명 등록기 둘
@@ -5175,21 +5204,18 @@ function packLine(){
 //@ 파일.70-ui/one
 
 //@ 화면.단판 — §9.12 단판 모드
-//@ 화면.태그칸 — 체력 태그 칸을 표에서 만든다
+let ONE_TAGS = [];
 function renderTagBox(){
   const box = $('tagbox'); if(!box) return;
-  box.innerHTML = TAG_LIST().map(t =>
-    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">${tagLabel(t)}</span></label>`).join('');
+  box.innerHTML = tagBoxHTML(ONE_TAGS, 'one', 'tagBody', 'tagPick');
   const note = $('tagnote');
-  if(note) note.textContent = `${TAG_CAP}개까지 · `
-    + TAG_GROUP.map(g=>g.join('↔')).join(' · ') + ' 은 함께 붙지 않는다';
+  if(note) note.textContent = TAG_GROUP.map(g=>g.join(' ↔ ')).join(' · ') + ' 은 함께 붙지 않는다';
 }
 
+function tagBody(t){ ONE_TAGS = bodySet(ONE_TAGS, t); renderTagBox() }
 function tagPick(t){
-  const box = [...document.querySelectorAll('.tag')];
-  const on = box.filter(x=>x.checked).map(x=>x.value);
-  const next = box.find(x=>x.value===t).checked ? tagAdd(on.filter(x=>x!==t), t) : on.filter(x=>x!==t);
-  for(const x of box) x.checked = next.includes(x.value);
+  ONE_TAGS = ONE_TAGS.includes(t) ? ONE_TAGS.filter(x=>x!==t) : tagAdd(ONE_TAGS, t);
+  renderTagBox();
 }
 
 function reseed(){ $('seed').value = (Math.random()*1e9)|0 }
@@ -5205,8 +5231,7 @@ function newGame(){
     BOARD = buildCustom();
   }
   else if(src==='level'){
-    const tags=[...document.querySelectorAll('.tag:checked')].map(x=>x.value);
-    BOARD = makeBoard(+$('lv').value, mulberry32(seed), {tags});
+    BOARD = makeBoard(+$('lv').value, mulberry32(seed), {tags:ONE_TAGS.slice()});
   } else BOARD = makePatient(src, seed);
   S = newState(BOARD,{mind:$('mind').value}); S.board=BOARD;
   setupDeck(S, ONE_DECK, mulberry32(seed+1)); S.rng=mulberry32(seed);
@@ -7700,6 +7725,7 @@ function disRegister(d, key){
     stage0: +d.stage, stageMax: +d.stageMax,
     noDeath: !!d.noDeath,
     tags: (d.tags||[]).slice(),
+    hp: hpOfTags(d.tags||[]),
     seed: (d.seed||[]).slice(),
     lv: {...(d.lv||{})},
     disVal: only(d.disVal), clock: only(d.clock), carry: only(d.carry),
@@ -7723,8 +7749,9 @@ function disRegister(d, key){
 }
 
 function disStages(d){
-  const a = Math.max(3, Math.min(5, +d.stage || 3));
-  const b = Math.max(3, Math.min(5, +d.stageMax || a));
+  const lo = STAGE_LO(), hi = STAGE_HI();
+  const a = Math.max(lo, Math.min(hi, +d.stage || lo));
+  const b = Math.max(lo, Math.min(hi, +d.stageMax || a));
   const out = [];
   for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
   return out;
@@ -7758,13 +7785,15 @@ function mkToggleDis(){
   renderMake();
 }
 
-function mkToggleTag(t){
+function mkTags(next){
   const was = hpOfTags(CUSTOM.tags);
-  CUSTOM.tags = CUSTOM.tags.includes(t)
-    ? CUSTOM.tags.filter(x=>x!==t)
-    : tagAdd(CUSTOM.tags, t);
+  CUSTOM.tags = next;
   if(+CUSTOM.hp === was) CUSTOM.hp = hpOfTags(CUSTOM.tags);
   renderMake();
+}
+function mkPickBody(t){ mkTags(bodySet(CUSTOM.tags, t)) }
+function mkToggleTag(t){
+  mkTags(CUSTOM.tags.includes(t) ? CUSTOM.tags.filter(x=>x!==t) : tagAdd(CUSTOM.tags, t));
 }
 
 function mkLoadFrom(){
@@ -7845,8 +7874,7 @@ function renderMake(){
        <label class="mk">핵심 증상<input value="${esc(CUSTOM.core)}" placeholder="비우면 첫 자리" onchange="mkSet('core',this.value)"></label>
        <label class="mk">말수<input type="number" value="${CUSTOM.talk}" onchange="mkSet('talk',this.value)"></label>
      </div>
-     <div class="bar">체력 태그</div>
-     <div class="tags">${TAG_LIST().map(t=>`<label><input type="checkbox" ${CUSTOM.tags.includes(t)?'checked':''} onchange="mkToggleTag('${t}')">${t} <span class="d">${tagLabel(t)}</span></label>`).join('')}</div>
+     ${tagBoxHTML(CUSTOM.tags, 'mk', 'mkPickBody', 'mkToggleTag')}
 
      <div class="bar">증상 자리 <span class="right"><button class="mini" onclick="mkAddNode()">+ 자리</button></span></div>
      <div class="note">「효과 비율」은 그 증상을 그 증상이게 만드는 값이다. 증상을 바꾸면 항목도 바뀐다.
@@ -7887,8 +7915,8 @@ function renderMake(){
          <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
-         <label class="mk">시작 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
-         <label class="mk">최대 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
+         <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
+         <label class="mk">최대 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
          <label class="mk">병 노드 수치<input type="number" value="${CUSTOM.dis.init}" onchange="mkSet('dis.init',this.value)"></label>
          <label class="mk">병기 시계<input type="number" value="${CUSTOM.dis.clock}" onchange="mkSet('dis.clock',this.value)"></label>
          <label class="mk">체력 0이 안 된다<input type="checkbox" ${CUSTOM.dis.noDeath?'checked':''} onchange="mkSet('dis.noDeath',this.checked)"></label>
@@ -8060,13 +8088,11 @@ function renderScore(){
      <div class="bar">이름과 몸</div>
      <div class="mkgrid">
        <label class="mk">이름<input value="${esc(d.name||'')}" onchange="scSetDis('name',this.value)"></label>
-       <label class="mk">시작 병기<input type="number" min="3" max="5" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
-       <label class="mk">최종 병기<input type="number" min="3" max="5" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
+       <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
+       <label class="mk">최종 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
        <label class="mk">체력 0이 안 된다<input type="checkbox" ${d.noDeath?'checked':''} onchange="scSetDis('noDeath',this.checked)"></label>
      </div>
-     <div class="bar">체격 · 체력 태그 <span class="right d">체력 ${hp}</span></div>
-     <div class="tags">${TAG_LIST().map(x=>`<label><input type="checkbox" ${(d.tags||[]).includes(x)?'checked':''}
-        onchange="scTag('${esc(x)}')">${esc(x)} <span class="d">${esc(tagLabel(x))}</span></label>`).join('')}</div>
+     ${tagBoxHTML(d.tags, 'sc', 'scBody', 'scTag')}
 
      <div class="bar">씨앗 자리 <span class="right d">3막에 들어설 때 이미 서 있는 자리</span></div>
      <div class="scline">`
@@ -8191,6 +8217,7 @@ function scTag(x){
   d.tags = (d.tags||[]).includes(x) ? d.tags.filter(y=>y!==x) : tagAdd(d.tags||[], x);
   scTouch(); renderScore();
 }
+function scBody(x){ const d = CUSTOM.dis; d.tags = bodySet(d.tags, x); scTouch(); renderScore() }
 function scSeedAdd(){ const d=CUSTOM.dis; d.seed=(d.seed||[]).concat(ALLSYM[0]); scTouch(); renderScore() }
 function scSeedSet(i,v){ CUSTOM.dis.seed[i]=v; scTouch(); renderScore() }
 function scSeedDel(i){ CUSTOM.dis.seed.splice(i,1); scTouch(); renderScore() }

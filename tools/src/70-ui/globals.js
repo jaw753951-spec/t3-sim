@@ -40,3 +40,38 @@ function driftSpan(base, eff, body, upIsGood=true){
   const better = upIsGood ? eff>base : eff<base;
   return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
 }
+
+/* ── 체격 · 체력 태그 칸 ────────────────────────────────────
+   두 겹을 두 줄로 낸다 (생성기.체력태그). 세 화면 — 단판 사이드바 ·
+   환자 만들기 · 병 노드 — 이 하나를 쓴다.
+
+   ★ 전에는 세 곳이 각자 TAG_LIST() 를 한 줄로 늘어놓고 체크상자를 달았다.
+     그래서 소아와 노동자를 같이 켤 수 있었고(체격 둘), 체력 태그를 둘 붙이면
+     상한에 밀려 체격이 조용히 꺼졌다. 칸을 나누면 화면에서부터 그 일이 안 난다.
+   체격이 라디오인 까닭: 하나뿐인 것을 체크상자로 내면 「둘 다 끈 상태」가
+   생기는데 그런 몸은 없다. 성인이 그 자리를 맡는다.
+
+   fn 은 화면마다 다른 손 이름이다 — 상태를 어디에 두는지가 다르기 때문이다
+   (단판은 ONE_TAGS, 만들기는 CUSTOM.tags, 병 노드는 CUSTOM.dis.tags).
+   pre 는 라디오 묶음 이름 — 세 칸이 한 문서에 같이 있으면 이름이 겹쳐
+   한쪽을 누를 때 다른 쪽이 꺼진다 */
+//@ 화면.태그칸 — 체격(하나) · 체력 태그(둘까지)
+function tagBoxHTML(tags, pre, fnBody, fnTag){
+  const t = tags || [], body = bodyOf(t), mult = t.filter(x => HP_TAG[x]!==undefined);
+  const row = (lab, note, items) =>
+    `<div class="bar sub">${lab}<span class="right d">${note}</span></div>`
+    + `<div class="tags">${items}</div>`;
+  /* 곁의 글은 짧게 둔다 — 단판 사이드바가 좁아서, 「곱해서 걸린다」쯤 되면
+     끝이 잘려 나갔다. 체격은 고르는 칸마다 제 값을 달고 있으므로 곁말이 필요 없고,
+     곱한 끝값 하나만 아래 줄에 붙인다 */
+  return row('체격', '',
+      BODY_LIST().map(x=>`<label><input type="radio" name="${esc(pre)}_body" value="${esc(x)}"`
+        + `${x===body?' checked':''} onchange="${fnBody}('${esc(x)}')">${esc(x)}`
+        /* 곁말은 tagLabel 하나가 낸다 — BODY_HP 를 여기서 직접 읽으면 표기가 두 벌이
+           된다. 무대 칩이 HP_TAG 를 직접 읽다 「소아 ×undefined」로 떴던 자리다 */
+        + ` <span class="d">${esc(tagLabel(x))}</span></label>`).join(''))
+  + row('체력 태그', `${mult.length}/${TAG_CAP} · 체력 ${hpOfTags(t)}`,
+      HP_TAG_LIST().map(x=>`<label><input type="checkbox" ${t.includes(x)?'checked':''}`
+        + ` onchange="${fnTag}('${esc(x)}')">${esc(x)}`
+        + ` <span class="d">${esc(tagLabel(x))}</span></label>`).join(''));
+}

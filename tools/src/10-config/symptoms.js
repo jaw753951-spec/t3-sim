@@ -37,6 +37,15 @@ const LVTAB = {
   5:{n:[4,5], main:'V',  sub:'III', atkCap:3, basic:[3,4], enh:[2,3], evo:4, shield:'all',  dis:250},
 };
 
+/* 병기가 설 수 있는 범위 — **레벨표가 곧 범위다.** 병기 번호가 항목별 레벨의
+   기본값이므로(커널.레벨표 · SLV) 레벨표에 없는 병기는 세울 데가 없다.
+   전에는 만들기 · 병 노드 탭이 「3~5」를 마크업에 손으로 적고 disStages 가
+   또 한 번 3 으로 잘랐다 — 네 곳이 같은 말을 하니 한 곳만 고치면 화면과
+   자르는 자가 갈렸다. 시작 병기 1 을 열려면 그 넷을 다 찾아야 했다. */
+//@ 커널.병기범위 — 레벨표가 곧 병기 범위다
+const STAGE_LO = () => Math.min(...Object.keys(LVTAB).map(Number));
+const STAGE_HI = () => Math.max(...Object.keys(LVTAB).map(Number));
+
 const EVO_ADJ = {출혈:-1, 통증:+1, 호흡곤란:+1};
 
 /* 명부 i번째 자리의 밴드 — main 에서 한 칸씩 내려가되 sub 아래로는 안 간다 */

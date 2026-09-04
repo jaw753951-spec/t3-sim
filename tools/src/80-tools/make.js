@@ -84,6 +84,12 @@ function disRegister(d, key){
     stage0: +d.stage, stageMax: +d.stageMax,
     noDeath: !!d.noDeath,
     tags: (d.tags||[]).slice(),
+    /* 체력은 태그에서 낸다 — 권위본 보스가 뜰 때 하는 것과 같은 줄이다
+       (20-data/bosses.js 의 마무리 고리). 여기 빠뜨렸더니 손으로 짠 병 노드로
+       스토리를 열면 mkBoard 가 b.hp 를 undefined 로 받아 첫 피해에서 체력이
+       통째로 NaN 이 됐다 — 화면에는 「NaN / NaN」만 뜨고 판정도 영영 안 났다.
+       규칙의 집은 hpOfTags 하나다. 값을 베끼지 말고 그 함수를 부른다 */
+    hp: hpOfTags(d.tags||[]),
     seed: (d.seed||[]).slice(),
     lv: {...(d.lv||{})},
     disVal: only(d.disVal), clock: only(d.clock), carry: only(d.carry),
@@ -113,8 +119,10 @@ function disRegister(d, key){
 
 /* 이 정의가 도는 병기들 */
 function disStages(d){
-  const a = Math.max(3, Math.min(5, +d.stage || 3));
-  const b = Math.max(3, Math.min(5, +d.stageMax || a));
+  /* 자르는 범위는 레벨표에서 읽는다 (커널.병기범위) — 화면의 min · max 도 같은 자를 쓴다 */
+  const lo = STAGE_LO(), hi = STAGE_HI();
+  const a = Math.max(lo, Math.min(hi, +d.stage || lo));
+  const b = Math.max(lo, Math.min(hi, +d.stageMax || a));
   const out = [];
   for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
   return out;
@@ -148,15 +156,18 @@ function mkToggleDis(){
   renderMake();
 }
 
-function mkToggleTag(t){
+/* 태그가 바뀌면 체력도 따라간다 — 단, 손으로 적어 넣었으면 그것을 지킨다.
+   '손댔는가'를 따로 들고 있지 않아도 바꾸기 전 값과의 비교 하나로 갈린다.
+   체격과 체력 태그가 같은 손을 쓴다 — 둘 다 hpOfTags 를 움직이므로 */
+function mkTags(next){
   const was = hpOfTags(CUSTOM.tags);
-  CUSTOM.tags = CUSTOM.tags.includes(t)
-    ? CUSTOM.tags.filter(x=>x!==t)
-    : tagAdd(CUSTOM.tags, t);
-  /* 손으로 체력을 적어 넣었으면 그것을 지키고, 표가 주던 값 그대로였으면 표를 따라간다.
-     '손댔는가'를 따로 들고 있지 않아도 이 비교 하나로 갈린다 */
+  CUSTOM.tags = next;
   if(+CUSTOM.hp === was) CUSTOM.hp = hpOfTags(CUSTOM.tags);
   renderMake();
+}
+function mkPickBody(t){ mkTags(bodySet(CUSTOM.tags, t)) }
+function mkToggleTag(t){
+  mkTags(CUSTOM.tags.includes(t) ? CUSTOM.tags.filter(x=>x!==t) : tagAdd(CUSTOM.tags, t));
 }
 
 function mkLoadFrom(){
@@ -238,8 +249,7 @@ function renderMake(){
        <label class="mk">핵심 증상<input value="${esc(CUSTOM.core)}" placeholder="비우면 첫 자리" onchange="mkSet('core',this.value)"></label>
        <label class="mk">말수<input type="number" value="${CUSTOM.talk}" onchange="mkSet('talk',this.value)"></label>
      </div>
-     <div class="bar">체력 태그</div>
-     <div class="tags">${TAG_LIST().map(t=>`<label><input type="checkbox" ${CUSTOM.tags.includes(t)?'checked':''} onchange="mkToggleTag('${t}')">${t} <span class="d">${tagLabel(t)}</span></label>`).join('')}</div>
+     ${tagBoxHTML(CUSTOM.tags, 'mk', 'mkPickBody', 'mkToggleTag')}
 
      <div class="bar">증상 자리 <span class="right"><button class="mini" onclick="mkAddNode()">+ 자리</button></span></div>
      <div class="note">「효과 비율」은 그 증상을 그 증상이게 만드는 값이다. 증상을 바꾸면 항목도 바뀐다.
@@ -280,8 +290,8 @@ function renderMake(){
          <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
-         <label class="mk">시작 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
-         <label class="mk">최대 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
+         <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
+         <label class="mk">최대 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
          <label class="mk">병 노드 수치<input type="number" value="${CUSTOM.dis.init}" onchange="mkSet('dis.init',this.value)"></label>
          <label class="mk">병기 시계<input type="number" value="${CUSTOM.dis.clock}" onchange="mkSet('dis.clock',this.value)"></label>
          <label class="mk">체력 0이 안 된다<input type="checkbox" ${CUSTOM.dis.noDeath?'checked':''} onchange="mkSet('dis.noDeath',this.checked)"></label>

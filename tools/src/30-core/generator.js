@@ -5,12 +5,22 @@
 const tagGroupOf = t => TAG_GROUP.find(g=>g.includes(t)) || null;
 
 /* t 를 켰을 때의 최종 목록 — 같은 묶음의 것을 밀어내고 상한을 넘으면 가장 오래된 것을 뺀다 */
+/* 태그 하나를 붙인다. 두 겹을 따로 센다 (생성기.체력태그):
+     체격       하나뿐 — 새것이 옛것을 밀어낸다. 상한과 무관하다.
+     체력 태그  TAG_CAP 까지 — 넘치면 가장 오래된 것이 빠진다.
+   ★ 전에는 한 배열을 통째로 세어서, 체격을 고른 뒤 체력 태그를 둘 붙이면
+     상한에 밀려 체격이 앞에서 빠졌다 — 소아로 지은 환자가 조용히 성인이 됐다.
+   묶음 배타(TAG_GROUP)는 겹을 가로질러 먼저 건다 — 노인 ↔ 소아가 그렇다. */
 function tagAdd(list, t){
   const g = tagGroupOf(t);
-  let out = list.filter(x=>x!==t && !(g && g.includes(x)));
+  const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  while(out.length > TAG_CAP) out.shift();
-  return out;
+  const body = out.filter(x => BODY_HP[x]!==undefined);
+  const mult = out.filter(x => BODY_HP[x]===undefined);
+  /* 체격이 둘 남았으면 새로 온 쪽만 남긴다 — 배열 뒤가 새것이다 */
+  while(body.length > 1) body.shift();
+  while(mult.length > TAG_CAP) mult.shift();
+  return [...body, ...mult];
 }
 
 /* ── S 산식 (§5) ─────────────────────────────────────────── */

@@ -439,7 +439,7 @@ function badgeSVG(S, n, sz){
     const slots=Math.max(1, Math.min(6, cap||1)), on=Math.round(rig/Math.max(1,cap)*slots);
     s += `<g transform="translate(${ix-w/2},${iy-h/2})"${tip(TT('설치물',
           `매 턴 종료 시 이 자리를 <b>${rig+lent}</b> 억제한다. 보호막을 무시한다.`
-          + (rig?`<br>상한 ${cap} · 부품 ${n.rigPart||0}/${n.rigPartMax||0}`:'')
+          + (rig?`<br>상한 ${cap} · 부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0}`:'')
           + (lent?`<br>빌려온 물건 ${lent} — 남의 손을 타지 않는다`:'')
           + (rig?`<br><br>개방하면 <b>−${rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`:'')))}>`
       + `<rect x="0" y="0" width="${w}" height="${h}" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`

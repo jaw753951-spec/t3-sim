@@ -5,7 +5,10 @@
 /* ── 상태 복제 ── 탐색 중에는 난수를 고정해 갈래가 흔들리지 않게 한다 */
 //@ AI.평가 — 판 복제 · 판 점수
 function clone(S){
-  const nodes = S.nodes.map(n=>({...n}));
+  /* 부품 목록만 따로 뜬다. {...n} 은 얕은 복제라 배열은 **원본과 같은 것**을
+     가리킨다 — 탐색이 복제본에 부품을 붙이면 무대의 자리에도 붙는다.
+     자리에 배열 칸이 생긴 것은 이것이 처음이라 여태 걸릴 일이 없었다 */
+  const nodes = S.nodes.map(n=>({...n, rigParts:(n.rigParts||[]).slice()}));
   const T = {...S,
     nodes,
     hand:S.hand.slice(), deck:S.deck.slice(), discard:S.discard.slice(), exiled:S.exiled.slice(),

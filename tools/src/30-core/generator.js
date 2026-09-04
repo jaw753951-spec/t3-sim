@@ -112,7 +112,7 @@ function build(level, rng, opt={}){
     const shielded = T.shield==='all' || (T.shield==='one' && i===0);
     return {sym:s, init, val:init, band, shielded, shReduc:shielded?R.SHIELD_CUT:0, stabAcc:0,
             grow:0, evo, evoLeft:evo, evolved:false, dead:false, dormT:0, weak:0,
-            rig:0, rigPart:0, rigPartMax:0, rigCap:0, rigLent:0, delayed:0,
+            rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0,
             diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
             revealed:false, spawned:false, role:'sym'};
   });

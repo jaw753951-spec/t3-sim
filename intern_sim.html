@@ -1195,8 +1195,9 @@ const LVTAB = {
 };
 
 //@ 커널.병기범위 — 레벨표가 곧 병기 범위다
-const STAGE_LO = () => Math.min(...Object.keys(LVTAB).map(Number));
-const STAGE_HI = () => Math.max(...Object.keys(LVTAB).map(Number));
+const STAGE_LV = Object.keys(LVTAB).map(Number);
+const STAGE_LO = Math.min(...STAGE_LV);
+const STAGE_HI = Math.max(...STAGE_LV);
 
 const EVO_ADJ = {출혈:-1, 통증:+1, 호흡곤란:+1};
 
@@ -1225,11 +1226,14 @@ const TAG_GROUP = [['노인','소아'], ['노동자','군인','상층']];
 const BODY_LIST   = () => Object.keys(BODY_HP);
 const HP_TAG_LIST = () => Object.keys(HP_TAG);
 
+const isBodyTag = t => BODY_HP[t]!==undefined;
+const multTags  = tags => (tags||[]).filter(t => !isBodyTag(t));
+
 //@ 생성기.체격 — 환자 체력의 출발점. 태그가 어느 체격을 볼지 고른다
 const BODY_HP = { '소아':120, '성인':170, '상층':170, '노동자':200, '군인':200 };
 const BODY_DEF = '성인';
 const bodyOf = tags => {
-  const hit = (tags||[]).filter(t => BODY_HP[t]!==undefined);
+  const hit = (tags||[]).filter(isBodyTag);
   return hit.length ? hit.reduce((a,b)=> BODY_HP[b] < BODY_HP[a] ? b : a) : BODY_DEF;
 };
 const bodyHp = tags => BODY_HP[bodyOf(tags)];
@@ -1241,7 +1245,8 @@ const HP_TAG = {
 
 const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG)]);
 
-const tagsClean = tags => (tags||[]).filter(t => TAG_KNOWN.has(t));
+const tagsClean   = tags => (tags||[]).filter(t =>  TAG_KNOWN.has(t));
+const tagsUnknown = tags => (tags||[]).filter(t => !TAG_KNOWN.has(t));
 
 const hpOfTags = tags => {
   let hp = bodyHp(tags);
@@ -2317,14 +2322,16 @@ function tagAdd(list, t){
   const g = tagGroupOf(t);
   const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  const mult = out.filter(x => BODY_HP[x]===undefined);
+  const body = out.filter(isBodyTag), mult = multTags(out);
   while(mult.length > TAG_CAP) mult.shift();
-  const has = out.some(x => BODY_HP[x]!==undefined);
-  return [...(has ? [BODY_HP[t]!==undefined ? t : bodyOf(out)] : []), ...mult];
+  const keep = isBodyTag(t) ? [t] : (body.length ? [bodyOf(body)] : []);
+  return [...keep, ...mult];
 }
 
-const bodySet = (tags, t) => t===BODY_DEF
-  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
+const bodySet = (tags, t) => t===BODY_DEF ? multTags(tags) : tagAdd(tags, t);
+
+const tagToggle = (tags, t) => (tags||[]).includes(t)
+  ? (tags||[]).filter(x => x!==t)
   : tagAdd(tags, t);
 
 //@ 생성기.S산식 — 판 하나를 난이도 숫자 하나로 옮긴다
@@ -3586,9 +3593,6 @@ const symBody = (sym, n) => (SYMBODY[sym] ? SYMBODY[sym](n) : null);
 //@ 문안.진화임박 — 떨림 연출과 툴팁이 함께 보는 조건
 const evoSoon = n => !!n && !n.evolved && !!n.revealed && n.evoLeft<=1 && n.role!=='disease';
 
-//@ 문안.배선드러남 — 작업대와 무대가 함께 보는 조건
-const enhShown = S => !!S && (S.nodes||[]).some(n=>n.revealed);
-
 const SYMTIP = {}, SYMTIP_EVO = {};
 for(const k of Object.keys(SYMBODY)){
   Object.defineProperty(SYMTIP, k, {enumerable:true, get(){ const b = symBody(k, null);
@@ -3942,9 +3946,12 @@ function driftSpan(base, eff, body, upIsGood=true){
   return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
 }
 
+//@ 문안.배선드러남 — 작업대와 무대가 함께 보는 조건
+const enhShown = S => !!S && (S.nodes||[]).some(n=>n.revealed);
+
 //@ 화면.태그칸 — 체격(하나) · 체력 태그(둘까지)
 function tagBoxHTML(tags, pre, fnBody, fnTag){
-  const t = tags || [], body = bodyOf(t), mult = t.filter(x => HP_TAG[x]!==undefined);
+  const t = tags || [], body = bodyOf(t), mult = multTags(t);
   const row = (lab, note, items) =>
     `<div class="bar sub">${lab}<span class="right d">${note}</span></div>`
     + `<div class="tags">${items}</div>`;
@@ -5214,10 +5221,7 @@ function renderTagBox(){
 }
 
 function tagBody(t){ ONE_TAGS = bodySet(ONE_TAGS, t); renderTagBox() }
-function tagPick(t){
-  ONE_TAGS = ONE_TAGS.includes(t) ? ONE_TAGS.filter(x=>x!==t) : tagAdd(ONE_TAGS, t);
-  renderTagBox();
-}
+function tagPick(t){ ONE_TAGS = tagToggle(ONE_TAGS, t); renderTagBox() }
 
 function reseed(){ $('seed').value = (Math.random()*1e9)|0 }
 
@@ -6017,8 +6021,9 @@ function stageMeasure(){
 }
 
 function setHTML(el, html){
-  if(!el || el.__h === html) return;
+  if(!el || el.__h === html) return false;
   el.__h = html; el.innerHTML = html;
+  return true;
 }
 function stageEl(n){
   if(!n || !S) return null;
@@ -6407,9 +6412,9 @@ function dialSVG(S, n){
 }
 
 //@ 무대.배선목록 — 자리잡기와 그리기가 함께 보는 목록
-function stageLines(){
+function stageLines(live){
   if(!S) return [];
-  const ns = alive(S).filter(n=>n.role!=='disease');
+  const ns = live.filter(n=>n.role!=='disease');
   const shown = enhShown(S);
   return [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
           ...((S.enh)||[]).map(e=>({...e, enh:true}))]
@@ -6418,24 +6423,25 @@ function stageLines(){
 
 const GH_W = 0.55;
 let SG_GHOST = [];
-function stageGhosts(){
-  if(!S) return [];
-  const live = new Set(alive(S).filter(n=>n.role!=='disease').map(n=>n.sym));
+function stageGhosts(live, lines){
+  const on = new Set(live.filter(n=>n.role!=='disease').map(n=>n.sym));
   const out = [];
-  for(const l of stageLines()){
-    if(!live.has(l.a) || !spawnsSpot(l) || live.has(l.b) || out.includes(l.b)) continue;
-    out.push(l.b);
+  for(const l of lines){
+    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b)) continue;
+    const had = out.find(g=>g.sym===l.b);
+    if(had){ if(!had.from.includes(l.a)) had.from.push(l.a) }
+    else out.push({sym:l.b, from:[l.a]});
   }
   return out;
 }
 
-function stageLayout(){
+function stageLayout(live, lines){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
-  const row  = alive(S).filter(n=>n!==dis);
-  const gh   = stageGhosts();
+  const dis  = live.find(n=>n.role==='disease');
+  const row  = live.filter(n=>n!==dis);
+  const gh   = stageGhosts(live, lines);
   const CN   = (row.length + GH_W*gh.length) || 1;
   const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.97)/CN - 96));
   const cy   = dis ? H*0.68 : H*0.46;
@@ -6445,7 +6451,7 @@ function stageLayout(){
     n.py = cy;
     n.sz = SZ;
   });
-  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
+  SG_GHOST = gh.map((g,i)=>({...g, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
   if(dis){ dis.px = W/2; dis.py = H*0.30; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
@@ -6454,7 +6460,9 @@ function stageLayout(){
 function stageSync(){
   if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
   const B = stageBoard(); if(!B || !S) return;
-  const SZ = stageLayout();
+  const live  = alive(S);
+  const lines = stageLines(live);
+  const SZ = stageLayout(live, lines);
   const IM = intentMap(forecast());
 
   for(const [ix, el] of [...STAGE_ELS]){
@@ -6489,7 +6497,7 @@ function stageSync(){
     el.classList.toggle('noshield', !n.shielded);
     el.classList.toggle('sh50',  !!n.shielded && n.shReduc > R.SHIELD_CUT);
     el.classList.toggle('warn',  evoSoon(n));
-    el.classList.toggle('sel',   SEL===alive(S).indexOf(n));
+    el.classList.toggle('sel',   SEL===live.indexOf(n));
     el.classList.toggle('tgt',   STAGE_MODE!==null);
     el.classList.toggle('dis',   n.role==='disease');
     el.classList.toggle('imm',   imm);
@@ -6516,33 +6524,33 @@ function stageSync(){
     if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
   });
 
-  stageLinks();
+  stageLinks(live, lines);
 }
 
-function stageLinks(){
+function stageLinks(live, lines){
   if(!S) return;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const ns = alive(S).filter(n=>n.role!=='disease');
-  const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
+  const ns = live.filter(n=>n.role!=='disease');
+  const [VW, VH] = [1210, 744];
+  const LX = x => x/W*VW, LY = y => y/H*VH;
+  const BADGE_PAD = 58 + 24;
+  const BADGE_TOP = n => LY(n.py - n.sz/2 - BADGE_PAD);
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
-  const lines = stageLines();
 
-  const dz = alive(S).find(n=>n.role==='disease' && n.px!==undefined);
-  const PAD = 82;
-  const DZ = dz ? {top:(dz.py - dz.sz/2 - PAD)/H*744, bot:(dz.py + dz.sz/2 + PAD)/H*744,
-                   l:(dz.px - dz.sz/2 - PAD)/W*1210,  r:(dz.px + dz.sz/2 + PAD)/W*1210} : null;
+  const dz = live.find(n=>n.role==='disease' && n.px!==undefined);
+  const DZ = dz ? {top:LY(dz.py - dz.sz/2 - BADGE_PAD), bot:LY(dz.py + dz.sz/2 + BADGE_PAD),
+                   l:  LX(dz.px - dz.sz/2 - BADGE_PAD), r:  LX(dz.px + dz.sz/2 + BADGE_PAD)} : null;
 
   let out = '';
 
   const C_TRANS = '#B8776F';
 
-  const kx = (1210*H)/(744*W);
+  const kx = LX(1)/LY(1);
   for(const g of SG_GHOST){
-    const gx=g.px/W*1210, gy=g.py/H*744, rx=g.sz/2/W*1210, ry=g.sz/2/H*744;
-    const from = [...new Set(lines.filter(l=>l.b===g.sym && spawnsSpot(l)).map(l=>l.a))];
+    const gx=LX(g.px), gy=LY(g.py), rx=LX(g.sz/2), ry=LY(g.sz/2);
     const gt = TT(`${g.sym} — 아직 안 난 자리`,
-      `<b>${esc(from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
+      `<b>${esc(g.from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
       + '<br><br><span class="d">칸만 비워 둔 것이다 — 지금은 아무것도 하지 않고,'
       + ' 아무것도 여기에 걸 수 없다.</span>');
     out += `<g class="ghz"${tip(gt)}>`
@@ -6555,14 +6563,14 @@ function stageLinks(){
       + `</g>`;
   }
 
-  const topOf = p => (p.py - p.sz*0.56)/H*744;
+  const topOf = p => LY(p.py - p.sz*0.56);
 
   let lane = 0;
   for(const l of lines){
     const A = ns.find(x=>x.sym===l.a);
     const Bn = ns.find(x=>x.sym===l.b) || SG_GHOST.find(g=>g.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
-    const sx=A.px/W*1210, ex=Bn.px/W*1210;
+    const sx=LX(A.px), ex=LX(Bn.px);
     const top=topOf(A), topB=topOf(Bn);
     const ly = Math.max(14, rowTop - 20 - lane*30); lane++;
     let mx = (sx+ex)/2;
@@ -6832,7 +6840,7 @@ function stageHand(){
     left = handPicks(S, PICK.id);
     for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
   }
-  $('sg_hand').innerHTML = (pend
+  const changed = setHTML($('sg_hand'), (pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
   + S.hand.map(id=>{
@@ -6846,20 +6854,33 @@ function stageHand(){
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
         onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
-    }).join('') || '<div class="empty">손이 비었다.</div>';
-  fitHandText();
+    }).join('') || '<div class="empty">손이 비었다.</div>');
+  if(changed) fitHandText();
 }
 
 //@ 화면.카드글맞춤 — 칸은 그대로 두고 글자를 줄인다
-const FIT_MIN = 11;
+const FIT_MAX = 16, FIT_MIN = 11;      // 위는 style.css 의 #sg_hand .ctext, 아래는 위 설명
+
+const FIT_CACHE = new Map();
+
+function fitOne(t, box){
+  t.style.fontSize = '';
+  if(box.scrollHeight <= box.clientHeight) return '';        // 그대로 들어간다
+  let px = Math.max(FIT_MIN,
+    Math.floor(FIT_MAX * Math.sqrt(box.clientHeight / box.scrollHeight) * 2) / 2);
+  t.style.fontSize = px + 'px';
+  while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
+    px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
+  }
+  return px.toFixed(1) + 'px';
+}
+
 function fitHandText(){
   for(const t of document.querySelectorAll('#sg_hand .ctext')){
     const box = t.parentElement; if(!box) continue;      // .cbody 가 실제 칸이다
-    t.style.fontSize = '';
-    let px = parseFloat(getComputedStyle(t).fontSize) || 16;
-    while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
-      px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
-    }
+    const key = t.textContent;
+    if(FIT_CACHE.has(key)) t.style.fontSize = FIT_CACHE.get(key);
+    else FIT_CACHE.set(key, fitOne(t, box));
   }
 }
 
@@ -7739,8 +7760,7 @@ function disRegister(d, key){
     custom: true,
   };
   if(d.dupType) b.dupType = d.dupType;
-  const named = sts.filter(s => d.syms && d.syms[s] && d.syms[s].length);
-  if(named.length === sts.length){
+  if(disRosterOn(d)){
     b.syms = Object.fromEntries(sts.map(s => [s, d.syms[s].slice()]));
     b.roster = {};
   }
@@ -7750,8 +7770,14 @@ function disRegister(d, key){
   return b;
 }
 
+//@ 만들기.명부돎 — 명부가 실제로 도는가
+function disRosterOn(d){
+  const sts = disStages(d);
+  return sts.length > 0 && sts.every(s => ((d.syms||{})[s]||[]).length);
+}
+
 function disStages(d){
-  const lo = STAGE_LO(), hi = STAGE_HI();
+  const lo = STAGE_LO, hi = STAGE_HI;
   const a = Math.max(lo, Math.min(hi, +d.stage || lo));
   const b = Math.max(lo, Math.min(hi, +d.stageMax || a));
   const out = [];
@@ -7794,9 +7820,7 @@ function mkTags(next){
   renderMake();
 }
 function mkPickBody(t){ mkTags(bodySet(CUSTOM.tags, t)) }
-function mkToggleTag(t){
-  mkTags(CUSTOM.tags.includes(t) ? CUSTOM.tags.filter(x=>x!==t) : tagAdd(CUSTOM.tags, t));
-}
+function mkToggleTag(t){ mkTags(tagToggle(CUSTOM.tags, t)) }
 
 function mkLoadFrom(){
   const id=$('mk_from').value; if(!id) return;
@@ -7813,7 +7837,7 @@ function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); mkNot
 
 function mkFromJson(){
   try{ const o=JSON.parse($('mk_json').value); if(!o.nodes) throw new Error('nodes 가 없다');
-       const drop = (o.tags||[]).filter(t=>!TAG_KNOWN.has(t));
+       const drop = tagsUnknown(o.tags);
        o.tags = tagsClean(o.tags);
        CUSTOM=o;
        mkNote('읽어들였다.' + (drop.length?` 모르는 태그는 뺐다 — ${drop.join(' · ')}`:''));
@@ -7921,8 +7945,8 @@ function renderMake(){
          <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
-         <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
-         <label class="mk">최대 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
+         <label class="mk">시작 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
+         <label class="mk">최대 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
          <label class="mk">병 노드 수치<input type="number" value="${CUSTOM.dis.init}" onchange="mkSet('dis.init',this.value)"></label>
          <label class="mk">병기 시계<input type="number" value="${CUSTOM.dis.clock}" onchange="mkSet('dis.clock',this.value)"></label>
          <label class="mk">체력 0이 안 된다<input type="checkbox" ${CUSTOM.dis.noDeath?'checked':''} onchange="mkSet('dis.noDeath',this.checked)"></label>
@@ -8099,8 +8123,8 @@ function renderScore(){
      <div class="bar">이름과 몸</div>
      <div class="mkgrid">
        <label class="mk">이름<input value="${esc(d.name||'')}" onchange="scSetDis('name',this.value)"></label>
-       <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
-       <label class="mk">최종 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
+       <label class="mk">시작 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
+       <label class="mk">최종 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
        <label class="mk">체력 0이 안 된다<input type="checkbox" ${d.noDeath?'checked':''} onchange="scSetDis('noDeath',this.checked)"></label>
      </div>
      ${tagBoxHTML(d.tags, 'sc', 'scBody', 'scTag')}
@@ -8120,7 +8144,8 @@ function renderScore(){
        <b>1</b> 이면 깎아 둔 비율이 그대로 유지되고, <b>0</b> 이면 새 수치로 되돌아간다.
        시계는 그 병기가 몇 턴 만에 다음으로 넘어가는가다.</div>`;
 
-  const rosterOn = sts.every(s => ((d.syms||{})[s]||[]).length);
+  const rosterOn = disRosterOn(d);
+  const empty = sts.filter(s => !((d.syms||{})[s]||[]).length);
 
   for(const st of sts){
     const roster = (d.syms||{})[st];
@@ -8136,7 +8161,7 @@ function renderScore(){
       <div class="bar">활성 부수 <span class="right d">${
           rosterOn ? '명부대로 — 앞 '+Math.max(1,(roster||[]).length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
         : (roster&&roster.length)
-          ? '안 돈다 — 빈 병기('+sts.filter(s=>!((d.syms||{})[s]||[]).length).join(' · ')+')가 있어 명부 전체가 꺼진다'
+          ? '안 돈다 — 빈 병기('+empty.join(' · ')+')가 있어 명부 전체가 꺼진다'
           : '명부 없음 — 자리 상한('+SR.SPAWN_LV[SLV(d.from||'아이','spots',st)]+')까지 분화가 뿜는다'}</span></div>
       <div class="scline">`
       + (roster||[]).map((s,i)=>`<span class="beat">
@@ -8227,11 +8252,7 @@ function renderScore(){
   $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
 }
 
-function scTag(x){
-  const d = CUSTOM.dis;
-  d.tags = (d.tags||[]).includes(x) ? d.tags.filter(y=>y!==x) : tagAdd(d.tags||[], x);
-  scTouch(); renderScore();
-}
+function scTag(x){ const d = CUSTOM.dis; d.tags = tagToggle(d.tags, x); scTouch(); renderScore() }
 function scBody(x){ const d = CUSTOM.dis; d.tags = bodySet(d.tags, x); scTouch(); renderScore() }
 function scSeedAdd(){ const d=CUSTOM.dis; d.seed=(d.seed||[]).concat(ALLSYM[0]); scTouch(); renderScore() }
 function scSeedSet(i,v){ CUSTOM.dis.seed[i]=v; scTouch(); renderScore() }

@@ -41,9 +41,12 @@ function stageMeasure(){
 
 /* 같은 내용이면 innerHTML 을 건드리지 않는다 — 건드리면 SVG 를 다시 파싱하고
    그 안에 붙어 있던 연출 조각도 함께 날아간다 */
+/* 손댔으면 true 를 돌려준다 — 손패는 그려 놓고 글자를 맞춰야 하는데(fitHandText)
+   안 바뀐 줄에 그 일을 또 할 까닭이 없다 */
 function setHTML(el, html){
-  if(!el || el.__h === html) return;
+  if(!el || el.__h === html) return false;
   el.__h = html; el.innerHTML = html;
+  return true;
 }
 function stageEl(n){
   if(!n || !S) return null;
@@ -641,42 +644,51 @@ function dialSVG(S, n){
    그리면 어느 자리끼리 걸렸는지가 새어 나간다 (작업대가 「? → ?」 로 양 끝을
    감추는 것과 같은 잣대다). 자리잡기도 이 목록을 보므로, 안 드러난 줄이
    빈 칸을 예약해 버리면 줄 간격만 보고 배선 수를 셀 수 있게 된다. */
+/* ★ **한 수에 한 번만 뜬다.** 전에는 자리잡기와 그리기가 각각 불러서, 같은 손에
+     목록을 두 벌 떴다 — alive(S) 걸러 내기 · enhShown 훑기 · 줄마다 객체 복사가
+     통째로 두 번이고, stageSync 는 연출 묶음마다 도니 가장 뜨거운 길에서 그랬다.
+     게다가 두 벌이 서로 다른 순간의 판을 볼 수 있어서, 자리잡기는 예약했는데
+     그리기는 안 긋는 (또는 그 반대) 빈 칸이 날 수 있었다.
+     stageSync 가 한 번 떠서 아래로 넘긴다. */
 //@ 무대.배선목록 — 자리잡기와 그리기가 함께 보는 목록
-function stageLines(){
+function stageLines(live){
   if(!S) return [];
-  const ns = alive(S).filter(n=>n.role!=='disease');
+  const ns = live.filter(n=>n.role!=='disease');
   const shown = enhShown(S);
   return [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
           ...((S.enh)||[]).map(e=>({...e, enh:true}))]
     .filter(l => !(l.enh && !shown));
 }
 
-/* 전이 배선이 낳을 자리 — 아직 판에 없는 도착점의 증상 이름들.
+/* 전이 배선이 낳을 자리 — 아직 판에 없는 도착점.
+   출발점 이름들을 함께 들고 나온다: 그리는 쪽이 설명을 달 때 lines 를 다시
+   훑지 않아도 되고, 「누구를 처치하면 여기 나는가」의 답이 여기 한 번만 적힌다.
    빈 칸 하나가 계기 한 대의 GH_W 만큼을 먹는다. 1 로 두면 「날지도 모르는 자리」
    하나 때문에 실제 자리가 전부 한 치수 작아진다 — 절반쯤이 자리를 알아볼 만하면서
    줄을 덜 밀었다. */
 const GH_W = 0.55;
 let SG_GHOST = [];
-function stageGhosts(){
-  if(!S) return [];
-  const live = new Set(alive(S).filter(n=>n.role!=='disease').map(n=>n.sym));
+function stageGhosts(live, lines){
+  const on = new Set(live.filter(n=>n.role!=='disease').map(n=>n.sym));
   const out = [];
-  for(const l of stageLines()){
+  for(const l of lines){
     /* 출발점이 판에 있어야 그릴 수 있다 — 강화형 배선은 판에 없는 자리에서
        나가는 것이 있다 (되돌리기로 자리가 사라져도 S.enh 는 남는다) */
-    if(!live.has(l.a) || !spawnsSpot(l) || live.has(l.b) || out.includes(l.b)) continue;
-    out.push(l.b);
+    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b)) continue;
+    const had = out.find(g=>g.sym===l.b);
+    if(had){ if(!had.from.includes(l.a)) had.from.push(l.a) }
+    else out.push({sym:l.b, from:[l.a]});
   }
   return out;
 }
 
-function stageLayout(){
+function stageLayout(live, lines){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
-  const row  = alive(S).filter(n=>n!==dis);
-  const gh   = stageGhosts();
+  const dis  = live.find(n=>n.role==='disease');
+  const row  = live.filter(n=>n!==dis);
+  const gh   = stageGhosts(live, lines);
   /* 칸은 「자리 하나」를 1 로 세는 단위다. 빈 칸이 GH_W 만 먹으므로 CN 은
      정수가 아니다 — 전에는 row.length 로만 나눴고, 그래서 전이로 자리가
      실제로 날 때 줄 전체가 한 칸씩 밀려 판이 통째로 흔들렸다.
@@ -690,7 +702,7 @@ function stageLayout(){
     n.py = cy;
     n.sz = SZ;
   });
-  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
+  SG_GHOST = gh.map((g,i)=>({...g, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
   /* 병 노드는 줄에 끼지 않고 위 가운데에 앉는다. 부수 증상보다 크되 전처럼
      판을 다 먹지는 않는다 — 330 은 배지까지 합쳐 판 높이의 절반을 넘었다 */
   /* 0.30 은 배지에서 거꾸로 잡은 값이다 — 병기 링 위 다음 박자 badge 가
@@ -704,7 +716,12 @@ function stageLayout(){
 function stageSync(){
   if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
   const B = stageBoard(); if(!B || !S) return;
-  const SZ = stageLayout();
+  /* 산 자리와 배선 목록은 **여기서 한 번만** 뜬다 — 자리잡기 · 빈 칸 · 그리기가
+     각자 뜨면 같은 손 안에서 서로 다른 순간의 판을 볼 수 있고, 그 자체가 비용이다
+     (무대.배선목록) */
+  const live  = alive(S);
+  const lines = stageLines(live);
+  const SZ = stageLayout(live, lines);
   /* 예고는 판마다 한 번만 뽑는다 — 자리마다 부르면 클론을 자리 수만큼 뜬다 */
   const IM = intentMap(forecast());
 
@@ -748,7 +765,7 @@ function stageSync(){
     /* 떨림은 툴팁과 같은 조건을 본다 (문안.진화임박) — 두 벌로 적으면 판은
        떨고 있는데 설명은 아직 「진화하면」이라 하는 일이 난다 */
     el.classList.toggle('warn',  evoSoon(n));
-    el.classList.toggle('sel',   SEL===alive(S).indexOf(n));
+    el.classList.toggle('sel',   SEL===live.indexOf(n));
     el.classList.toggle('tgt',   STAGE_MODE!==null);
     el.classList.toggle('dis',   n.role==='disease');
     el.classList.toggle('imm',   imm);
@@ -787,26 +804,38 @@ function stageSync(){
     if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
   });
 
-  stageLinks();
+  stageLinks(live, lines);
 }
 
-/* ── 연결선 ── 촉발 · 전이 · 경화를 자리 사이에 긋는다 ─────── */
-function stageLinks(){
+/* ── 연결선 ── 촉발 · 전이 · 경화를 자리 사이에 긋는다 ───────
+   목록은 받아 온다 (무대.배선목록). SG_GHOST 도 바로 앞의 stageLayout 이
+   깔아 둔 것을 읽으므로, 이 둘은 stageSync 안에서만 이 차례로 돈다 */
+function stageLinks(live, lines){
   if(!S) return;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const ns = alive(S).filter(n=>n.role!=='disease');
+  const ns = live.filter(n=>n.role!=='disease');
+  /* 판의 px 를 #sg_links 의 눈금으로 옮긴다. 1210×744 는 그 SVG 의 viewBox 이고
+     (00-shell/stage.html), preserveAspectRatio="none" 이라 x 와 y 배율이 따로 논다.
+     ★ 이 셈을 자리마다 손으로 적으면 한 함수 안에 눈금이 예닐곱 벌 생긴다 —
+       viewBox 를 한 번 고칠 때 하나만 빠뜨려도 빈 칸과 레인과 화살촉이 서로 다른
+       좌표계에 앉는데, 화면은 그냥 조금 어긋나 보일 뿐이라 못 알아본다. */
+  const [VW, VH] = [1210, 744];
+  const LX = x => x/W*VW, LY = y => y/H*VH;
   /* 레인은 줄 바로 위에 깐다. 판 꼭대기(34)에 못 박아 두었더니 스토리에서
      증상이 아래로 내려간 순간 배선이 병 노드를 가로질러 올라갔다.
 
      높이는 계기 테가 아니라 **배지 머리**에서 잡는다. 테(sz*0.56)로 잡았더니
      첫 레인이 배지 꼭대기와 같은 높이에 깔려 아홉 줄이 배지와 28곳, 계기와
      23곳에서 겹쳤다. 배지는 테 밖 58px 에 앉고 자체 반높이가 24 이므로
-     꼭대기가 py − sz/2 − 82 다. 세 값(58 · 24 · 레인 간격)은 무대.배지와
-     한 벌이라 거기가 바뀌면 여기도 바뀐다. */
-  const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
+     꼭대기가 py − sz/2 − BADGE_PAD 다. 세 값(58 · 24 · 레인 간격)은 무대.배지와
+     한 벌이라 거기가 바뀌면 여기도 바뀐다.
+     ★ 이 값은 아래 병 노드 띠(DZ)도 쓴다. 두 벌로 적어 뒀더니 같은 수(82)가 한
+       함수 안에 둘이 됐다 — 배지 모양이 바뀌면 한쪽만 따라가고, 그러면 레인이
+       병 노드를 안 비키거나 rowTop 이 어긋난다. */
+  const BADGE_PAD = 58 + 24;
+  const BADGE_TOP = n => LY(n.py - n.sz/2 - BADGE_PAD);
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
-  const lines = stageLines();
 
   /* 병 노드가 앉은 띠 — 레인이 여기를 지나면 안 된다.
      ★ 레인은 줄 위로 30 씩 쌓이는데, 스토리 판은 병 노드가 판 위쪽 한가운데에
@@ -816,14 +845,13 @@ function stageLinks(){
      간격을 좁혀 아래에 다 욱여넣는 길도 있었지만, 그러면 줄이 둘만 돼도 레인이
        같은 높이에 겹쳐 메달이 포개졌다. 대신 **걸리는 줄만 병 노드 위로 넘긴다** —
        가로로 병 노드에 안 걸치는 줄은 제자리에 그대로 둔다. */
-  const dz = alive(S).find(n=>n.role==='disease' && n.px!==undefined);
+  const dz = live.find(n=>n.role==='disease' && n.px!==undefined);
   /* 여유는 테가 아니라 **배지 머리**에서 잡는다 — 병 노드는 테 밖으로 보호막 눈금과
      병기 · 다음 박자 배지를 두르고 있어서, 테만 피하면 그 위를 그대로 지나간다.
-     82 는 BADGE_TOP 이 쓰는 것과 같은 값이다 (테 밖 58 + 배지 반높이 24) */
-  const PAD = 82;
+     BADGE_TOP 이 쓰는 것과 같은 값이다 */
   /* above 는 레인을 통째로 넘기던 때의 것이었다 — 메달만 비키는 지금은 필요 없다 */
-  const DZ = dz ? {top:(dz.py - dz.sz/2 - PAD)/H*744, bot:(dz.py + dz.sz/2 + PAD)/H*744,
-                   l:(dz.px - dz.sz/2 - PAD)/W*1210,  r:(dz.px + dz.sz/2 + PAD)/W*1210} : null;
+  const DZ = dz ? {top:LY(dz.py - dz.sz/2 - BADGE_PAD), bot:LY(dz.py + dz.sz/2 + BADGE_PAD),
+                   l:  LX(dz.px - dz.sz/2 - BADGE_PAD), r:  LX(dz.px + dz.sz/2 + BADGE_PAD)} : null;
 
   let out = '';
 
@@ -835,12 +863,11 @@ function stageLinks(){
      글자는 x 로 늘어난다: #sg_links 는 1210×744 viewBox 를 판(1512×788)에
      preserveAspectRatio="none" 로 늘여 쓰므로 x 와 y 배율이 다르다. 재서 되돌린다 —
      판 크기가 바뀌어도 따라온다. 이 SVG 에 글자를 넣는 것은 여기가 처음이다 */
-  const kx = (1210*H)/(744*W);
+  const kx = LX(1)/LY(1);
   for(const g of SG_GHOST){
-    const gx=g.px/W*1210, gy=g.py/H*744, rx=g.sz/2/W*1210, ry=g.sz/2/H*744;
-    const from = [...new Set(lines.filter(l=>l.b===g.sym && spawnsSpot(l)).map(l=>l.a))];
+    const gx=LX(g.px), gy=LY(g.py), rx=LX(g.sz/2), ry=LY(g.sz/2);
     const gt = TT(`${g.sym} — 아직 안 난 자리`,
-      `<b>${esc(from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
+      `<b>${esc(g.from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
       + '<br><br><span class="d">칸만 비워 둔 것이다 — 지금은 아무것도 하지 않고,'
       + ' 아무것도 여기에 걸 수 없다.</span>');
     out += `<g class="ghz"${tip(gt)}>`
@@ -861,7 +888,7 @@ function stageLinks(){
   /* 계기 테 꼭대기 — 줄이 여기에 붙는다. 빈 칸은 계기보다 작으므로 양 끝을
      따로 잰다. 전에는 출발점의 top 하나로 양 끝을 다 그렸는데, 그때는 줄에
      선 자리가 전부 같은 크기라 티가 안 났다 */
-  const topOf = p => (p.py - p.sz*0.56)/H*744;
+  const topOf = p => LY(p.py - p.sz*0.56);
 
   let lane = 0;
   for(const l of lines){
@@ -873,7 +900,7 @@ function stageLinks(){
          같은 판을 두 창이 다르게 말했다. 빈 칸은 stageLayout 이 미리 잡아 둔다 */
     const Bn = ns.find(x=>x.sym===l.b) || SG_GHOST.find(g=>g.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
-    const sx=A.px/W*1210, ex=Bn.px/W*1210;
+    const sx=LX(A.px), ex=LX(Bn.px);
     const top=topOf(A), topB=topOf(Bn);
     const ly = Math.max(14, rowTop - 20 - lane*30); lane++;
     /* 메달을 병 노드에서 비킨다.

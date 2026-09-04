@@ -38,6 +38,14 @@ const TAG_GROUP = [['노인','소아'], ['노동자','군인','상층']];
 const BODY_LIST   = () => Object.keys(BODY_HP);
 const HP_TAG_LIST = () => Object.keys(HP_TAG);
 
+/* 이 태그가 어느 겹인가 — **가르는 잣대는 여기 하나뿐이다.**
+   ★ 화면은 `HP_TAG[x]!==undefined` 로, 규칙(tagAdd)은 그 여집합인
+     `BODY_HP[x]===undefined` 로 물었다. 두 표 어디에도 없는 이름이 하나 끼면
+     둘의 답이 갈린다 — 칸은 「1/2」라 적는데 tagAdd 는 이미 꽉 찬 것으로 세는 식이다.
+     여집합으로 묻지 않는다. 체격이냐 아니냐 하나로 묻는다. */
+const isBodyTag = t => BODY_HP[t]!==undefined;
+const multTags  = tags => (tags||[]).filter(t => !isBodyTag(t));
+
 /* ── 체격 (v26) ─────────────────────────────────────────────
    환자 체력의 출발점. 레벨표가 아니라 몸이 정한다.
    체격 태그는 곱하는 값이 아니라 '어느 체격을 볼지 고르는' 값이다.
@@ -55,7 +63,7 @@ const BODY_DEF = '성인';
    한 벌인데 적은 차례에 따라 체력이 120 이 됐다 200 이 됐다 한다.
    가장 얇은 체격을 본다 — 차례를 안 타고, 소아 노동자는 노동을 해도 아이 몸이다. */
 const bodyOf = tags => {
-  const hit = (tags||[]).filter(t => BODY_HP[t]!==undefined);
+  const hit = (tags||[]).filter(isBodyTag);
   return hit.length ? hit.reduce((a,b)=> BODY_HP[b] < BODY_HP[a] ? b : a) : BODY_DEF;
 };
 const bodyHp = tags => BODY_HP[bodyOf(tags)];
@@ -79,7 +87,10 @@ const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG)]);
    그러니 예외는 그대로 두고, **밖에서 들어오는 자료**만 들어올 때 한 번 훑는다
    (JSON 읽어들이기 · 브라우저에 저장한 병 노드). 악보에 scoreClean 을 두는 것과
    같은 잣대다 — 안쪽은 여전히 시끄럽게 터진다. */
-const tagsClean = tags => (tags||[]).filter(t => TAG_KNOWN.has(t));
+const tagsClean   = tags => (tags||[]).filter(t =>  TAG_KNOWN.has(t));
+/* 떨군 것을 사람에게 짚어 주려면 이 짝이 필요하다 — 부르는 쪽에서 손으로
+   `!TAG_KNOWN.has` 를 한 번 더 적으면 「아는 태그」가 두 벌이 된다 */
+const tagsUnknown = tags => (tags||[]).filter(t => !TAG_KNOWN.has(t));
 
 /* 태그 목록에서 최종 체력을 낸다 — 생성기와 보스 표가 같은 자를 쓴다 */
 const hpOfTags = tags => {

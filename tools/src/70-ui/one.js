@@ -25,10 +25,7 @@ function renderTagBox(){
 }
 
 function tagBody(t){ ONE_TAGS = bodySet(ONE_TAGS, t); renderTagBox() }
-function tagPick(t){
-  ONE_TAGS = ONE_TAGS.includes(t) ? ONE_TAGS.filter(x=>x!==t) : tagAdd(ONE_TAGS, t);
-  renderTagBox();
-}
+function tagPick(t){ ONE_TAGS = tagToggle(ONE_TAGS, t); renderTagBox() }
 
 function reseed(){ $('seed').value = (Math.random()*1e9)|0 }
 

@@ -109,9 +109,8 @@ function disRegister(d, key){
   };
   if(d.dupType) b.dupType = d.dupType;
   /* 명부 — 병기마다 자리 이름을 적어 두면 그 순서가 곧 밴드 배정 순서다.
-     한 병기라도 비어 있으면 명부 없는 보스로 돈다 (자리 상한까지 분화가 뿜는다) */
-  const named = sts.filter(s => d.syms && d.syms[s] && d.syms[s].length);
-  if(named.length === sts.length){
+     한 병기라도 비어 있으면 명부 없는 보스로 돈다 (disRosterOn) */
+  if(disRosterOn(d)){
     b.syms = Object.fromEntries(sts.map(s => [s, d.syms[s].slice()]));
     b.roster = {};
   }
@@ -122,10 +121,20 @@ function disRegister(d, key){
   return b;
 }
 
+/* 명부가 도는가 — **전부 아니면 전무다.** 한 병기라도 비어 있으면 커널이
+   명부 없는 보스로 돌린다 (위 disRegister 가 b.syms 를 아예 안 싣는다).
+   화면도 이것을 봐야 한다: 병 노드 탭이 '이 병기에 적힌 것'만 보고 따로 판단하다
+   「명부대로」라 적었는데 실제로는 분화가 뿜는 일이 있었다 — 잣대는 여기 하나다 */
+//@ 만들기.명부돎 — 명부가 실제로 도는가
+function disRosterOn(d){
+  const sts = disStages(d);
+  return sts.length > 0 && sts.every(s => ((d.syms||{})[s]||[]).length);
+}
+
 /* 이 정의가 도는 병기들 */
 function disStages(d){
   /* 자르는 범위는 레벨표에서 읽는다 (커널.병기범위) — 화면의 min · max 도 같은 자를 쓴다 */
-  const lo = STAGE_LO(), hi = STAGE_HI();
+  const lo = STAGE_LO, hi = STAGE_HI;
   const a = Math.max(lo, Math.min(hi, +d.stage || lo));
   const b = Math.max(lo, Math.min(hi, +d.stageMax || a));
   const out = [];
@@ -171,9 +180,7 @@ function mkTags(next){
   renderMake();
 }
 function mkPickBody(t){ mkTags(bodySet(CUSTOM.tags, t)) }
-function mkToggleTag(t){
-  mkTags(CUSTOM.tags.includes(t) ? CUSTOM.tags.filter(x=>x!==t) : tagAdd(CUSTOM.tags, t));
-}
+function mkToggleTag(t){ mkTags(tagToggle(CUSTOM.tags, t)) }
 
 function mkLoadFrom(){
   const id=$('mk_from').value; if(!id) return;
@@ -193,7 +200,7 @@ function mkFromJson(){
        /* 모르는 태그는 여기서 떨군다 (생성기.태그훑기). 그냥 실었더니 태그 칸이
           부르는 hpOfTags 가 터져서, 한 번 잘못 읽어들이면 만들기 탭이 그 뒤로
           영영 안 그려졌다 — 「읽어들였다」고 적힌 채로 */
-       const drop = (o.tags||[]).filter(t=>!TAG_KNOWN.has(t));
+       const drop = tagsUnknown(o.tags);
        o.tags = tagsClean(o.tags);
        CUSTOM=o;
        mkNote('읽어들였다.' + (drop.length?` 모르는 태그는 뺐다 — ${drop.join(' · ')}`:''));
@@ -302,8 +309,8 @@ function renderMake(){
          <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
-         <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
-         <label class="mk">최대 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
+         <label class="mk">시작 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
+         <label class="mk">최대 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
          <label class="mk">병 노드 수치<input type="number" value="${CUSTOM.dis.init}" onchange="mkSet('dis.init',this.value)"></label>
          <label class="mk">병기 시계<input type="number" value="${CUSTOM.dis.clock}" onchange="mkSet('dis.clock',this.value)"></label>
          <label class="mk">체력 0이 안 된다<input type="checkbox" ${CUSTOM.dis.noDeath?'checked':''} onchange="mkSet('dis.noDeath',this.checked)"></label>

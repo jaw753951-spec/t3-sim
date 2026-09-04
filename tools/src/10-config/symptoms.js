@@ -41,10 +41,14 @@ const LVTAB = {
    기본값이므로(커널.레벨표 · SLV) 레벨표에 없는 병기는 세울 데가 없다.
    전에는 만들기 · 병 노드 탭이 「3~5」를 마크업에 손으로 적고 disStages 가
    또 한 번 3 으로 잘랐다 — 네 곳이 같은 말을 하니 한 곳만 고치면 화면과
-   자르는 자가 갈렸다. 시작 병기 1 을 열려면 그 넷을 다 찾아야 했다. */
+   자르는 자가 갈렸다. 시작 병기 1 을 열려면 그 넷을 다 찾아야 했다.
+
+   상수로 둔다 — 목록(BODY_LIST 등)이 함수인 것은 저 아래 표를 앞에서 부르기
+   때문인데, LVTAB 은 바로 위에 있어서 미룰 까닭이 없다. */
 //@ 커널.병기범위 — 레벨표가 곧 병기 범위다
-const STAGE_LO = () => Math.min(...Object.keys(LVTAB).map(Number));
-const STAGE_HI = () => Math.max(...Object.keys(LVTAB).map(Number));
+const STAGE_LV = Object.keys(LVTAB).map(Number);
+const STAGE_LO = Math.min(...STAGE_LV);
+const STAGE_HI = Math.max(...STAGE_LV);
 
 const EVO_ADJ = {출혈:-1, 통증:+1, 호흡곤란:+1};
 

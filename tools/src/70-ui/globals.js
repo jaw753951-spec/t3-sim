@@ -41,6 +41,22 @@ function driftSpan(base, eff, body, upIsGood=true){
   return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
 }
 
+/* 강화형 배선이 드러났는가. 작업대와 무대가 **같은 조건을 본다** — 갈리면
+   한쪽만 「? → ?」로 감춘다.
+
+   ★ 산 자리만 보면 안 된다. 전에는 양쪽이 `alive(S).some(n=>n.revealed)` 였는데,
+     드러남은 **자리**가 아니라 **환자**에 대해 알게 된 사실이다. 진단한 자리를
+     처치하는 순간 산 자리에 revealed 가 하나도 안 남아, 이미 읽은 배선이
+     「? → ? 진단 필요」로 도로 감춰졌다 (재현: 5레벨 seed 1 — 발열 진단 뒤
+     감춰진 0, 발열 처치 뒤 감춰진 2). 죽은 자리도 revealed 를 그대로 들고
+     있으므로 판 전체를 본다. */
+//@ 문안.배선드러남 — 작업대와 무대가 함께 보는 조건
+const enhShown = S => !!S && (S.nodes||[]).some(n=>n.revealed);
+
+/* ↑ 60-text 에 있던 것을 옮겨 왔다. 글을 내는 자가 아니라 **판을 묻는 자**이고,
+   부르는 곳이 둘 다 70-ui(작업대 · 무대)다. 문안 층에 두면 화면 조건이
+   문안 층에 쌓인다 */
+
 /* ── 체격 · 체력 태그 칸 ────────────────────────────────────
    두 겹을 두 줄로 낸다 (생성기.체력태그). 세 화면 — 단판 사이드바 ·
    환자 만들기 · 병 노드 — 이 하나를 쓴다.
@@ -57,7 +73,9 @@ function driftSpan(base, eff, body, upIsGood=true){
    한쪽을 누를 때 다른 쪽이 꺼진다 */
 //@ 화면.태그칸 — 체격(하나) · 체력 태그(둘까지)
 function tagBoxHTML(tags, pre, fnBody, fnTag){
-  const t = tags || [], body = bodyOf(t), mult = t.filter(x => HP_TAG[x]!==undefined);
+  /* 겹을 가르는 잣대는 10-config 것 하나다 (multTags) — 여기서 HP_TAG 를 직접
+     물으면 두 표 어디에도 없는 이름 하나에 칸과 tagAdd 의 셈이 갈린다 */
+  const t = tags || [], body = bodyOf(t), mult = multTags(t);
   const row = (lab, note, items) =>
     `<div class="bar sub">${lab}<span class="right d">${note}</span></div>`
     + `<div class="tags">${items}</div>`;

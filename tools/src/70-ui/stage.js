@@ -305,7 +305,11 @@ function stageHand(){
     left = handPicks(S, PICK.id);
     for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
   }
-  $('sg_hand').innerHTML = (pend
+  /* 마크업이 같으면 손대지 않는다 (setHTML). 손패는 한 수에 두 번 그려진다 —
+     연출이 제 DOM 을 세우려고 한 번(FXE.dealHand), 줄이 다 빠진 뒤 stageRender 가
+     또 한 번. 다시 꽂으면 그때마다 카드 일곱 장의 마크업을 새로 뜨고 글자 맞춤이
+     또 돌 뿐 아니라, 방금 건 뽑기 표(.dealt)가 날아간다 */
+  const changed = setHTML($('sg_hand'), (pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
   + S.hand.map(id=>{
@@ -319,8 +323,8 @@ function stageHand(){
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
         onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
-    }).join('') || '<div class="empty">손이 비었다.</div>';
-  fitHandText();
+    }).join('') || '<div class="empty">손이 비었다.</div>');
+  if(changed) fitHandText();
 }
 
 /* 글이 길면 **카드를 늘리지 말고 글을 줄인다.** 다른 카드 게임이 하는 것과 같다.
@@ -332,16 +336,37 @@ function stageHand(){
    줄어드는 것을 감안한 바닥이다 — 화면에서는 8.8px 이고, 그 아래로는 줄여도
    읽히지 않으니 줄이는 값이 없다 (그때부터는 .cbody 의 overflow 가 자른다). */
 //@ 화면.카드글맞춤 — 칸은 그대로 두고 글자를 줄인다
-const FIT_MIN = 11;
+const FIT_MAX = 16, FIT_MIN = 11;      // 위는 style.css 의 #sg_hand .ctext, 아래는 위 설명
+
+/* 잰 값을 들고 있는다 — 열쇠는 카드 이름이 아니라 **글 자체**다. 「진행을 붙든다」는
+   재진이 붙었는지에 따라 본문이 바뀌므로 이름으로 재면 옛 크기를 물려준다 */
+const FIT_CACHE = new Map();
+
+/* ★ 쓰기와 읽기를 번갈아 하면 읽을 때마다 브라우저가 배치를 다시 잰다.
+     전에는 16 에서 0.5 씩 내리며 그때마다 scrollHeight 를 읽었다 — 카드 한 장에
+     최대 열 번, 손패 일곱 장이면 일흔 번이고, 그 배치 안에는 계기판 수십 개와
+     인라인 SVG 가 통째로 들어 있다. 게다가 이 함수는 한 수마다 돈다.
+     넘치는 비율로 한 번에 어림잡고 한 번만 되짚는다 — 카드당 많아야 세 번이다. */
+function fitOne(t, box){
+  t.style.fontSize = '';
+  if(box.scrollHeight <= box.clientHeight) return '';        // 그대로 들어간다
+  /* 글은 줄 단위로 접히므로 비율이 그대로 맞지는 않는다. 살짝 작게 잡고 되짚는다 */
+  let px = Math.max(FIT_MIN,
+    Math.floor(FIT_MAX * Math.sqrt(box.clientHeight / box.scrollHeight) * 2) / 2);
+  t.style.fontSize = px + 'px';
+  while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
+    px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
+  }
+  return px.toFixed(1) + 'px';
+}
+
 function fitHandText(){
   for(const t of document.querySelectorAll('#sg_hand .ctext')){
     const box = t.parentElement; if(!box) continue;      // .cbody 가 실제 칸이다
-    t.style.fontSize = '';
-    let px = parseFloat(getComputedStyle(t).fontSize) || 16;
-    /* scrollHeight 는 transform 을 안 보므로 0.8배 축소와 무관하게 잰다 */
-    while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
-      px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
-    }
+    const key = t.textContent;
+    /* scrollHeight 는 transform 을 안 보므로 줄 전체의 0.8배 축소와 무관하게 잰다 */
+    if(FIT_CACHE.has(key)) t.style.fontSize = FIT_CACHE.get(key);
+    else FIT_CACHE.set(key, fitOne(t, box));
   }
 }
 

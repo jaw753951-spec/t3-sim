@@ -15,7 +15,8 @@ function tagAdd(list, t){
   const g = tagGroupOf(t);
   const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  const mult = out.filter(x => BODY_HP[x]===undefined);
+  /* 한 번만 가른다 — 잣대는 isBodyTag 하나다 (생성기.체력태그) */
+  const body = out.filter(isBodyTag), mult = multTags(out);
   while(mult.length > TAG_CAP) mult.shift();
   /* 체격은 하나만 남는다. 고른 것이 체격이면 그것이, 아니면 **칸이 이미 켜
      놓고 있던 것**(bodyOf — 가장 얇은 쪽)이 남는다.
@@ -23,17 +24,22 @@ function tagAdd(list, t){
        에서 칸은 bodyOf 를 따라 소아(120)를 켜 놓고 있는데, 체력 태그를 하나
        붙이는 순간 노동자만 남아 체력이 아무 말 없이 170 으로 뛰었다.
        고르는 자와 보여 주는 자가 갈리면 이런 식으로 조용히 어긋난다. */
-  const has = out.some(x => BODY_HP[x]!==undefined);
-  return [...(has ? [BODY_HP[t]!==undefined ? t : bodyOf(out)] : []), ...mult];
+  const keep = isBodyTag(t) ? [t] : (body.length ? [bodyOf(body)] : []);
+  return [...keep, ...mult];
 }
 
 /* 체격 고르기 — 성인은 「체격 태그 없음」이다. 태그 줄에 굳이 안 적는다.
    곱하는 태그(노인 포함)는 건드리지 않는다 — 노인은 체격이 성인이면서
    ×0.85 를 받는 자리라 성인을 고른다고 떨어지면 안 된다.
    tagAdd 옆에 둔다: 10-config 에 뒀더니 그 층이 30-core 의 tagAdd 를 부르게 돼
-   앞의 층이 뒤의 층을 아는 꼴이 됐다 (층 규칙). 고르는 규칙은 둘 다 여기 산다 */
-const bodySet = (tags, t) => t===BODY_DEF
-  ? (tags||[]).filter(x => BODY_HP[x]===undefined)
+   앞의 층이 뒤의 층을 아는 꼴이 됐다 (층 규칙). 고르는 규칙은 전부 여기 산다 */
+const bodySet = (tags, t) => t===BODY_DEF ? multTags(tags) : tagAdd(tags, t);
+
+/* 곱하는 태그 하나를 켜고 끈다. 세 화면(단판 · 만들기 · 병 노드)이 이 하나를 쓴다 —
+   붙이는 쪽만 tagAdd 로 모으고 **떼는 쪽은 셋이 각자 적고 있었다.** `||[]` 자리도
+   조금씩 달랐다. 한쪽만 규칙이 있으면 그 규칙은 반쪽짜리다 */
+const tagToggle = (tags, t) => (tags||[]).includes(t)
+  ? (tags||[]).filter(x => x!==t)
   : tagAdd(tags, t);
 
 /* ── S 산식 (§5) ─────────────────────────────────────────── */

@@ -202,8 +202,8 @@ function renderScore(){
      <div class="bar">이름과 몸</div>
      <div class="mkgrid">
        <label class="mk">이름<input value="${esc(d.name||'')}" onchange="scSetDis('name',this.value)"></label>
-       <label class="mk">시작 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
-       <label class="mk">최종 병기<input type="number" min="${STAGE_LO()}" max="${STAGE_HI()}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
+       <label class="mk">시작 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
+       <label class="mk">최종 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
        <label class="mk">체력 0이 안 된다<input type="checkbox" ${d.noDeath?'checked':''} onchange="scSetDis('noDeath',this.checked)"></label>
      </div>
      ${tagBoxHTML(d.tags, 'sc', 'scBody', 'scTag')}
@@ -224,13 +224,14 @@ function renderScore(){
        <b>1</b> 이면 깎아 둔 비율이 그대로 유지되고, <b>0</b> 이면 새 수치로 되돌아간다.
        시계는 그 병기가 몇 턴 만에 다음으로 넘어가는가다.</div>`;
 
-  /* 명부는 **전부 아니면 전무**다 (만들기.병노드등록) — 한 병기라도 비어 있으면
-     커널이 명부 없는 보스로 돌린다. 그래서 아래 줄은 '이 병기에 적힌 것'이 아니라
-     '실제로 서게 될 것'을 말해야 한다.
+  /* 아래 줄은 '이 병기에 적힌 것'이 아니라 '실제로 서게 될 것'을 말해야 한다.
      ★ 전에는 적힌 것만 보고 「명부대로」라 했다. 시작 병기 1 을 열자 아이(3~5만
        적혀 있다)가 1 · 2 를 빈 채로 3 · 4 · 5 에서 「명부대로」라 말했는데,
-       실제로는 다섯 병기 모두 분화가 뿜는다. */
-  const rosterOn = sts.every(s => ((d.syms||{})[s]||[]).length);
+       실제로는 다섯 병기 모두 분화가 뿜는다.
+     묻는 자는 등록기와 같은 것 하나다 (만들기.명부돎). 빈 병기는 고리 밖에서
+     한 번만 센다 — 병기마다 다시 세도 늘 같은 답이다 */
+  const rosterOn = disRosterOn(d);
+  const empty = sts.filter(s => !((d.syms||{})[s]||[]).length);
 
   for(const st of sts){
     const roster = (d.syms||{})[st];
@@ -246,7 +247,7 @@ function renderScore(){
       <div class="bar">활성 부수 <span class="right d">${
           rosterOn ? '명부대로 — 앞 '+Math.max(1,(roster||[]).length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
         : (roster&&roster.length)
-          ? '안 돈다 — 빈 병기('+sts.filter(s=>!((d.syms||{})[s]||[]).length).join(' · ')+')가 있어 명부 전체가 꺼진다'
+          ? '안 돈다 — 빈 병기('+empty.join(' · ')+')가 있어 명부 전체가 꺼진다'
           : '명부 없음 — 자리 상한('+SR.SPAWN_LV[SLV(d.from||'아이','spots',st)]+')까지 분화가 뿜는다'}</span></div>
       <div class="scline">`
       + (roster||[]).map((s,i)=>`<span class="beat">
@@ -341,11 +342,7 @@ function renderScore(){
 }
 
 /* 태그 · 씨앗 — 정의의 몸 쪽 칸들 */
-function scTag(x){
-  const d = CUSTOM.dis;
-  d.tags = (d.tags||[]).includes(x) ? d.tags.filter(y=>y!==x) : tagAdd(d.tags||[], x);
-  scTouch(); renderScore();
-}
+function scTag(x){ const d = CUSTOM.dis; d.tags = tagToggle(d.tags, x); scTouch(); renderScore() }
 function scBody(x){ const d = CUSTOM.dis; d.tags = bodySet(d.tags, x); scTouch(); renderScore() }
 function scSeedAdd(){ const d=CUSTOM.dis; d.seed=(d.seed||[]).concat(ALLSYM[0]); scTouch(); renderScore() }
 function scSeedSet(i,v){ CUSTOM.dis.seed[i]=v; scTouch(); renderScore() }

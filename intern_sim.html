@@ -2154,7 +2154,7 @@ function transmit(S, src, L, k, strong){
   const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
               grow: k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
               evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
-              evolved:false, dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0,
+              evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0,
               diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
               revealed:false, spawned:true, born:S.turn, role:'sym'};
   S.nodes.push(nn);
@@ -2413,7 +2413,7 @@ function build(level, rng, opt={}){
     const shielded = T.shield==='all' || (T.shield==='one' && i===0);
     return {sym:s, init, val:init, band, shielded, shReduc:shielded?R.SHIELD_CUT:0, stabAcc:0,
             grow:0, evo, evoLeft:evo, evolved:false, dead:false, dormT:0, weak:0,
-            rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0,
+            rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0,
             diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
             revealed:false, spawned:false, role:'sym'};
   });
@@ -2482,17 +2482,16 @@ function medianBoards(){
 const rigTotal = n => (n.rig||0) + (n.rigLent||0);
 
 const rigCapOf = amt => Math.max(R.RIG_CAP_MIN, amt * R.RIG_CAP_MUL);
-const canRig = (n, amt) => !(n.rig>0 && n.rig >= (n.rigCap || rigCapOf(amt)));
+const rigSum = n => (n.rigBase||0) + (n.rigParts||[]).reduce((a,b)=>a+b, 0);
+const canRig = (n, amt) => !(n.rig>0 && (n.rigBase||0) >= (n.rigCap || rigCapOf(amt)));
 
 function partPreview(n, amt){
   if(!n || !(n.rig>0)) return null;
   const parts = (n.rigParts||[]).slice();
-  const cap = Math.max(R.RIG_CAP_MIN, n.rigCap || rigCapOf(amt));
-  let rig = n.rig, off = null;
-  if(parts.length >= (n.rigPartMax||0)){ off = parts.shift(); rig -= off }
-  const add = Math.min(amt, Math.max(0, cap - rig));
-  parts.push(add);
-  return {rig: rig + add, parts, off, add};
+  let off = null;
+  if(parts.length >= (n.rigPartMax||0)) off = parts.shift();
+  parts.push(amt);
+  return {parts, off, add:amt, rig:(n.rigBase||0) + parts.reduce((a,b)=>a+b, 0)};
 }
 
 const canPart = (n) => !!n && n.rig > 0;
@@ -2500,12 +2499,13 @@ const canPart = (n) => !!n && n.rig > 0;
 function rigSet(S,n,amt){
   if(n.rig>0){
     const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
-    if(n.rig>=cap) return false;
-    n.rig = Math.min(cap, n.rig+amt);
+    if((n.rigBase||0) >= cap) return false;
+    n.rigBase = Math.min(cap, (n.rigBase||0) + amt);
   } else {
-    n.rig = amt; n.rigCap = rigCapOf(amt);
+    n.rigBase = amt; n.rigCap = rigCapOf(amt);
     n.rigParts = []; n.rigPartMax = R.RIG_PART_MAX;  // 이 설치물이 받는 칸 수를 여기서 정한다
   }
+  n.rig = rigSum(n);
   K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
@@ -2513,7 +2513,7 @@ function rigSet(S,n,amt){
 function rigAddPart(S,n,amt){
   const p = partPreview(n, amt);
   if(!p) return false;
-  n.rig = p.rig; n.rigParts = p.parts;
+  n.rigParts = p.parts; n.rig = rigSum(n);
   K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
@@ -2523,7 +2523,7 @@ function rigOpen(S,n,mult){
   const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
   K.ev(S,{t:'rigOpen', n, amt});
-  n.rig=0; n.rigCap=0; n.rigParts=[]; n.rigPartMax=0;
+  n.rig=0; n.rigBase=0; n.rigCap=0; n.rigParts=[]; n.rigPartMax=0;
   return got;
 }
 
@@ -2753,7 +2753,7 @@ function mkSpot(bossKey, stage, sym, init, turn){
   const e = spotEvo(bossKey, stage, sym);
   const n = {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
     grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
-    rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
+    rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
     resist:0, resistBack:false, demoted:false, revealed:false, spawned:turn!=null, role:'sym'};
   if(turn!=null) n.born = turn;
   return n;
@@ -2784,7 +2784,7 @@ function makeDisease(key, rng){
   const v0 = stageDisVal(key, stage);
   const dis = {sym:'병', role:'disease', init:v0, val:v0,
     shielded:false, shReduc:0, stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false,
-    dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
+    dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
     diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false, spawned:false,
     stage, stageMax:b.stageMax, stageClock:stageTurns(key, stage), beat:0};
   const nodes=[dis];
@@ -3467,6 +3467,7 @@ get '부품'(){ return TT('부품 · 의공학',
   `부품은 <b>설치물에 추가</b>할 수 있다. 설치물이 서 있지 않으면 붙일 수 없다.`
   + `<br>설치물마다 추가 가능한 부품 수가 정해져 있다 — 지금은 <b>${R.RIG_PART_MAX}</b>칸이다.`
   + `<br>칸이 다 차면 <b>가장 먼저 붙인 부품이 떨어져 나간다.</b> 그 부품이 올려 준 값도 함께 빠진다.`
+  + `<br>부품이 올린 값은 <b>설치 상한에 들지 않는다</b> — 상한은 설치물이 제 힘으로 커지는 데까지다.`
   + `<br><span class="d">설치물을 개방해 태우면 붙어 있던 부품도 함께 사라진다.</span>`) },
 get '개방'(){ return TT('개방 · 의공학',
   `설치물을 소모해 그 노드를 <b>설치물 수치의 ${CARDS['출력 개방'].v.mult}배</b>만큼 억제한다.`
@@ -4532,7 +4533,7 @@ function nodeMarks(S, n){
     n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
     n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
     n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
-    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)} · 부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>설치 ${n.rigBase||0}/${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rigBase||n.rig)}${n.rig-(n.rigBase||0)?` · 부품 +${n.rig-(n.rigBase||0)}`:''}<br>부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0} — 부품은 설치 상한에 안 든다<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}</span>`:'',
     n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
     gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
     n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
@@ -6415,11 +6416,13 @@ function badgeSVG(S, n, sz){
 
   const rig=(n.rig||0), lent=(n.rigLent||0);
   if(rig||lent){
-    const [ix,iy]=P(39,RB), w=44, h=34, cap=n.rigCap||Math.max(R.RIG_CAP_MIN,rig);
-    const slots=Math.max(1, Math.min(6, cap||1)), on=Math.round(rig/Math.max(1,cap)*slots);
+    const base=(n.rigBase||0), pv=rig-base;
+    const [ix,iy]=P(39,RB), w=44, h=34, cap=n.rigCap||Math.max(R.RIG_CAP_MIN,base||rig);
+    const slots=Math.max(1, Math.min(6, cap||1)), on=Math.round(Math.min(base,cap)/Math.max(1,cap)*slots);
     s += `<g transform="translate(${ix-w/2},${iy-h/2})"${tip(TT('설치물',
           `매 턴 종료 시 이 자리를 <b>${rig+lent}</b> 억제한다. 보호막을 무시한다.`
-          + (rig?`<br>상한 ${cap} · 부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0}`:'')
+          + (rig?`<br>설치 ${base}/${cap}${pv?` · 부품 +${pv}`:''}`
+               + `<br>부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0} — 부품은 설치 상한에 안 든다`:'')
           + (lent?`<br>빌려온 물건 ${lent} — 남의 손을 타지 않는다`:'')
           + (rig?`<br><br>개방하면 <b>−${rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`:'')))}>`
       + `<rect x="0" y="0" width="${w}" height="${h}" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`
@@ -7985,7 +7988,7 @@ function buildCustom(){
   const mk = o => {
     const n = {sym:o.sym, init:+o.init, val:+o.init, shielded:!!o.shielded,
       shReduc:o.shielded?R.SHIELD_CUT:0, stabAcc:0, grow:+o.grow||0, evo:+o.evo, evoLeft:+o.evo,
-      evolved:false, dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
+      evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
       diagNeed:R.DIAG_NEED, demoted:false, revealed:false, spawned:false, role:'sym'};
     const d = SYMPARAM[o.sym];
     if(d && o.p!==undefined && o.p!==null && o.p!=='' && Number.isFinite(+o.p)) n[d.key] = +o.p;
@@ -8002,7 +8005,7 @@ function buildCustom(){
     disRegister(d);                       // BOSS['커스텀'] 로 올린다 — 커널은 보통 보스로 읽는다
     const st = +d.stage, v0 = stageDisVal(DIS_KEY, st);
     const dis={sym:'병', role:'disease', init:v0, val:v0, shielded:false, shReduc:0,
-      stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0,
+      stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0,
       weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false,
       demoted:false, revealed:false,
       spawned:false, stage:st, stageMax:+d.stageMax, stageClock:stageTurns(DIS_KEY, st), beat:0};

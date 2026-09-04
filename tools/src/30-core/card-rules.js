@@ -32,14 +32,23 @@
    부품은 막히지 않는다 — 밀려날 뿐이다. 태그가 상한에서 밀리는 것(생성기.체력태그),
    카드팩이 자리에서 밀리는 것(카드.팩)과 같은 손이다.
 
-   자리는 붙은 부품을 **목록**으로 든다 (rigParts). 세는 것이 아니라 적는 까닭:
-   떨어져 나갈 때 그 부품이 실제로 올려 준 값을 도로 빼야 하는데, 수만 세면
-   그 값을 알 수 없다. 지금은 부품이 한 종류뿐이라 다 +2 지만, 값이 다른 부품이
-   생기면 수로는 못 되돌린다. 상한에 걸려 덜 올라간 부품도 있으므로(아래 add)
-   「적힌 값」이 아니라 「실제로 올라간 값」을 적는다.
+   ■ 값이 두 겹이다
+     rigBase   설치 카드가 올린 값. **수치 상한(rigCap)은 이쪽만 잡는다.**
+     rigParts  붙은 부품 목록. 상한을 안 탄다 — 칸 수가 곧 그 한계다.
+     rig       둘의 합. 매 턴 깎는 값이고, 개방이 태우는 값이다.
+   합을 rig 에 그대로 두는 까닭: 이 값을 읽는 곳이 여럿인데(턴 해결의 자동 억제 ·
+   개방 · 계기 배지 · 탐색) 그 전부가 「이 설치물이 내는 값」을 뜻한다. 이름을
+   옮기면 그 자리들을 다 따라다녀야 하고, 하나만 놓치면 조용히 옛 값을 읽는다.
 
-   부품도 수치 상한은 넘지 못한다 — 넘게 두면 계기 배지가 적어 둔 「상한 N」이
-   거짓이 된다.
+   ★ 전에는 부품도 상한에 걸렸다. 그러면 거치(4)의 상한 12 를 부품 넷이 딱 채워서,
+     칸이 찬 뒤의 교체가 값으로는 늘 0 이 됐다 — 규칙은 도는데 눈에 안 보였다.
+     상한은 설치물이 제 힘으로 얼마나 커지는가의 한계지, 거기 매단 부품까지
+     묶는 자가 아니다.
+
+   자리는 붙은 부품을 **목록**으로 든다 (rigParts). 세는 것이 아니라 적는 까닭:
+   떨어져 나갈 때 그 부품이 올려 준 값을 도로 빼야 하는데, 수만 세면 그 값을
+   알 수 없다. 지금은 부품이 한 종류뿐이라 다 +2 지만, 값이 다른 부품이 생기면
+   수로는 못 되돌린다.
 
    ★ rigUp 이라는 칸이 있었다. rigSet 이 올릴 때마다 +1 했는데 **읽는 곳이
      한 군데도 없었다** — 죽은 값이었다. 부품 자리로 되살렸다. */
@@ -48,24 +57,25 @@ const rigTotal = n => (n.rig||0) + (n.rigLent||0);
 
 /* 설치 amt 로 처음 놓았을 때의 상한. 카드가 아니라 규칙이 정한다 */
 const rigCapOf = amt => Math.max(R.RIG_CAP_MIN, amt * R.RIG_CAP_MUL);
+/* 설치물이 지금 내는 값 = 설치분 + 붙은 부품. 값을 쓰는 자리는 rig 를 읽지만,
+   놓고 붙이는 자리는 이 하나로 다시 센다 — 두 겹을 손으로 더하면 곧 갈린다 */
+const rigSum = n => (n.rigBase||0) + (n.rigParts||[]).reduce((a,b)=>a+b, 0);
 /* 이 자리에 amt 짜리 설치를 더 얹을 수 있는가 — rigSet 과 같은 잣대를 쓴다.
-   카드의 need 가 이것을 부른다. 화면이 낼 수 있는지 미리 보는 데 쓴다 */
-const canRig = (n, amt) => !(n.rig>0 && n.rig >= (n.rigCap || rigCapOf(amt)));
+   보는 것은 **설치분**이다. 부품은 상한을 안 타므로 여기 안 든다 */
+const canRig = (n, amt) => !(n.rig>0 && (n.rigBase||0) >= (n.rigCap || rigCapOf(amt)));
 
 /* 부품 하나를 붙였을 때의 결과. **붙이는 자와 화면이 이 하나를 본다** —
    미는 셈을 화면이 따로 흉내 내면 곧 갈린다 (카드.팩 의 packOut 과 같은 잣대).
      off  떨어져 나간 부품의 값 (없으면 null)
-     add  새 부품이 실제로 올린 값 (상한에 걸리면 적힌 값보다 작다) */
+   부품은 상한에 안 걸리므로 적힌 값이 그대로 올라간다 */
 function partPreview(n, amt){
   if(!n || !(n.rig>0)) return null;
   const parts = (n.rigParts||[]).slice();
-  const cap = Math.max(R.RIG_CAP_MIN, n.rigCap || rigCapOf(amt));
-  let rig = n.rig, off = null;
+  let off = null;
   /* 칸이 찼으면 가장 먼저 붙인 것이 떨어진다. 그것이 올려 준 값도 함께 빠진다 */
-  if(parts.length >= (n.rigPartMax||0)){ off = parts.shift(); rig -= off }
-  const add = Math.min(amt, Math.max(0, cap - rig));
-  parts.push(add);
-  return {rig: rig + add, parts, off, add};
+  if(parts.length >= (n.rigPartMax||0)) off = parts.shift();
+  parts.push(amt);
+  return {parts, off, add:amt, rig:(n.rigBase||0) + parts.reduce((a,b)=>a+b, 0)};
 }
 
 /* 이 자리에 부품을 붙일 수 있는가 — 설치물이 서 있으면 된다.
@@ -78,13 +88,15 @@ const canPart = (n) => !!n && n.rig > 0;
 function rigSet(S,n,amt){
   if(n.rig>0){
     const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
-    if(n.rig>=cap) return false;
-    /* 설치는 부품 칸을 안 먹는다 — 설치물을 더 키우는 것이지 붙이는 것이 아니다 */
-    n.rig = Math.min(cap, n.rig+amt);
+    if((n.rigBase||0) >= cap) return false;
+    /* 설치는 부품 칸을 안 먹는다 — 설치물을 더 키우는 것이지 붙이는 것이 아니다.
+       상한이 잡는 것도 이 설치분뿐이다 */
+    n.rigBase = Math.min(cap, (n.rigBase||0) + amt);
   } else {
-    n.rig = amt; n.rigCap = rigCapOf(amt);
+    n.rigBase = amt; n.rigCap = rigCapOf(amt);
     n.rigParts = []; n.rigPartMax = R.RIG_PART_MAX;  // 이 설치물이 받는 칸 수를 여기서 정한다
   }
+  n.rig = rigSum(n);
   K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
@@ -93,7 +105,7 @@ function rigSet(S,n,amt){
 function rigAddPart(S,n,amt){
   const p = partPreview(n, amt);
   if(!p) return false;
-  n.rig = p.rig; n.rigParts = p.parts;
+  n.rigParts = p.parts; n.rig = rigSum(n);
   K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
@@ -105,7 +117,7 @@ function rigOpen(S,n,mult){
   const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
   K.ev(S,{t:'rigOpen', n, amt});
-  n.rig=0; n.rigCap=0; n.rigParts=[]; n.rigPartMax=0;
+  n.rig=0; n.rigBase=0; n.rigCap=0; n.rigParts=[]; n.rigPartMax=0;
   return got;
 }
 

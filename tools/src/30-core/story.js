@@ -28,7 +28,7 @@ function mkSpot(bossKey, stage, sym, init, turn){
   const e = spotEvo(bossKey, stage, sym);
   const n = {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
     grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
-    rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
+    rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
     resist:0, resistBack:false, demoted:false, revealed:false, spawned:turn!=null, role:'sym'};
   if(turn!=null) n.born = turn;
   return n;
@@ -72,7 +72,7 @@ function makeDisease(key, rng){
   const v0 = stageDisVal(key, stage);
   const dis = {sym:'병', role:'disease', init:v0, val:v0,
     shielded:false, shReduc:0, stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false,
-    dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
+    dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
     diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false, spawned:false,
     stage, stageMax:b.stageMax, stageClock:stageTurns(key, stage), beat:0};
   const nodes=[dis];

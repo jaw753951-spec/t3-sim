@@ -212,7 +212,7 @@ function buildCustom(){
   const mk = o => {
     const n = {sym:o.sym, init:+o.init, val:+o.init, shielded:!!o.shielded,
       shReduc:o.shielded?R.SHIELD_CUT:0, stabAcc:0, grow:+o.grow||0, evo:+o.evo, evoLeft:+o.evo,
-      evolved:false, dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
+      evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
       diagNeed:R.DIAG_NEED, demoted:false, revealed:false, spawned:false, role:'sym'};
     /* 자리에 적어 둔 효과 비율만 싣는다. 비워 두면 권위본 값을 그대로 쓴다 */
     const d = SYMPARAM[o.sym];
@@ -230,7 +230,7 @@ function buildCustom(){
     disRegister(d);                       // BOSS['커스텀'] 로 올린다 — 커널은 보통 보스로 읽는다
     const st = +d.stage, v0 = stageDisVal(DIS_KEY, st);
     const dis={sym:'병', role:'disease', init:v0, val:v0, shielded:false, shReduc:0,
-      stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigParts:[], rigPartMax:0,
+      stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0,
       weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false,
       demoted:false, revealed:false,
       spawned:false, stage:st, stageMax:+d.stageMax, stageClock:stageTurns(DIS_KEY, st), beat:0};

@@ -1,0 +1,4 @@
+# 뽑아 낸 것 — patch.js 가 언제든 다시 만든다
+build/
+out/
+data/

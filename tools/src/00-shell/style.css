@@ -1,0 +1,427 @@
+:root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
+ --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
+ --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+ --sans:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);
+ background-image:repeating-linear-gradient(0deg,transparent 0 27px,rgba(61,102,115,.045) 27px 28px)}
+.wrap{display:grid;grid-template-columns:250px 1fr 300px;min-height:100vh}
+.col{padding:16px;border-right:1px solid var(--line)}
+.col:last-child{border-right:0;border-left:1px solid var(--line)}
+/* 「패치」는 제 자리에 못 박아 둔다 — 오른쪽 위 모서리다.
+   판본이 길어지면 이름과 판본만 아래로 접히고 단추는 그대로 있는다.
+   오른쪽 여백은 단추가 앉을 자리를 미리 비워 둔 것이다 */
+h1{position:relative;padding-right:52px;
+  font:600 15px/1.35 var(--sans);letter-spacing:.10em;margin:0 0 16px}
+/* 이름도 판본도 도중에 끊지 않는다 — 자리가 모자라면 판본이 통째로 아랫줄로 내려간다 */
+h1 .ttl,h1 .ver{white-space:nowrap}
+h1 .ver{color:var(--blood)}
+/* 탭이 여섯이 되면서 250px 한 줄에 안 들어간다 — 줄을 접는다.
+   접힌 줄에도 칸이 고르게 서도록 flex-basis 를 33% 로 잡아 셋씩 앉힌다 */
+.tabs{display:flex;flex-wrap:wrap;gap:0;margin:0 0 14px;border:1px solid var(--line)}
+.tab{flex:1 1 33.33%;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
+ cursor:pointer;border-right:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tab:nth-child(3n){border-right:0}
+.tab:nth-child(n+4){border-top:1px solid var(--line)}
+.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
+label{display:block;font:11px/1 var(--mono);letter-spacing:.1em;color:var(--dim);margin:14px 0 5px;text-transform:uppercase}
+select,input[type=number]{width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:7px 8px;font:13px var(--mono)}
+select:focus,input:focus,button:focus{outline:2px solid var(--t3);outline-offset:1px}
+.tags{display:flex;flex-wrap:wrap;gap:4px 10px}
+.tags label{display:flex;align-items:center;gap:5px;margin:0;text-transform:none;font:12px var(--sans);color:var(--ink);letter-spacing:0;cursor:pointer}
+button{width:100%;margin-top:8px;background:transparent;color:var(--ink);border:1px solid var(--line);padding:9px;font:12px var(--mono);letter-spacing:.08em;cursor:pointer;text-align:left}
+button:hover{border-color:var(--ink);background:rgba(28,35,33,.06)}
+button:disabled{opacity:.38;cursor:default}
+button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{background:rgba(152,48,42,.10)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row2 button{margin-top:0}
+
+/* ── 환자 머리 ── */
+.pat{border:1px solid var(--line);background:var(--panel);padding:15px 17px;margin-bottom:14px}
+.prow{display:flex;align-items:center;gap:14px;font:13px var(--mono)}
+.prow.small{margin-top:11px;color:var(--dim);font-size:12px;flex-wrap:wrap}
+.ptitle{font:600 14px var(--mono);letter-spacing:.2em}.right{margin-left:auto}
+.hpnum{font:600 20px var(--mono)}
+.mind{padding:2px 10px;border:1px solid var(--line);font-size:12px}
+.mind.평정{color:var(--calm);border-color:var(--calm)}.mind.불안{color:var(--alarm);border-color:var(--alarm)}
+.mind.공황{color:var(--blood);border-color:var(--blood)}
+.rem{color:var(--shield)}.evo{color:var(--t3)}
+.hpbar{position:relative;height:18px;background:#C6BFA8;border:1px solid var(--line);margin-top:11px}
+.hp{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#5E9070,#3C6E52)}
+.hpre{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(152,48,42,.85) 0 3px,transparent 3px 7px)}
+
+/* ── 판 ── */
+.field{display:grid;grid-template-columns:1fr 208px;gap:14px;align-items:start}
+.nodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.node{border:1px solid var(--line);background:var(--panel);padding:13px 15px;cursor:pointer}
+.node:hover{border-color:var(--dim)}.node.sel{border-color:var(--t3);box-shadow:inset 0 0 0 2px rgba(138,106,16,.35)}
+.node.atk{border-left:4px solid var(--blood)}
+.node.evo{border-color:var(--blood);
+ background-image:repeating-linear-gradient(45deg,rgba(152,48,42,.075) 0 5px,transparent 5px 13px)}
+.node.evo .nhead b{color:var(--blood)}
+.node.evo .track{border-color:#B8776F;background:#C9B7AE}
+.evomark{display:inline-block;margin-left:7px;font:600 11px var(--mono);letter-spacing:.06em;
+ color:#F2EEE0;background:var(--blood);border:1px solid var(--blood);padding:1px 6px;vertical-align:middle}
+.node.dis{border:1px solid var(--t3);grid-column:1/-1;background:rgba(138,106,16,.07)}
+.nhead{display:flex;align-items:baseline;justify-content:space-between}
+.nhead b{font-size:18px;letter-spacing:.06em}.val{font:600 21px var(--mono)}.val .d{font-size:12px;font-weight:400}
+.track{position:relative;height:12px;background:#C6BFA8;margin:11px 0 9px;border:1px solid var(--line)}
+.fill{position:absolute;inset:0 auto 0 0;background:#9A6B5E}.node.atk .fill{background:var(--blood)}
+.node.dis .fill{background:#A98A22}
+.cut{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.cut.half{background:var(--dim);width:1px;opacity:.7}
+.badge{display:inline-block;font:12px var(--mono);padding:3px 9px;border:1px solid var(--line);margin-bottom:8px}
+.badge.strong{color:var(--blood);border-color:var(--blood)}.badge.weak{color:var(--alarm);border-color:var(--alarm)}
+.badge.none{color:var(--dim)}
+.marks{display:flex;flex-wrap:wrap;gap:5px 6px}
+.m{font:11.5px var(--mono);color:var(--dim);border:1px solid var(--line);padding:2px 7px;background:rgba(255,255,255,.35)}
+.m.sh{color:var(--shield);border-color:#8AA6AE}
+.m.wk{color:var(--t3);border-color:#C3AE68}
+.m.rig{color:var(--t3);border-color:#C3AE68}.m.gr{color:var(--blood);border-color:#C99B96}
+.m.ev{color:var(--alarm);border-color:#D0A483}.m.dm{color:var(--calm);border-color:#8DB49C}
+.m.dl{color:var(--shield);border-color:#8AA6AE}
+.wires{margin:12px 0;display:flex;flex-wrap:wrap;gap:6px}
+.wire{font:12px var(--mono);color:var(--dim);border:1px solid var(--line);padding:3px 9px;background:var(--panel)}
+.wire em{font-style:normal;color:var(--ink)}.wire.enh{border-color:var(--t3);color:var(--t3)}
+.wire.enh em{color:var(--t3)}.wire.hid{opacity:.5}
+
+/* ── 우측 상태 패널 ── */
+.state{border:1px solid var(--line);background:var(--panel);padding:11px 12px;position:sticky;top:12px}
+.state h4{margin:0 0 9px;font:600 11px var(--mono);letter-spacing:.18em;color:var(--dim);text-transform:uppercase}
+.st{margin-bottom:11px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.st:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.stt{display:flex;justify-content:space-between;align-items:baseline;font:12px var(--mono)}
+.stt b{font-size:15px}
+.pips{display:flex;gap:3px;margin-top:6px}
+.pip{flex:1;height:8px;border:1px solid var(--line);background:#C6BFA8}
+.pip.on{background:var(--t3);border-color:var(--t3)}
+.pip.rm.on{background:var(--shield);border-color:var(--shield)}
+.pip.bl.on{background:var(--blood);border-color:var(--blood)}
+.stnote{font:11px/1.45 var(--mono);color:var(--dim);margin-top:5px}
+.stempty{font:11px var(--mono);color:var(--dim)}
+
+/* ── 손패 ── */
+.bar{display:flex;align-items:center;gap:14px;margin:18px 0 8px;font:11px var(--mono);letter-spacing:.14em;color:var(--dim);border-top:1px solid var(--line);padding-top:12px}
+.hand{display:flex;flex-wrap:wrap;gap:10px}
+/* ── 카드 한 장 ── 작업대에서는 예전 그대로 한 줄짜리 상자다.
+   전투 화면 손패(#sg_hand)에서만 낡은 종이 액자를 입는다 — 그 규칙은 아래에 따로 있다.
+   그리는 함수(cardHTML)는 하나이므로 칸은 늘 같다. 옷만 화면 따라 갈아입힌다. */
+.card{width:238px;min-height:132px;border:1px solid var(--line);background:var(--panel);
+  padding:11px 12px;cursor:pointer;display:flex;flex-direction:column}
+.card:hover{border-color:var(--ink)}
+.card.no{opacity:.42;cursor:default}
+.card.pick{border-color:var(--t3);box-shadow:inset 0 0 0 2px rgba(138,106,16,.35)}
+.card.내과{border-top:3px solid var(--calm)}.card.외과{border-top:3px solid var(--blood)}
+.card.의공학{border-top:3px solid var(--t3)}.card.공통{border-top:3px solid var(--dim)}
+.chead{display:flex;align-items:baseline;gap:7px;width:100%;
+  padding-bottom:6px;border-bottom:1px solid var(--line)}
+.ctitle{flex:1;min-width:0}
+.chead b{font:600 15px/1.3 var(--sans);color:var(--ink)}
+.cost{font:600 15px var(--mono);color:var(--t3);min-width:15px}
+.bl{font:600 10px var(--mono);color:#fff;background:var(--blood);border:1px solid var(--blood);padding:1px 5px;cursor:help}
+.cart{display:none}                       /* 그림칸은 전투 화면에서만 편다 */
+.cbody{margin-top:8px;flex:1;display:flex;flex-direction:column}
+.ctext{font:12.5px/1.6 var(--sans);color:var(--ink);flex:1}
+.kw{border-bottom:1px dotted var(--blood);color:var(--blood);cursor:help;font-weight:600}
+.keep{display:inline-block;margin-top:6px;font:10.5px var(--mono);color:var(--shield)}
+
+/* ── 전투 화면 손패의 카드 ── 낡은 종이에 제본한 카르테.
+   그림 파일은 한 장도 쓰지 않는다 — 종이결까지 SVG 노이즈를 배경으로 깔아 만든다.
+   색은 카드가 스스로 들고 다닌다 (--cd-*). #sg 가 --ink · --line · --t3 을 무대 색으로
+   갈아 끼우므로, 그 셋을 쓰는 규칙은 여기서 하나씩 되짚어 덮는다. */
+#sg_hand .card{
+  --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
+  --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
+  position:relative;flex:0 0 auto;                      /* 줄에 여럿 서도 찌그러지지 않는다 */
+  /* 칸은 **못 자란다**. min-height 였을 때는 글이 길면 카드가 위로 자랐다 —
+     줄이 align-items:flex-end 로 바닥을 맞추므로(stage.css 의 #sg_hand) 자란
+     만큼 판 쪽으로 혼자 솟는다. 「진행을 붙든다」가 재진 · 진단 두 갈래를 다
+     적으면서 실제로 253(×0.8=203)이 되어 머리가 줄 위끝보다 10px 높이 나갔다.
+     길면 카드를 늘리지 말고 글을 줄인다 (fitHandText). */
+  width:200px;height:292px;                             /* 액자 비율 519:760 */
+  border:2px solid var(--cd-rule);color:var(--cd-ink);
+  padding:13px 26px 13px 13px;                          /* 오른쪽 26px 은 제본 띠 몫 */
+  gap:7px;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 32% 18%,var(--cd-paper),var(--cd-paper2) 78%);
+  box-shadow:0 6px 16px rgba(0,0,0,.35);
+  transition:transform .18s ease,box-shadow .18s ease}
+#sg_hand .card:hover{transform:translateY(-8px);border-color:var(--cd-rule);
+  box-shadow:0 15px 28px rgba(0,0,0,.45)}
+/* 안쪽 두 번째 줄 — 제본 띠 앞에서 끝난다 */
+#sg_hand .card::before{content:"";position:absolute;inset:5px 29px 5px 5px;
+  border:1px solid var(--cd-line);pointer-events:none}
+/* 제본 띠 — 세로줄 하나에 리벳 여섯 */
+#sg_hand .card::after{content:"";position:absolute;right:0;top:0;bottom:0;width:26px;
+  border-left:1px solid var(--cd-line);pointer-events:none;
+  background-image:radial-gradient(circle 6px at 50% 50%,
+    #E4CE9E 0 26%,var(--cd-rivet) 30% 58%,#4E3B20 62% 74%,transparent 78%);
+  background-size:100% 16.666%}
+#sg_hand .card.no:hover{transform:none;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+#sg_hand .card.pick{border-color:#8A6A10;box-shadow:0 0 0 2px rgba(138,106,16,.55),0 6px 16px rgba(0,0,0,.35)}
+/* 부서는 코스트 동그라미의 테를 물들인다 */
+#sg_hand .card.내과 .cost{border-color:var(--calm)}#sg_hand .card.외과 .cost{border-color:var(--blood)}
+#sg_hand .card.의공학 .cost{border-color:var(--shield)}#sg_hand .card.공통 .cost{border-color:var(--cd-mut)}
+#sg_hand .chead{align-items:center;gap:9px;padding-bottom:7px;border-bottom:1px solid var(--cd-line)}
+#sg_hand .cost{flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:2px solid var(--cd-rule);
+  display:grid;place-items:center;background:rgba(255,252,240,.30);
+  font:700 17px/1 var(--mono);color:var(--cd-ink);min-width:0}
+#sg_hand .chead b{display:block;font:700 15.5px/1.25 var(--sans);color:var(--cd-ink)}
+#sg_hand .bl{align-self:flex-start;color:#F2E6CE;border-color:#6E211C}
+/* 카드 그림이 들어올 칸 */
+/* 그림칸을 116 → 40 으로 줄이고 그만큼 본문에 준다. 손패 줄이 통째로 0.8배라
+   본문 11.5px 은 화면에서 9.2px 이었다 — 정작 카드에서 읽어야 하는 것이
+   그림 자리가 아니라 이 글이다. 그림이 실제로 들어오면 다시 저울질한다 */
+#sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
+  background:rgba(255,250,235,.16);place-items:center;
+  font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+/* 넘치면 자른다 — fitHandText 가 글자를 줄여 웬만하면 여기까지 안 오지만,
+   바닥(11px)까지 줄여도 안 들어가는 글이 카드 밖으로 새지는 않게 한다 */
+#sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
+  padding:7px 9px;overflow:hidden;min-height:0}
+#sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
+#sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
+#sg_hand .keep.on{color:#6B5410}
+#sg_hand .keep.why{color:var(--blood)}
+
+.empty{color:var(--dim);font:12px var(--mono);padding:10px 0}
+.done{font:600 18px var(--mono);letter-spacing:.2em;color:var(--calm)}.done.bad{color:var(--blood)}
+.chart{border:1px solid var(--t3);padding:10px 12px;font:12.5px var(--mono);color:#6B520B;margin-bottom:8px;background:rgba(138,106,16,.07)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:10.5px var(--mono);border:1px solid var(--line);color:var(--dim);padding:2px 8px;background:var(--panel)}
+.quiz{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.qbtn{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);background:var(--panel);
+ padding:9px 10px;cursor:pointer;text-align:left;margin:0;width:auto}
+.qbtn:disabled{opacity:.4;cursor:default}
+.qq{font:13px var(--sans);color:var(--ink)}
+.qo{font:10px var(--mono);color:var(--t3)}
+#log .say{color:var(--ink)}
+#log{margin-top:8px;font:12px/1.7 var(--mono);max-height:58vh;overflow:auto}
+#log div{padding:3px 0;border-bottom:1px solid var(--line)}
+#log .d{color:var(--dim)}#log .n{color:#6B520B}#log i{color:var(--dim);font-style:normal}
+#log .use{color:var(--shield)}
+table{width:100%;border-collapse:collapse;font:12px var(--mono);margin-top:12px}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:.08em}
+td.bad{color:var(--blood)}td.d,.d{color:var(--dim)}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.row3 button{margin-top:0}
+.deckline{font:12px var(--mono);color:var(--dim);border:1px solid var(--line);padding:7px 8px;background:var(--panel)}
+.deckline b{color:var(--ink)}
+textarea{width:100%;min-height:66px;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:7px 8px;font:11.5px/1.5 var(--mono);resize:vertical}
+details{margin-top:14px;border:1px solid var(--line);padding:8px 10px}
+summary{font:11px var(--mono);letter-spacing:.1em;color:var(--dim);cursor:pointer;text-transform:uppercase}
+.note{font:11px/1.5 var(--mono);color:var(--dim);margin:8px 0}
+.ovrshow{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.badred{font:10px var(--mono);color:var(--blood);border:1px solid var(--blood);padding:1px 5px}
+.prog{height:6px;border:1px solid var(--line);margin-top:10px;background:#C6BFA8}
+.prog i{display:block;height:100%;background:var(--t3);width:0%}
+.up{color:var(--blood)}.dn{color:var(--calm)}
+.keep.on{color:#6B5410}
+.keep.why{color:var(--blood)}
+.mini{width:auto;margin:0;padding:3px 8px;font-size:10px}
+.mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:10px 0}
+label.mk{display:block;margin:0;text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim)}
+/* 강화형 넷을 한 칸에 눕힌다 — 배선 줄이 늘어나도 표가 세로로만 큰다 */
+label.mkchk{display:inline-flex;align-items:center;gap:3px;margin:0 7px 0 0;
+  text-transform:none;letter-spacing:0;font:11px var(--mono);color:var(--dim);cursor:help}
+label.mkchk input{width:auto;margin:0}
+label.mk input,label.mk select{margin-top:4px}
+label.mk input[type=checkbox]{width:auto}
+td input[type=number],td input[type=text],td select{padding:4px 6px;font-size:12px}
+td input[type=checkbox]{width:auto}
+.polbtn{position:relative}
+/* ── 툴팁 ── */
+#tip{position:fixed;z-index:9999;max-width:330px;background:#F2EEE0;color:var(--ink);
+ border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(28,35,33,.2);padding:9px 11px;
+ font:12px/1.6 var(--sans);display:none;pointer-events:none}
+#tip b{color:var(--blood)}
+#tip .tt{display:block;font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:5px;text-transform:uppercase}
+#tip table{margin-top:6px;font-size:11px}
+#tip th,#tip td{padding:3px 6px}
+[data-tip]{cursor:help}
+@media(max-width:1300px){.field{grid-template-columns:1fr}}
+@media(max-width:1100px){.wrap{grid-template-columns:1fr}.col{border:0;border-bottom:1px solid var(--line)}}
+
+/* 카드 수치 — 적힌 값보다 세지면 초록, 약해지면 빨강.
+   코스트는 반대로 싸질 때 초록이다 (cardEff 가 방향을 정한다) */
+.vup{color:var(--calm);font-weight:700}
+.vdn{color:var(--blood);font-weight:700}
+.voff{opacity:.42}
+.ctext .vup,.ctext .vdn,.ctext .voff{border-bottom:1px dotted currentColor;cursor:help}
+.m.ln{border-color:var(--dim)}
+.m.ln .vup,.m.ln .vdn{cursor:help}
+
+
+/* ── 카드팩 편성 · 레터박스 · 대체 카드 풀 ──────────────────
+   자리 하나 = 카드 한 장 + 그 밑의 레터박스. 레터박스에 적힌 숫자가
+   이 자리에 놓을 수 있는 카드가 몇 장인가다 (0 이면 바꿀 수 없다).
+   카드를 누르면 그 자리만 남기고 나머지 화면이 페이드 아웃된다 —
+   .fade 가 화면을 덮고, 열린 자리만 그 위로 올라온다. */
+.pack{border:1px solid var(--line);background:rgba(255,255,255,.20);padding:11px 12px;margin-bottom:12px}
+.pack.off{background:transparent;border-style:dashed}
+.packhead{display:flex;align-items:baseline;gap:10px;font:12px var(--mono);margin-bottom:10px}
+.packhead b{font-size:14px;letter-spacing:.1em}
+.packhead button{width:auto;margin:0}
+.slot{position:relative;width:238px}
+.slot.on{z-index:60}
+.lbox{margin-top:5px;display:flex;align-items:center;justify-content:space-between;
+ background:var(--ink);color:#E7E2D2;border:1px solid var(--ink);padding:3px 9px;
+ font:10.5px var(--mono);letter-spacing:.14em;cursor:help}
+.lbox b{font:600 13px var(--mono);color:#F2EEE0}
+.lbox.zero{background:transparent;color:var(--dim);border-color:var(--line)}
+.lbox.zero b{color:var(--dim)}
+.fade{position:fixed;inset:0;background:rgba(221,216,198,.86);z-index:50}
+/* 자리 옆에 붙되 화면에 고정한다 (pkPlace 가 놓는다) — 판이 화면보다 길면 판 안에서 구른다 */
+.swaps{position:fixed;width:264px;z-index:61;max-height:calc(100vh - 24px);overflow-y:auto;
+ background:#F2EEE0;border:1px solid var(--ink);box-shadow:3px 3px 0 rgba(28,35,33,.2);padding:10px 12px}
+.swaps .card{margin-bottom:8px}
+.swhead{font:600 11px var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px;text-transform:uppercase}
+.swhead b{color:var(--ink);font-size:13px}
+
+/* ══ 패치 노트 ══════════════════════════════════════════════
+   판본 옆 단추 → 작업대가 흐려지고 가운데에 뜬다.
+   판본 하나가 한 줄이고, 눌러서 편다 (스팀 패치 내역과 같은 결).
+   글은 60-text/patch-notes.js 에만 있다 — 여기는 옷이다. */
+/* 이름표 옆 단추 — 열이 250px 이라 여기서 한 글자만 늘어도 줄이 바뀐다.
+   그래서 글자 수는 두 자로 묶어 두고 크기만 키웠다 */
+.pnbtn{position:absolute;right:0;top:0;width:auto;margin:0;padding:3px 9px;
+  font:12px var(--mono);letter-spacing:.06em;color:var(--dim);
+  border:1px solid var(--line);background:transparent;cursor:pointer;white-space:nowrap}
+.pnbtn:hover{color:var(--ink);border-color:var(--ink);background:rgba(28,35,33,.06)}
+
+/* ── 더미 들여다보기 ── 덱 · 버림에 남은 카드.
+   무대(#sg)가 z-index 400 이므로 그보다 위에 떠야 두 화면이 같이 쓴다 */
+#pv{position:fixed;inset:0;z-index:500;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(221,216,198,.90);backdrop-filter:blur(2px)}
+#pv.on{display:flex}
+/* 상자는 든 카드만큼만 넓어진다 — 한 장을 보자고 화면을 다 덮지 않는다 */
+.pvbox{width:auto;min-width:460px;max-width:min(1080px,100%);max-height:100%;
+  display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18)}
+.pvcnt{font:600 14px var(--mono);color:var(--ink)}
+.pvnote{font:11.5px var(--mono);color:var(--dim)}
+.pvlist{overflow:auto;padding:16px;min-height:0;align-content:flex-start;justify-content:center}
+
+/* 손패 줄 맨 앞에 서는 작은 상자 둘 — 카드 한 장 높이 안에 위아래로 포갠다.
+   카드 옆에 붙는 것이므로 색은 작업대 것을 쓰고 크기만 작다.
+   눌러서 그 더미에 남은 카드를 본다 */
+.piles2{flex:0 0 auto;align-self:stretch;display:flex;flex-direction:column;gap:8px}
+.pilebox{flex:1;min-height:54px;width:72px;padding:9px 0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;border:1px solid var(--line);background:var(--panel2);color:var(--ink)}
+.pilebox:hover{border-color:var(--ink);background:var(--panel)}
+.pn2{font:600 17px/1 var(--mono);color:var(--ink)}
+.pl2{font:10px/1 var(--mono);letter-spacing:.14em;color:var(--dim);margin-top:5px}
+
+#pn{position:fixed;inset:0;z-index:300;display:none;
+  align-items:center;justify-content:center;padding:28px;
+  background:rgba(221,216,198,.86);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .22s ease}
+#pn.on{display:flex;opacity:1}
+body.pnon{overflow:hidden}
+
+/* 읽으라고 띄우는 창이다 — 넓게 잡고 글자도 본문 크기로 둔다 */
+.pnbox{width:1000px;max-width:100%;height:min(860px,100%);display:flex;flex-direction:column;
+  background:var(--panel);border:1px solid var(--ink);box-shadow:6px 6px 0 rgba(28,35,33,.18);
+  transform:translateY(8px);transition:transform .22s ease}
+#pn.on .pnbox{transform:none}
+
+.pntop{display:flex;align-items:center;gap:12px;padding:17px 22px;border-bottom:1px solid var(--line)}
+.pnttl{font:600 17px var(--mono);letter-spacing:.2em}
+.pnx{width:auto;margin:0 0 0 auto;padding:4px 11px;font:14px var(--mono);
+  border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.pnx:hover{color:var(--ink);border-color:var(--ink)}
+
+.pnlist{overflow:auto;padding:14px 16px;flex:1;min-height:0}
+
+/* ── 작은 판올림 = 기본값 ── 줄도 글자도 눌러 둔다 */
+.pnrow{border:1px solid var(--line);background:rgba(255,255,255,.18);margin-bottom:7px}
+.pnrow.on{background:rgba(255,255,255,.38);border-color:var(--dim)}
+.pnhead{display:flex;align-items:center;gap:11px;width:100%;margin:0;
+  padding:10px 15px;border:0;background:transparent;cursor:pointer;text-align:left}
+.pnhead:hover{background:rgba(28,35,33,.05)}
+.pnarw{font:11px var(--mono);color:var(--dim);width:11px}
+.pnv{font:600 15px var(--mono);letter-spacing:.06em;color:var(--dim);min-width:48px}
+.pnrow.on .pnv{color:var(--ink)}
+.pntag{font:11px var(--mono);letter-spacing:.06em;padding:1px 7px;border:1px solid var(--line);color:var(--dim)}
+.pntag.play{color:var(--blood);border-color:var(--blood)}    /* 게임플레이 변경 */
+.pntag.bug {color:var(--calm);border-color:#8DB49C}           /* 버그 수정 */
+.pntag.qol {color:var(--t3);border-color:#C3AE68}             /* 편의성 개선 */
+.pnd{font:12px var(--mono);color:var(--dim);margin-left:auto}
+
+.pnbody{display:none;padding:2px 18px 14px 37px;border-top:1px solid var(--line)}
+.pnrow.on .pnbody{display:block}
+.pngrp{margin-top:12px}
+.pngn{font:600 12px var(--mono);letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.pngrp ul{margin:7px 0 0;padding-left:19px}
+.pngrp li{font:13.5px/1.75 var(--sans);color:var(--ink)}
+/* 「*」로 적은 딸린 줄 — 한 칸 들어가고 한 톤 죽인다 */
+.pnsub{margin:2px 0 4px;padding-left:14px;list-style:none}
+.pnsub li{font-size:12.5px;color:var(--dim);position:relative}
+.pnsub li::before{content:'–';position:absolute;left:-13px}
+.pnempty{font:13px var(--mono);color:var(--dim);padding:12px 0}
+
+/* ── 큰 판올림 ── 목록만 훑어도 어디가 마디인지 보이도록 통째로 키운다.
+   판본 앞에 세로 획을 하나 세워 작은 줄들과 갈라 놓는다 */
+.pnrow.big{margin:16px 0 12px;border-color:var(--dim);background:rgba(255,255,255,.30)}
+.pnrow.big:first-child{margin-top:0}
+.pnrow.big.on{background:rgba(255,255,255,.48);border-color:var(--ink)}
+.pnrow.big .pnhead{padding:17px 19px;gap:14px;border-left:3px solid var(--ink)}
+.pnrow.big .pnarw{font-size:13px;width:12px}
+.pnrow.big .pnv{font-size:24px;letter-spacing:.03em;color:var(--ink);min-width:70px}
+.pnrow.big .pntag{font-size:12.5px;padding:3px 10px}
+.pnrow.big .pnd{font-size:13px}
+.pnrow.big .pnbody{padding:4px 22px 20px 46px}
+.pnrow.big .pngrp{margin-top:16px}
+.pnrow.big .pngn{font-size:13px}
+.pnrow.big .pngrp ul{padding-left:21px}
+.pnrow.big .pngrp li{font-size:15px;line-height:1.8}
+.pnrow.big .pnsub li{font-size:13.5px}
+.pnrow.big .pnempty{font-size:14px}
+
+/* ── 악보 (§9.21) ─────────────────────────────────────────────
+   비트 한 칸 = 번호 + 무엇을 하는가 + 앞뒤로 밀기 + 빼기.
+   고를 수 있는 이름이 열셋이라 이름은 select 가 겸한다 — 이름표와 고르는 칸을
+   따로 두면 같은 말이 두 번 적힌다. 툴팁도 그 select 에 붙는다. */
+.scline{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:6px 0}
+.scline.aim{outline:1px dashed var(--t3);outline-offset:5px}
+.beat{display:flex;align-items:center;gap:2px;border:1px solid var(--line);
+  background:var(--panel);padding:3px 4px 3px 0}
+.beat .n{width:20px;flex:none;text-align:center;font:10px var(--mono);color:var(--dim)}
+.beat select{width:auto;min-width:92px;border:0;background:transparent;padding:4px 2px;font-size:12px}
+.beat select:hover{color:var(--t3)}
+.beat .mini{padding:3px 5px;border-color:transparent;color:var(--dim)}
+.beat .mini:hover{border-color:var(--line);color:var(--ink)}
+.scline .addb{align-self:center;padding:5px 10px}
+
+.scfoot{display:flex;align-items:flex-end;gap:14px;margin:2px 0 0}
+.scfoot .mk{width:88px;flex:none;margin:0}
+.scfoot .note{margin:0 0 7px}
+
+/* 악보 한 줄을 글로도 적어 둔다 — 표를 훑지 않고 흐름만 볼 때가 더 잦다 */
+.scflow{font:11.5px var(--mono);color:var(--ink);background:rgba(61,102,115,.07);
+  border-left:2px solid var(--shield);padding:6px 10px;margin:6px 0 2px;
+  overflow-x:auto;white-space:nowrap}
+.scflow .d{color:var(--dim)}
+
+/* 패턴 서랍 — 쓸 수 있는 것을 통째로 늘어놓는다 */
+/* 칸 크기를 고르게 — 요약 줄 길이가 제각각이라 줄마다 높이가 달랐다.
+   grid-auto-rows:1fr 이 줄 높이를 맞추고, 칸은 그 줄을 꽉 채운다 */
+.scpal{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+  grid-auto-rows:1fr;gap:6px;margin:8px 0}
+.scpal .pal{display:flex;flex-direction:column;justify-content:flex-start;gap:2px;
+  margin:0;padding:7px 9px;text-align:left;height:100%}
+.scpal .pal b{font:12px var(--sans);letter-spacing:0}
+.scpal .pal .d{font:10.5px var(--mono);color:var(--dim);letter-spacing:0}
+
+/* 단추 둘을 나란히 앉히는 것은 악보 판에서만 필요하다.
+   .bar .right 로 넓게 걸었더니 손패 줄의 자판 안내(같은 class)까지 flex 가 돼서
+   글이 한 칸 벌어졌다 — 판을 좁혀 둔다 */
+#pane-score .bar .right{display:flex;gap:6px;align-items:center}
+
+/* 저장 창 — 판 안에 접혀 나온다. 덮개를 따로 두지 않는다 (판을 보며 이름을 짓는다) */
+.scsave{border:1px solid var(--t3);background:rgba(138,106,16,.06);padding:10px 14px 14px;margin:14px 0 0}
+.scsave .mk{max-width:320px}
+.scrow{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font:12px var(--sans)}
+.scrow:last-child{border-bottom:0}

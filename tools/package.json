@@ -1,0 +1,14 @@
+{
+  "name": "intern-sim",
+  "version": "25.0.0",
+  "private": true,
+  "description": "INTERN 전투 시뮬레이터 — tools/src 의 층을 build.js 가 루트의 한 장으로 뽑는다",
+  "scripts": {
+    "build": "node build.js",
+    "check": "node build.js --check && node sim_check.js",
+    "diff": "node sim_check.js reference/intern_sim_v25.html ../intern_sim.html",
+    "diff:ui": "node ui_check.js reference/intern_sim_v25.html ../intern_sim.html",
+    "probe": "node story_probe.js"
+  },
+  "devDependencies": { "playwright-core": "^1.49.0" }
+}

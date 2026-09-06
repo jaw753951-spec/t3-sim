@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>인턴 심 0.3 — 전투 시뮬레이터</title><style>
+<title>인턴 심 0.4 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -17,10 +17,13 @@ h1{position:relative;padding-right:52px;
 
 h1 .ttl,h1 .ver{white-space:nowrap}
 h1 .ver{color:var(--blood)}
-.tabs{display:flex;gap:0;margin:0 0 14px;border:1px solid var(--line)}
-.tab{flex:1;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
- cursor:pointer;border-right:1px solid var(--line);color:var(--dim)}
-.tab:last-child{border-right:0}.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
+
+.tabs{display:flex;flex-wrap:wrap;gap:0;margin:0 0 14px;border:1px solid var(--line)}
+.tab{flex:1 1 33.33%;padding:8px 0;text-align:center;font:11px var(--mono);letter-spacing:.1em;
+ cursor:pointer;border-right:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tab:nth-child(3n){border-right:0}
+.tab:nth-child(n+4){border-top:1px solid var(--line)}
+.tab.on{background:rgba(28,35,33,.10);color:var(--ink)}
 label{display:block;font:11px/1 var(--mono);letter-spacing:.1em;color:var(--dim);margin:14px 0 5px;text-transform:uppercase}
 select,input[type=number]{width:100%;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:7px 8px;font:13px var(--mono)}
 select:focus,input:focus,button:focus{outline:2px solid var(--t3);outline-offset:1px}
@@ -119,7 +122,8 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
   --cd-paper:#E0CEA8;--cd-paper2:#C6B189;--cd-ink:#2B2620;--cd-rule:#39322A;
   --cd-mut:#6B5F4B;--cd-line:rgba(57,50,42,.55);--cd-rivet:#9A7E4E;
   position:relative;flex:0 0 auto;                      
-  width:200px;min-height:292px;                         
+  
+  width:200px;height:292px;                             
   border:2px solid var(--cd-rule);color:var(--cd-ink);
   padding:13px 26px 13px 13px;                          
   gap:7px;
@@ -154,8 +158,9 @@ button.go{border-color:var(--blood);color:var(--blood)}button.go:hover{backgroun
 #sg_hand .cart{display:grid;flex:0 0 40px;border:1px solid var(--cd-line);
   background:rgba(255,250,235,.16);place-items:center;
   font:10px var(--mono);letter-spacing:.1em;color:var(--cd-mut)}
+
 #sg_hand .cbody{margin-top:0;border:1px solid var(--cd-line);background:rgba(255,250,235,.10);
-  padding:7px 9px}
+  padding:7px 9px;overflow:hidden;min-height:0}
 #sg_hand .ctext{font:16px/1.55 var(--sans);color:var(--cd-ink)}
 #sg_hand .keep{margin-top:6px;font:12.5px var(--mono);color:var(--cd-mut)}
 #sg_hand .keep.on{color:#6B5410}
@@ -334,6 +339,40 @@ body.pnon{overflow:hidden}
 .pnrow.big .pnsub li{font-size:13.5px}
 .pnrow.big .pnempty{font-size:14px}
 
+.scline{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin:6px 0}
+.scline.aim{outline:1px dashed var(--t3);outline-offset:5px}
+.beat{display:flex;align-items:center;gap:2px;border:1px solid var(--line);
+  background:var(--panel);padding:3px 4px 3px 0}
+.beat .n{width:20px;flex:none;text-align:center;font:10px var(--mono);color:var(--dim)}
+.beat select{width:auto;min-width:92px;border:0;background:transparent;padding:4px 2px;font-size:12px}
+.beat select:hover{color:var(--t3)}
+.beat .mini{padding:3px 5px;border-color:transparent;color:var(--dim)}
+.beat .mini:hover{border-color:var(--line);color:var(--ink)}
+.scline .addb{align-self:center;padding:5px 10px}
+
+.scfoot{display:flex;align-items:flex-end;gap:14px;margin:2px 0 0}
+.scfoot .mk{width:88px;flex:none;margin:0}
+.scfoot .note{margin:0 0 7px}
+
+.scflow{font:11.5px var(--mono);color:var(--ink);background:rgba(61,102,115,.07);
+  border-left:2px solid var(--shield);padding:6px 10px;margin:6px 0 2px;
+  overflow-x:auto;white-space:nowrap}
+.scflow .d{color:var(--dim)}
+
+.scpal{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+  grid-auto-rows:1fr;gap:6px;margin:8px 0}
+.scpal .pal{display:flex;flex-direction:column;justify-content:flex-start;gap:2px;
+  margin:0;padding:7px 9px;text-align:left;height:100%}
+.scpal .pal b{font:12px var(--sans);letter-spacing:0}
+.scpal .pal .d{font:10.5px var(--mono);color:var(--dim);letter-spacing:0}
+
+#pane-score .bar .right{display:flex;gap:6px;align-items:center}
+
+.scsave{border:1px solid var(--t3);background:rgba(138,106,16,.06);padding:10px 14px 14px;margin:14px 0 0}
+.scsave .mk{max-width:320px}
+.scrow{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font:12px var(--sans)}
+.scrow:last-child{border-bottom:0}
+
 #sg{
   --paper:#E8E2D2;--paper2:#DED7C5;--paper3:#D2CCB6;--hanji:#d9c7a3;--hanjiW:#f0e6d2;
   --ink:#3A3530;--ink2:#8A847A;--ink3:#2A2622;--mut:#7D939C;
@@ -412,9 +451,8 @@ body.sgon{overflow:hidden}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
 
-#sg_links .wf{stroke-dasharray:16 9;animation:wfl 1.1s linear infinite}
-#sg_links .wf.enh{stroke-dasharray:7 11;animation-duration:1.5s}
-@keyframes wfl{to{stroke-dashoffset:-25}}
+#sg_links .wf{stroke-dasharray:16 9}
+#sg_links .wf.enh{stroke-dasharray:7 11}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
 
 #sg_bubble{position:absolute;left:1120px;top:44px;transform:translateX(-50%);z-index:40;
@@ -467,7 +505,8 @@ body.sgon{overflow:hidden}
 #sg .gz .face{position:absolute;inset:12%;border-radius:50%;overflow:hidden;transition:filter .9s;
   background:radial-gradient(circle at 40% 32%,var(--hanjiW),var(--hanji) 70%,#bfae8b);
   box-shadow:inset 0 3px 9px rgba(50,38,18,.45)}
-#sg .gz .stg{position:absolute;inset:0}
+
+#sg .gz .stg{position:absolute;inset:0;pointer-events:none}
 #sg .gz .dial{position:absolute;inset:12%;overflow:visible;z-index:2}
 #sg .gz .dial .shg{cursor:help}
 #sg .gz .dial .nmg{cursor:help}
@@ -743,7 +782,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 <div class="wrap">
  <div class="col">
   
-  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.3</span
+  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.4</span
       ><button class="pnbtn" onclick="openPatch()" title="패치 노트를 연다">패치</button></h1>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -751,6 +790,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <div class="tab" data-m="story" onclick="setMode('story')">스토리</div>
     <div class="tab" data-m="batch" onclick="setMode('batch')">배치</div>
     <div class="tab" data-m="make" onclick="setMode('make')">만들기</div>
+    <div class="tab" data-m="score" onclick="setMode('score')">병 노드</div>
   </div>
 
   
@@ -782,9 +822,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <button id="btn_deck_one" onclick="openDeckOne()">가방을 연다</button>
     <label>시작 정신 상태</label>
     <select id="mind"><option selected>평정</option><option>불안</option><option>공황</option><option>의식불명</option></select>
-    <label>체력 태그</label>
     
-    <div class="tags" id="tagbox"></div>
+    <div id="tagbox"></div>
     <div class="note" id="tagnote"></div>
     <button class="go" onclick="newGame()">환자를 들인다</button>
     
@@ -803,7 +842,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 
   <div id="side-story" style="display:none">
     <label>보스</label>
-    <select id="boss"><option>아이</option><option>어부</option><option>송이</option><option value="custom">만든 환자</option></select>
+    <select id="boss"></select>
     <label>가방</label>
     <div id="story_deck" class="deckline"></div>
     <button id="btn_deck_story" onclick="openPackStory()">가방을 연다</button>
@@ -840,6 +879,12 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <button onclick="batchStory()">스토리 방침 배치</button>
     <div class="prog" id="bprog" style="display:none"><i></i></div>
     <div class="note" id="bnote"></div>
+  </div>
+
+  <div id="side-score" style="display:none">
+    <div id="sc_side"></div>
+    <button class="go" onclick="mkStart()">이 환자로 시작</button>
+    <div class="note" id="sc_note"></div>
   </div>
 
   <div id="side-make" style="display:none">
@@ -882,6 +927,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
   </div>
   <div id="pane-batch" style="display:none"><div id="bout" class="empty">왼쪽에서 배치를 실행한다.</div></div>
   <div id="pane-make" style="display:none"><div id="mk_body"></div></div>
+  <div id="pane-score" style="display:none"><div id="sc_body"></div></div>
   <div id="pane-deck" style="display:none"><div id="dk_body"></div></div>
  </div>
 
@@ -1016,7 +1062,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 //@ 파일.10-config/version
 
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = '0.3';
+const VERSION = '0.4';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -1057,6 +1103,7 @@ const R = {
   RIG_CAP_MIN: 3,          // 설치 상한의 바닥
   RIG_CAP_MUL: 3,          // 처음 놓은 값의 이 배수까지 쌓을 수 있다
   RIG_OPEN_MULT: 2,        // 개방 기본 배수. 카드가 따로 적으면 그쪽을 쓴다
+  RIG_PART_MAX: 4,
 
   REM_MAX: 10,             // 관해도 상한
   REM_START: 3,            // 관해 개시 시 초기값
@@ -1078,8 +1125,10 @@ const R = {
   NOATK_G: 0.05,           // 비공격 증상만 있는 판 — 전 노드에 성장률
   VAL_CAP: 3.0,            // 노드 수치 상한 = 초기값 × (폭주 방지)
 
-  ATK_K: 0.20,             // 발열·출혈 턴당 피해 = 수치의 20% (올림)
-  EVO_HIT: {발열:0.50, 출혈:0.50, 감염:0.50, 탈수:0.50, 통증:0.50, 호흡곤란:0.50},
+  ATK_K: 0.20,             // 점화(촉발선)만 쓰는 몫. 턴당 피해는 TURN_DMG 로 옮겼다
+  TURN_DMG: {출혈:9, 발열:5, 감염:0, 탈수:0, 통증:0, 호흡곤란:0},
+  TURN_DMG_MIN: 1,         // 최대 피해가 있는 자리는 살아 있는 한 이만큼은 때린다
+  EVO_HIT: {발열:20, 출혈:36, 감염:24, 탈수:24, 통증:24, 호흡곤란:24},
   EVO_FEVER_GROW: 1.5,     // 발열 진화 — 수치 대폭 증가
   EVO_BLEED_ACC: 2.0,      // 출혈 진화 — 가속 배수. 출혈만 따로 쥔다
   EVO_X2: 2,
@@ -1137,12 +1186,17 @@ const TRANS = [['출혈','호흡곤란','발현'],['발열','탈수','무장발�
 const BAND = {I:35, II:50, III:65, IV:80, V:95};
 
 const LVTAB = {
-  1:{n:[1,1], main:'I',  sub:null,  atkCap:1, basic:[0,0], enh:[0,0], evo:6, shield:'none', hp:100, dis:40},
-  2:{n:[2,2], main:'II', sub:'I',   atkCap:1, basic:[1,1], enh:[0,0], evo:5, shield:'one',  hp:180, dis:75},
-  3:{n:[2,3], main:'III',sub:'II',  atkCap:2, basic:[1,2], enh:[0,1], evo:4, shield:'all',  hp:280, dis:120},
-  4:{n:[3,4], main:'IV', sub:'II',  atkCap:2, basic:[2,3], enh:[1,2], evo:3, shield:'all',  hp:400, dis:180},
-  5:{n:[4,5], main:'V',  sub:'III', atkCap:3, basic:[3,4], enh:[2,3], evo:3, shield:'all',  hp:550, dis:250},
+  1:{n:[1,1], main:'I',  sub:null,  atkCap:1, basic:[0,0], enh:[0,0], evo:7, shield:'none', dis:40},
+  2:{n:[2,2], main:'II', sub:'I',   atkCap:1, basic:[1,1], enh:[0,0], evo:6, shield:'one',  dis:75},
+  3:{n:[2,3], main:'III',sub:'II',  atkCap:2, basic:[1,2], enh:[0,1], evo:5, shield:'all',  dis:120},
+  4:{n:[3,4], main:'IV', sub:'II',  atkCap:2, basic:[2,3], enh:[1,2], evo:4, shield:'all',  dis:180},
+  5:{n:[4,5], main:'V',  sub:'III', atkCap:3, basic:[3,4], enh:[2,3], evo:4, shield:'all',  dis:250},
 };
+
+//@ 커널.병기범위 — 레벨표가 곧 병기 범위다
+const STAGE_LV = Object.keys(LVTAB).map(Number);
+const STAGE_LO = Math.min(...STAGE_LV);
+const STAGE_HI = Math.max(...STAGE_LV);
 
 const EVO_ADJ = {출혈:-1, 통증:+1, 호흡곤란:+1};
 
@@ -1163,15 +1217,43 @@ const MINDS = ['평정','불안','공황'];
 
 //@ 파일.10-config/levels
 
-//@ 생성기.체력태그 — 환자 체력 태그. 둘까지 붙고 같은 묶음끼리는 안 붙는다
+//@ 생성기.체력태그 — 체격은 하나, 곱하는 태그는 둘까지
 const TAG_CAP = 2;
 
 const TAG_GROUP = [['노인','소아'], ['노동자','군인','상층']];
 
+const BODY_LIST   = () => Object.keys(BODY_HP);
+const HP_TAG_LIST = () => Object.keys(HP_TAG);
+
+const isBodyTag = t => BODY_HP[t]!==undefined;
+const multTags  = tags => (tags||[]).filter(t => !isBodyTag(t));
+
+//@ 생성기.체격 — 환자 체력의 출발점. 태그가 어느 체격을 볼지 고른다
+const BODY_HP = { '소아':120, '성인':170, '상층':170, '노동자':200, '군인':200 };
+const BODY_DEF = '성인';
+const bodyOf = tags => {
+  const hit = (tags||[]).filter(isBodyTag);
+  return hit.length ? hit.reduce((a,b)=> BODY_HP[b] < BODY_HP[a] ? b : a) : BODY_DEF;
+};
+const bodyHp = tags => BODY_HP[bodyOf(tags)];
+
 const HP_TAG = {
-  '노인':0.8, '소아':0.8, '영양실조':0.85, '굶주림':0.85, '만성기저질환':0.85,
-  '재진악화':0.9, '공황시작':0.9, 'T3이식다수':0.9,
-  '노동자':1.15, '군인':1.15, '상층':1.1,
+  '영양실조':0.85, '굶주림':0.85, '만성기저질환':0.85,
+  '재진악화':0.85, '공황시작':0.85, 'T3이식다수':0.85, '노인':0.85,
+};
+
+const TAG_KNOWN = new Set([...Object.keys(BODY_HP), ...Object.keys(HP_TAG)]);
+
+const tagsClean   = tags => (tags||[]).filter(t =>  TAG_KNOWN.has(t));
+const tagsUnknown = tags => (tags||[]).filter(t => !TAG_KNOWN.has(t));
+
+const hpOfTags = tags => {
+  let hp = bodyHp(tags);
+  for(const t of (tags||[])){
+    if(!TAG_KNOWN.has(t)) throw new Error('모르는 체력 태그: '+t);
+    hp = Math.round(hp * (HP_TAG[t]||1));
+  }
+  return hp;
 };
 
 //@ 생성기.공격가중 — 공격 노드 가중 · 레벨별 목표 수
@@ -1185,7 +1267,7 @@ const SW = {
   valDiv: 25,     // 수치 총합을 이 수로 나눠 더한다
   basic:  0.5,    // 기본형 연결선 하나당
   enh:    2,      // 추가 연결선 하나당
-  evoRef: 6,      // 진화까지의 턴은 이 값에서 뺀 만큼 얹는다 (빠를수록 어렵다)
+  evoRef: LVTAB[1].evo,
   atk:    1.5,    // 공격 가중 1당
   shSome: 1,      // 일부만 감싸였을 때
   shAll:  2,      //  전부 감싸였을 때
@@ -1286,7 +1368,7 @@ const VAL_KIND = {
   cost:'코스트',
 };
 
-//@ 카드.목록 — 데모 22장. 카드를 더하거나 고치는 자리
+//@ 카드.목록 — 데모 25장. 카드를 더하거나 고치는 자리
 const CARDS = {
 '소독하겠습니다': {cost:0, dept:'공통', verb:'억제', target:'none', v:{sup:5},
   text:'수치가 가장 낮은 자리에 억제 −{sup}',
@@ -1331,6 +1413,9 @@ const CARDS = {
   text:'억제 −{sup}. 기세를 전부 소비하고 소비한 기세 당 추가 억제 −{per}',
   raw:(S,n,v)=> v.sup + (S.rush||0)*v.per,
   fx:(S,n,a,v)=>{ const st=S.rush; S.rush=0; K.ev(S,{t:'rush', v:0}); K.suppress(S,n, v.sup + st*v.per) }},
+'피를 본다': {cost:0, dept:'외과', verb:'보조', kw:'사혈', bleed:1, target:'none', v:{draw:2},
+  text:'사혈 {bleed}단 · {draw}장 뽑는다',
+  fx:(S,n,a,v)=>draw(S,v.draw)},
 '관해 유도': {cost:2, dept:'내과', verb:'보조', kw:'관해', target:'none', v:{},
   costWhen:S=>S.rem?0:CARDS['관해 유도'].cost,   // 관해 중에는 0코스트로 되돌린다
   text:'관해 시작. 관해 중 재사용 시 관해를 즉시 끝낸다',
@@ -1343,6 +1428,9 @@ const CARDS = {
                      S.revisitOn=S.revisitOn||{}; S.diagPlus=S.diagPlus||{};
                      if(S.revisitOn[id]) S.diagPlus[id] = (S.diagPlus[id]||0)+v.diagPlus;
                      else S.revisitOn[id] = true }},
+'하루만 더': {cost:1, dept:'내과', verb:'보조', kw:'지연', target:'node', v:{delay:2},
+  text:'지연 {delay}',
+  fx:(S,n,a,v)=>K.delay(S,n,v.delay)},
 '거치': {cost:1, dept:'의공학', verb:'억제', kw:'설치', target:'node', v:{rig:4},
   need:n=>canRig(n, CARDS['거치'].v.rig),
   text:'설치 {rig}',
@@ -1351,6 +1439,11 @@ const CARDS = {
   need:n=>n.rig>0,
   text:'설치물을 태운다 — 설치 수치의 {mult}배로 한 방에 억제한다',
   fx:(S,n,a,v)=>{ rigOpen(S,n,v.mult) }},
+
+'덧대기': {cost:0, dept:'의공학', verb:'억제', kw:'부품', target:'node', v:{rig:2},
+  need:n=>canPart(n),
+  text:'부품 · 설치 +{rig}',
+  fx:(S,n,a,v)=>{ rigAddPart(S,n,v.rig) }},
 
 '그물': {cost:2, dept:'외과', verb:'억제', target:'all', v:{sup:6},
   text:'판 위 모든 자리에 억제 −{sup}',
@@ -1391,12 +1484,12 @@ const BASE10 = ['소독하겠습니다','멈춰!','감초 탕약','수액 투여
                 '창상봉합술','지혈 압박','붕대 감기','도와드릴까요?','소매를 걷습니다'];
 
 const SUPPLY = {
-  외과:   ['박리','몰아붙인다'],
-  내과:   ['관해 유도','진행을 붙든다'],
-  의공학: ['거치','출력 개방'],
+  외과:   ['박리','몰아붙인다','피를 본다'],
+  내과:   ['관해 유도','진행을 붙든다','하루만 더'],
+  의공학: ['거치','출력 개방','덧대기'],
 };
 
-const DEPT6  = [...SUPPLY.외과, ...SUPPLY.내과, ...SUPPLY.의공학];
+const DEPT_ALL = [...SUPPLY.외과, ...SUPPLY.내과, ...SUPPLY.의공학];
 
 const NPC6   = ['그물','곗날','손이 기억한다','빌려온 물건','매듭 짓다','눈 딱 감고'];
 
@@ -1404,19 +1497,19 @@ const NPC6   = ['그물','곗날','손이 기억한다','빌려온 물건','매�
 const POOL = {
   d1:['소독하겠습니다','멈춰!','감초 탕약','수액 투여','창상봉합술','지혈 압박','붕대 감기','소매를 걷습니다'],
   d2:['소독하겠습니다','멈춰!','감초 탕약','수액 투여','환기하세요','창상봉합술','지혈 압박','붕대 감기','소매를 걷습니다'],
-  d3:[...BASE10, ...DEPT6, ...NPC6],
+  d3:[...BASE10, ...DEPT_ALL, ...NPC6],
 };
 
 //@ 카드.팩 — 스토리 가방을 이루는 카드팩
 const PACKS = [
-  {id:'base',   name:'기본 카드팩',        fixed:true,     cards:BASE10},
-  {id:'surg',   name:'외과 보급 카드팩',   group:'supply', cards:SUPPLY.외과},
-  {id:'med',    name:'내과 보급 카드팩',   group:'supply', cards:SUPPLY.내과},
-  {id:'eng',    name:'의공학 보급 카드팩', group:'supply', cards:SUPPLY.의공학},
+  {id:'base',   name:'기본 카드팩',        fixed:true, cards:BASE10},
+  {id:'surg',   name:'외과 보급 카드팩',   cards:SUPPLY.외과},
+  {id:'med',    name:'내과 보급 카드팩',   cards:SUPPLY.내과},
+  {id:'eng',    name:'의공학 보급 카드팩', cards:SUPPLY.의공학},
   {id:'settle', name:'정착지 의사 카드팩', cards:['빌려온 물건','손이 기억한다','매듭 짓다']},
 ];
 
-const PACK_GROUP = {supply:'보급 카드팩 — 셋 중 하나'};
+const PACK_PICK = 2;
 
 //@ 카드.대체풀 — 한 자리에 놓을 수 있는 카드
 const SWAP = [
@@ -1438,17 +1531,22 @@ function packDeck(on, swap){
 
 function packPick(on, id){
   const p = PACKS.find(x=>x.id===id); if(!p || p.fixed) return {...on};
-  const next = {...on};
-  if(p.group){
-    for(const q of PACKS) if(q.group===p.group) delete next[q.id];
-    next[id]=1;
-  }
-  else if(next[id]) delete next[id];
-  else next[id]=1;
+  if(on[id]) return {...on};                      // 든 것을 다시 눌렀다 — 자리는 빌 수 없다
+  const next = {...on, [id]:1};
+  const picked = Object.keys(next);
+  while(picked.length > PACK_PICK) delete next[picked.shift()];
   return next;
 }
 
-const ONE_CAP = 8, STORY_CAP = 15;
+function packOut(on, id){
+  const before = Object.keys(on);
+  const after  = Object.keys(packPick(on, id));
+  return before.filter(x => !after.includes(x));
+}
+
+const ONE_CAP = 8;
+const STORY_N = PACKS.find(p=>p.fixed).cards.length
+              + PACK_PICK * PACKS.find(p=>!p.fixed).cards.length;
 
 let ONE_DECK   = DECK_D2.slice();
 
@@ -1554,61 +1652,66 @@ for(const d of Object.values(SESSIONS)) d.list = d.rounds.flat();
 
 //@ 파일.20-data/bosses
 
+//@ 스토리.고유박자 — 이름으로 적히는 한 수
+const UNIQ = {
+  '파고든다': S => {
+    const ns = K.active(S).filter(n=>n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란') && n.evoLeft>1);
+    if(!ns.length) return null;
+    for(const n of ns) n.evoLeft = Math.max(1, n.evoLeft - SR.BEAT_EVO_PULL);
+    return '파고든다';
+  },
+  '알아듣지 못한다': S => {
+    if(S.mind==='공황') return null;            // 더 갈 데가 없으면 폴백
+    K.mind(S,+1); return '알아듣지 못한다';
+  },
+  '터진다': S => {
+    const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
+    if(!dorm.length) return null;              // 깨울 자리가 없으면 폴백
+    const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0;
+    return '터진다';
+  },
+  '긁는다': S => {
+    const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
+    if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
+    S.nodes.push(mkSpot(S.board.boss, S.nodes[0].stage, '감염',
+                        SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
+    return '긁어서 이차 감염이 앉는다';
+  },
+  '지금이면 괜찮아진다': S => {
+    const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
+    const mind0=S.mind;
+    if(dorm.length){ const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0 }
+    K.mind(S,+1);
+    if(!dorm.length && S.mind===mind0) return null;   // 깨울 자리도 정신도 더 갈 데가 없으면 헛돈다
+    return '지금이면 괜찮아진다';
+  },
+};
+
 //@ 스토리.병기 — 최종 병기의 단계와 박자
 const BOSS = {
-  아이:{name:'쓰러진 아이 · 수막알균', stage0:3, stageMax:5, hp:{lv:4}, tags:['소아'],
+  아이:{name:'쓰러진 아이 · 수막알균', stage0:3, stageMax:5, tags:['소아'],
     lv:{enh:1},
     noDeath:true, seed:['통증'],
     syms:{3:['통증','발열'],
           4:['발열','출혈','통증'],
           5:['발열','출혈','통증','호흡곤란']},
-    beats:{3:['분화','고유','같은 박자','창','같은 박자','분화'],
-           4:['분화','굳는다','고유','창','분화','몰린다'],
-           5:['분화','성장','고유','창','분화','엮는다']},
-    unique:(S,dis)=>{
-      if(dis.stage===3){                       // 「파고든다」 — 신경계 노드 진화 시계를 당긴다
-        const ns = K.active(S).filter(n=>n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란') && n.evoLeft>1);
-        if(!ns.length) return null;
-        for(const n of ns) n.evoLeft = Math.max(1, n.evoLeft - SR.BEAT_EVO_PULL);
-        return '파고든다';
-      }
-      if(dis.stage===4){                       // 「알아듣지 못한다」 — 정신을 한 단계 무너뜨린다
-        if(S.mind==='공황') return null;        // 더 갈 데가 없으면 폴백
-        K.mind(S,+1); return '알아듣지 못한다';
-      }
-      const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
-      if(!dorm.length) return null;            // 재울 자리가 없으면 폴백
-      const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0;
-      return '터진다';
-    },
+    beats:{3:['분화','파고든다','같은 박자','창','같은 박자','분화'],
+           4:['분화','굳는다','알아듣지 못한다','창','분화','몰린다'],
+           5:['분화','성장','터진다','창','분화','엮는다']},
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
-  어부:{name:'어부 · 접촉성 피부염', stage0:3, stageMax:3, hp:{lv:1}, tags:['노동자'],
+  어부:{name:'어부 · 접촉성 피부염', stage0:3, stageMax:3, tags:['노동자'],
     lv:{band:2, evo:3, spots:5, enh:1},
     noDeath:true, seed:['통증'], dupType:'통증',
-    beats:{3:['분화','번진다','고유','아문다','몰린다','아문다']},
-    unique:(S)=>{
-      const pain=K.active(S).filter(n=>n.role!=='disease'&&n.sym==='통증');
-      if(pain.length<SR.BEAT_SCRATCH_N || K.active(S).some(n=>n.sym==='감염')) return null;
-      S.nodes.push(mkSpot('감염', SR.DUP_BASE+Math.floor(S.rng()*SR.DUP_SPREAD), S.turn));
-      return '긁어서 이차 감염이 앉는다';
-    },
+    beats:{3:['분화','번진다','긁는다','아문다','몰린다','아문다']},
     policy:{완치:'병 노드를 처치선까지 내려 끊는다', 연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
 
-  송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:3, hp:{lv:1}, tags:['영양실조'],
-    lv:{band:3, evo:1, spots:2, enh:1},
+  송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:3, tags:['영양실조'],
+    lv:{band:3, evo:5, spots:2, enh:1},   // v26 — 1 은 가장 느린 판이었다. 방향을 뒤집는다
     noDeath:true, seed:['탈수','통증'],
-    beats:{3:['성장','고유','치민다','가라앉는다','고유','가라앉는다']},
-    unique:(S)=>{
-      const dorm=S.nodes.filter(n=>!n.dead && n.val<=0 && n.role!=='disease');
-      const mind0=S.mind;
-      if(dorm.length){ const n=dorm[0]; n.val=n.init; n.dormT=0; n.shielded=true; n.shReduc=R.SHIELD_CUT; n.stabAcc=0 }
-      K.mind(S,+1);
-      if(!dorm.length && S.mind===mind0) return null;
-      return '지금이면 괜찮아진다';
-    },
+    beats:{3:['성장','지금이면 괜찮아진다','치민다','가라앉는다','지금이면 괜찮아진다','가라앉는다']},
     policy:{완치:'병 노드를 처치선까지 내려 끊는다 (정점을 넘기는 경주)',
             연명:'활성 부수 증상을 하나도 남기지 않는다',
             편하게:'병기 시계가 다 돌 때까지 환자를 버티게 한다'}},
@@ -1622,11 +1725,7 @@ for(const key in BOSS){
     for(const st in b.syms)
       b.roster[st] = b.syms[st].map((sym,i)=>[sym, stageBand(key, +st, i)]);
   }
-  if(b.hp && typeof b.hp === 'object'){
-    let hp = LVTAB[b.hp.lv].hp;
-    for(const t of (b.tags||[])) hp = Math.round(hp * (HP_TAG[t]||1));
-    b.hp = hp;
-  }
+  b.hp = hpOfTags(b.tags||[]);
 }
 
 //@ 파일.30-core/kernel
@@ -1679,6 +1778,10 @@ function linkKind(L){
   return base ? kindOf(base) : 'trig';
 }
 const linkHead = L => linkKws(L).find(k => !isEnhKw(k)) || linkKws(L)[0];
+
+//@ 커널.전이자리 — 처치 때 자리가 나는 배선인가
+const kwSpawns = k => !isEnhKw(k) && k!=='부설' && kindOf(k)==='trans';
+const spawnsSpot = L => linkKws(L).some(kwSpawns);
 
 function sp(n, sym){
   const d = SYMPARAM[sym||n.sym]; if(!d) return 0;
@@ -1828,6 +1931,7 @@ function diagnose(S,n,amt,opt={}){
     if(n.val===0 && n.dormT===0) n.dormT = R.DORMANT;
     if(R.DIAG_DEEP_MAX && n.diagRound>=R.DIAG_DEEP_MAX) break;
   }
+  if(!revisit && n.diagRound>=1) n.diagAcc = 0;
   return rounds;
 }
 
@@ -1853,13 +1957,14 @@ function doBleed(S,tier){
   return true;
 }
 
-//@ 커널.지연 — 진화를 미루고 그만큼 수치를 키운다
+//@ 커널.지연 — 진화를 미루고 그만큼 지금 수치를 키운다
 function delay(S,n,k){
   if(n.dead || immune(S,n)) return 0;
   n.evoLeft += k;
   n.delayed = (n.delayed||0) + k;
-  const add = Math.ceil(n.init * R.DELAY_GROW) * k;
+  const add = Math.ceil(n.val * R.DELAY_GROW) * k;
   n.val = Math.min(Math.floor(n.init*R.VAL_CAP), n.val + add);
+  n.delayAdd = (n.delayAdd||0) + add;
   ev(S,{t:'delay', n, add});
   return add;
 }
@@ -1945,11 +2050,10 @@ function killNow(S,n){
   S.rush = Math.min(R.RUSH_MAX, S.rush + R.RUSH_PER);   // 참조 카드가 없어도 쌓인다. 계기판만 가린다
   ev(S,{t:'kill', n, grade:r});
   ev(S,{t:'rush', v:S.rush});
-  mind(S,-1);                                     // 처치 성공 = 호전
+  if(r!=='strong') mind(S,-1);
   const before = alive(S);          // alive 가 이미 새 배열을 낸다 — 한 벌 더 뜨지 않는다
   for(const m of before) if(m!==n) suppress(S,m,amt,{sweep:true});
   if(r!=='none') fireReactions(S,n,r);
-  if(r==='strong') mind(S,+1);
   return true;
 }
 
@@ -1968,7 +2072,7 @@ function fireLine(S, src, L, strong, lines){
 
   for(const k of base){
     if(k==='부설'){ layLink(S, src, L, strong); continue }
-    if(kindOf(k)!=='trans') continue;
+    if(!kwSpawns(k)) continue;
     if(alive(S).find(n=>n.sym===L.b && n!==src)) continue;   // 이미 있으면 안 생긴다
     const nn = transmit(S, src, L, k, strong);
     if(nn && bloom && strong) bloomNow(S, nn, true);
@@ -2029,7 +2133,7 @@ function applyLine(S, src, tgt, kws, strong){
 function evolveNow(S, n){
   n.evolved = true; n.evoLeft = 0;
   ev(S,{t:'evolve', n});
-  hurtPatient(S, Math.ceil(n.val*(R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo', n);   // 진화 '시점' 수치
+  hurtPatient(S, Math.ceil((R.EVO_HIT[n.sym]||0)*policyDmg(S)), 'evo', n);   // v26 — 수치를 보지 않는 고정값
   if(n.sym==='발열') n.val = Math.min(Math.floor(n.init*R.VAL_CAP), Math.ceil(n.val*sp(n,'발열')));
   if(n.sym==='출혈') n.growVal = sp(n,'출혈') * R.EVO_BLEED_ACC;   // 진화 배수는 규칙값 그대로
   if(n.sym==='감염') n.diagNeed += R.EVO_INF_DIAG;
@@ -2048,7 +2152,7 @@ function transmit(S, src, L, k, strong){
   const nn = {sym:L.b, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
               grow: k==='무장발현' ? (strong?R.LINK.무장발현.강:R.LINK.무장발현.약) : 0,
               evo: S.board.evoBase + (EVO_ADJ[L.b]||0), evoLeft: S.board.evoBase + (EVO_ADJ[L.b]||0),
-              evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
+              evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0,
               diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
               revealed:false, spawned:true, born:S.turn, role:'sym'};
   S.nodes.push(nn);
@@ -2119,6 +2223,13 @@ function policyDmg(S){
   return 1 + ((P && P.dmgUp) || 0);
 }
 
+//@ 커널.턴피해 — 자리 하나가 이번 턴에 때리는 몫
+function turnDmg(n){
+  const cap = R.TURN_DMG[n.sym] || 0;
+  if(cap<=0 || n.val<=0) return 0;
+  return Math.max(R.TURN_DMG_MIN, Math.ceil(cap * n.val / Math.max(1, n.init)));
+}
+
 function hurtPatient(S, amt, why, src){
   if(amt<=0) return;
   const floor = (S.board && S.board.noDeath) ? 1 : -Infinity;
@@ -2150,10 +2261,12 @@ function turnResolve(S){
   }
   let dmg = 0;
   if(!S.rem) for(const n of active(S))
-    if(n.role!=='disease' && !born(n) && SYM[n.sym].atk){
-      const raw = Math.ceil(n.val*R.ATK_K);
-      dmg += raw;
-      ev(S,{t:'atk', n, raw});
+    if(n.role!=='disease' && !born(n)){
+      const raw = turnDmg(n);
+      if(raw>0){
+        dmg += raw;
+        ev(S,{t:'atk', n, raw});
+      }
     }
   const cuts = comfortCuts(S);
   if(dmg>0) dmg = Math.ceil(dmg * Math.max(0, policyDmg(S) - R.COMFORT_CUT*cuts.length));
@@ -2223,11 +2336,19 @@ const tagGroupOf = t => TAG_GROUP.find(g=>g.includes(t)) || null;
 
 function tagAdd(list, t){
   const g = tagGroupOf(t);
-  let out = list.filter(x=>x!==t && !(g && g.includes(x)));
+  const out = (list||[]).filter(x=>x!==t && !(g && g.includes(x)));
   out.push(t);
-  while(out.length > TAG_CAP) out.shift();
-  return out;
+  const body = out.filter(isBodyTag), mult = multTags(out);
+  while(mult.length > TAG_CAP) mult.shift();
+  const keep = isBodyTag(t) ? [t] : (body.length ? [bodyOf(body)] : []);
+  return [...keep, ...mult];
 }
+
+const bodySet = (tags, t) => t===BODY_DEF ? multTags(tags) : tagAdd(tags, t);
+
+const tagToggle = (tags, t) => (tags||[]).includes(t)
+  ? (tags||[]).filter(x => x!==t)
+  : tagAdd(tags, t);
 
 //@ 생성기.S산식 — 판 하나를 난이도 숫자 하나로 옮긴다
 function sFormula({n, valSum, basic, enh, evo, atkW, shN}){
@@ -2290,7 +2411,7 @@ function build(level, rng, opt={}){
     const shielded = T.shield==='all' || (T.shield==='one' && i===0);
     return {sym:s, init, val:init, band, shielded, shReduc:shielded?R.SHIELD_CUT:0, stabAcc:0,
             grow:0, evo, evoLeft:evo, evolved:false, dead:false, dormT:0, weak:0,
-            rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0,
+            rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0,
             diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false,
             revealed:false, spawned:false, role:'sym'};
   });
@@ -2309,11 +2430,7 @@ function build(level, rng, opt={}){
     enh.push({a,b,k:['가속','경화','점화'][Math.floor(rng()*3)],kind:'trig',hidden:true});
   }
 
-  let hp = T.hp;
-  for(const t of (opt.tags||[])){
-    if(HP_TAG[t]===undefined) throw new Error('모르는 체력 태그: '+t);
-    hp = Math.round(hp*HP_TAG[t]);
-  }
+  const hp = hpOfTags(opt.tags||[]);   // v26 — 레벨표가 아니라 체격표를 본다
   const board = {nodes, enh, hp, hpMax:hp, level, evoBase:T.evo,
                  tags:opt.tags||[], core: opt.core || nodes[0].sym};
   board.S = S_of(board);
@@ -2359,20 +2476,42 @@ function medianBoards(){
 
 //@ 파일.30-core/card-rules
 
-//@ 카드.설치 — 설치물 두 칸 · 개방
+//@ 카드.설치 — 설치물 두 칸 · 부품 · 개방
 const rigTotal = n => (n.rig||0) + (n.rigLent||0);
 
 const rigCapOf = amt => Math.max(R.RIG_CAP_MIN, amt * R.RIG_CAP_MUL);
-const canRig = (n, amt) => !(n.rig>0 && n.rig >= (n.rigCap || rigCapOf(amt)));
+const rigSum = n => (n.rigBase||0) + (n.rigParts||[]).reduce((a,b)=>a+b, 0);
+const canRig = (n, amt) => !(n.rig>0 && (n.rigBase||0) >= (n.rigCap || rigCapOf(amt)));
+
+function partPreview(n, amt){
+  if(!n || !(n.rig>0)) return null;
+  const parts = (n.rigParts||[]).slice();
+  let off = null;
+  if(parts.length >= (n.rigPartMax||0)) off = parts.shift();
+  parts.push(amt);
+  return {parts, off, add:amt, rig:(n.rigBase||0) + parts.reduce((a,b)=>a+b, 0)};
+}
+
+const canPart = (n) => !!n && n.rig > 0;
 
 function rigSet(S,n,amt){
   if(n.rig>0){
     const cap = Math.max(R.RIG_CAP_MIN, n.rigCap||rigCapOf(amt));
-    if(n.rig>=cap) return false;
-    n.rig = Math.min(cap, n.rig+amt); n.rigUp++;
+    if((n.rigBase||0) >= cap) return false;
+    n.rigBase = Math.min(cap, (n.rigBase||0) + amt);
   } else {
-    n.rig = amt; n.rigUp = 0; n.rigCap = rigCapOf(amt);
+    n.rigBase = amt; n.rigCap = rigCapOf(amt);
+    n.rigParts = []; n.rigPartMax = R.RIG_PART_MAX;  // 이 설치물이 받는 칸 수를 여기서 정한다
   }
+  n.rig = rigSum(n);
+  K.ev(S,{t:'rig', n, amt:n.rig});
+  return true;
+}
+
+function rigAddPart(S,n,amt){
+  const p = partPreview(n, amt);
+  if(!p) return false;
+  n.rigParts = p.parts; n.rig = rigSum(n);
   K.ev(S,{t:'rig', n, amt:n.rig});
   return true;
 }
@@ -2382,7 +2521,7 @@ function rigOpen(S,n,mult){
   const amt = n.rig*(mult||R.RIG_OPEN_MULT);
   const got = K.suppress(S,n,amt,{raw:true});
   K.ev(S,{t:'rigOpen', n, amt});
-  n.rig=0; n.rigUp=0; n.rigCap=0;
+  n.rig=0; n.rigBase=0; n.rigCap=0; n.rigParts=[]; n.rigPartMax=0;
   return got;
 }
 
@@ -2427,6 +2566,10 @@ function setupDeck(S, list, rng){
   S.deck = shuffle(list.slice(), rng);
   S.hand=[]; S.discard=[]; S.exiled=[]; S.keepUses={}; S.shuffles=0; S.acts=0;
   S.rushArmed = list.some(id=>CARDS[id] && CARDS[id].rushCard);
+  S.revisitArmed = list.some(id=>{
+    const c = CARDS[id];
+    return c && (c.revisit || c.kw==='재진');
+  });
   drawTurn(S);
 }
 
@@ -2597,31 +2740,57 @@ function runSession(list, deck, budget, seed, opt={}){
 
 //@ 파일.30-core/story
 
-//@ 스토리.병노드 — 병 노드를 세운다
-function mkSpot(sym, init, turn){
-  return {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-    grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
-    rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-    resist:0, resistBack:false, demoted:false, revealed:false, spawned:true, born:turn, role:'sym'};
+//@ 스토리.자리진화 — 자리가 갖고 태어나는 진화 카운터
+function spotEvo(bossKey, stage, sym){
+  const T = LVTAB[SLV(bossKey,'evo',stage)] || LVTAB[3];
+  return Math.max(1, T.evo + (EVO_ADJ[sym]||0));
+}
+
+//@ 스토리.병노드 — 자리 하나를 세운다. 진화 카운터까지 여기서 챙긴다
+function mkSpot(bossKey, stage, sym, init, turn){
+  const e = spotEvo(bossKey, stage, sym);
+  const n = {sym, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
+    grow:0, evo:e, evoLeft:e, evolved:false, dead:false, dormT:0,
+    rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
+    resist:0, resistBack:false, demoted:false, revealed:false, spawned:turn!=null, role:'sym'};
+  if(turn!=null) n.born = turn;
+  return n;
+}
+
+//@ 스토리.병기시계 — 이 병기의 시계가 몇 턴인가
+function stageTurns(bossKey, stage){
+  const c = (BOSS[bossKey]||{}).clock;
+  return (c && c[stage]) || SR.STAGE_TURNS;
+}
+
+//@ 스토리.병기수치 — 이 병기의 병 노드 수치
+function stageDisVal(bossKey, stage){
+  const v = (BOSS[bossKey]||{}).disVal;
+  return (v && v[stage]) || SR.DIS_BASE[SLV(bossKey,'dis',stage)];
+}
+
+//@ 스토리.이월 — 병기가 오를 때 깎아 둔 몫을 얼마나 들고 가는가
+function stageCarry(bossKey, stage){
+  const c = (BOSS[bossKey]||{}).carry;
+  return (c && c[stage]!==undefined && c[stage]!==null)
+    ? Math.max(0, Math.min(1, +c[stage])) : null;
 }
 
 function makeDisease(key, rng){
   const b = BOSS[key];
   const stage = b.stage0;
-  const dis = {sym:'병', role:'disease', init:SR.DIS_BASE[SLV(key,'dis',stage)], val:SR.DIS_BASE[SLV(key,'dis',stage)],
+  const v0 = stageDisVal(key, stage);
+  const dis = {sym:'병', role:'disease', init:v0, val:v0,
     shielded:false, shReduc:0, stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false,
-    dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
+    dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
     diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false, spawned:false,
-    stage, stageMax:b.stageMax, stageClock:SR.STAGE_TURNS, beat:0};
+    stage, stageMax:b.stageMax, stageClock:stageTurns(key, stage), beat:0};
   const nodes=[dis];
   b.seed.forEach((s,i)=>{
     const band = b.roster ? (b.roster[stage].find(r=>r[0]===s)||[,SR.ROSTER_MISS])[1] : SR.FREE_BASE;
     const init = b.roster ? band + Math.floor(rng()*SR.SPOT_SPREAD)
                           : SR.FREE_BASE + Math.floor(rng()*SR.FREE_SPREAD);
-    nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-      grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0,
-      rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED,
-      resist:0, resistBack:false, demoted:false, revealed:false, spawned:false, role:'sym'});
+    nodes.push(mkSpot(key, stage, s, init));   // 턴을 안 준다 — 3막 전에 이미 서 있는 자리다
   });
   let hp=b.hp;
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
@@ -2631,10 +2800,7 @@ function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
 
 function laySpot(S, slot, turn, stage){
   const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
-  const nd = mkSpot(slot[0], init, turn);
-  const T = LVTAB[SLV(S.board.boss,'evo',stage)] || LVTAB[3];
-  const e = Math.max(1, T.evo + (EVO_ADJ[slot[0]]||0));
-  nd.evo = e; nd.evoLeft = e;
+  const nd = mkSpot(S.board.boss, stage, slot[0], init, turn);
   S.wiped = false;                                 // 자리가 다시 섰다 — 연명 판정이 열린다
   S.nodes.push(nd);
   return nd;
@@ -2680,8 +2846,42 @@ function growBeat(S){
 //@ 스토리.쉼 — 아무 일도 하지 않는 것이 값인 비트
 const BEAT_REST = {'같은 박자':1};
 
+const BEAT_UNKNOWN = '모르는 박자';
+
+//@ 스토리.박자표 — 병이 쓸 수 있는 박자 한 벌
+const BEAT_LIST = ['분화','성장','같은 박자','진행','창','굳는다','몰린다',
+                   '엮는다','번진다','아문다','치민다','가라앉는다',
+                   ...Object.keys(UNIQ)];   // 고유 한 수도 제 이름으로 고른다
+
+//@ 스토리.박자별명 — 「진행」의 다른 이름
+const BEAT_ALIAS = ['병기 가속', '가속'];
+
+//@ 스토리.보스악보 — 고른 병 노드가 그 병기에 쓰는 악보
+function bossScore(bossKey, stage){
+  const b = BOSS[bossKey];
+  return b.beats[stage] || b.beats[b.stage0] || ['분화','성장'];   // 「고유」는 이제 없는 이름이다
+}
+
+//@ 스토리.악보 — 이 병기가 따르는 악보
+function scoreOf(S, stage){
+  const own = S.board && S.board.score;
+  if(own && own[stage] && own[stage].length) return own[stage];
+  return bossScore(S.board.boss, stage);
+}
+
 //@ 스토리.박자 — 병이 이번 턴에 무엇을 하는가
-function nextBeat(S,dis){ const b=BOSS[S.board.boss].beats; const sc=b[dis.stage]||b[dis.stage0]||['분화','고유']; return sc[dis.beat % sc.length] }
+function nextBeat(S,dis){ const sc=scoreOf(S,dis.stage); return sc[dis.beat % sc.length] }
+
+//@ 스토리.악보검사 — 손으로 짠 악보를 훑는다
+function scoreClean(sc){
+  if(!sc) return null;
+  const out = {}; let any = false;
+  for(const st in sc){
+    const line = (sc[st]||[]).filter(b=>BEAT_LIST.includes(b));
+    if(line.length){ out[st] = line; any = true }
+  }
+  return any ? out : null;
+}
 
 function diseaseAct(S, dis, act){
   const b = BOSS[S.board.boss];
@@ -2702,15 +2902,12 @@ function diseaseAct(S, dis, act){
       const pool = bd.dupType ? [bd.dupType] : ['발열','통증','호흡곤란','감염','탈수'];
       const s = pool[Math.floor(S.rng()*pool.length)];
       const init = SR.DUP_BASE + Math.floor(S.rng()*SR.DUP_SPREAD);
-      S.nodes.push({sym:s, init, val:init, shielded:true, shReduc:R.SHIELD_CUT, stabAcc:0,
-        grow:0, evo:4, evoLeft:4, evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0,
-        diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false, demoted:false, revealed:false,
-        spawned:true, born:S.turn, role:'sym'});
+      S.nodes.push(mkSpot(S.board.boss, dis.stage, s, init, S.turn));
       return `분화 — ${s}`;
     }
     return growBeat(S);
   }
-  if(beat==='병기 가속' || beat==='진행' || beat==='가속'){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
+  if(beat==='진행' || BEAT_ALIAS.includes(beat)){ dis.stageClock -= SR.BEAT_CLOCK; return '병기 시계가 당겨진다' }   // 그 턴의 자연 감소 1이 따로 겹친다
   if(beat==='창'){                                  // 판이 무너진다 — 다음 비트 턴이 무방비다
     if(S.act!==3 || !SR.GIMMICK.WINDOW) return growBeat(S);
     wipeSpots(S);
@@ -2770,7 +2967,9 @@ function diseaseAct(S, dis, act){
   }
   if(beat==='성장') return growBeat(S);
   if(BEAT_REST[beat]) return beat;                  // 쉬는 비트 — 아무것도 하지 않는 것이 값이다
-  return b.unique(S, dis) || growBeat(S);           // 고유가 헛돌면 성장으로 대신한다
+  if(UNIQ[beat]) return UNIQ[beat](S, dis) || growBeat(S);
+  growBeat(S);
+  return `${BEAT_UNKNOWN} 「${beat}」 — 성장으로 대신한다`;
 }
 
 function stageUp(S, dis){
@@ -2778,23 +2977,28 @@ function stageUp(S, dis){
   if(dis.stage >= dis.stageMax){
     dis.finished = true;                                   // 「편하게」 승리 신호는 여기서 한 번 뜬다
     if(!(SR.GIMMICK.LOOP && b.roster)) return false;
-    dis.beat = 0; dis.stageClock = SR.STAGE_TURNS;         // 악보를 처음으로 되돌린다
+    dis.beat = 0; dis.stageClock = stageTurns(S.board.boss, dis.stage);   // 악보를 처음으로 되돌린다
     layStage(S, dis);
     return false;                                          // 병기는 안 오른다
   }
+  const was = dis.stage;
   dis.stage++;
   if(dis.stage >= dis.stageMax) dis.finished = true;      // 최종 병기에 「닿는」 순간이 편하게의 승리다
-  const dLv = SLV(S.board.boss,'dis',dis.stage), dLvPrev = SLV(S.board.boss,'dis',dis.stage-1);
-  if(SR.GIMMICK.PRORATE){                                  // 비례 이월 — 깎아 둔 비율이 유지된다
-    const ratio = dis.val / dis.init;
-    dis.init = SR.DIS_BASE[dLv];
-    dis.val = Math.ceil(dis.init * ratio);
-  }else{
-    const add = SR.DIS_BASE[dLv] - SR.DIS_BASE[dLvPrev];
-    dis.val += add; dis.init = SR.DIS_BASE[dLv];
+  const carry = stageCarry(S.board.boss, dis.stage);
+  const next = stageDisVal(S.board.boss, dis.stage);
+  const ratio = dis.val / dis.init;
+  if(carry !== null){
+    dis.init = next;
+    dis.val = Math.ceil(next * (1 - carry*(1 - ratio)));
+  }else if(SR.GIMMICK.PRORATE){                            // 비례 이월 — 깎아 둔 비율이 그대로 유지된다
+    dis.init = next;
+    dis.val = Math.ceil(next * ratio);
+  }else{                                                   // 절대 이월 — 늘어난 몫만 얹는다
+    dis.val += next - stageDisVal(S.board.boss, was);
+    dis.init = next;
   }
   dis.beat = 0;
-  dis.stageClock = SR.STAGE_TURNS;
+  dis.stageClock = stageTurns(S.board.boss, dis.stage);
   layStage(S, dis);
   return true;
 }
@@ -2974,7 +3178,7 @@ function runStory(bossKey, deck, seed, policy, opt={}){
 
 //@ AI.평가 — 판 복제 · 판 점수
 function clone(S){
-  const nodes = S.nodes.map(n=>({...n}));
+  const nodes = S.nodes.map(n=>({...n, rigParts:(n.rigParts||[]).slice()}));
   const T = {...S,
     nodes,
     hand:S.hand.slice(), deck:S.deck.slice(), discard:S.discard.slice(), exiled:S.exiled.slice(),
@@ -2999,10 +3203,9 @@ function evalState(S){
     const rest = n.val - line;
     if(rest<=0) v += W.ready - rest*0.1;                  // 뽑을 수 있는 상태 = 거의 뽑은 것
     else v -= rest*W.rest;                                // 아직 남은 일
-    const sy = K.SYM[n.sym];
-    if(sy && sy.atk) v -= n.val*R.ATK_K*W.atk;            // 이 자리는 계속 때린다
+    v -= K.turnDmg(n)*W.atk;                              // 이 자리는 계속 때린다
     v -= K.growAmt(S,n,pool)*W.grow;
-    if(!n.evolved && n.evoLeft<=1) v -= n.init*(R.EVO_HIT[n.sym]||0)*W.evo;
+    if(!n.evolved && n.evoLeft<=1) v -= (R.EVO_HIT[n.sym]||0)*W.evo;
     if(n.shielded) v -= W.shield;
     if(C.rigTotal(n)>0) v += C.rigTotal(n)*W.rig;
   }
@@ -3127,9 +3330,9 @@ function effSup(S,n,raw){
 
 function threat(S,n){
   let t=0;
-  if(K.SYM[n.sym].atk) t += n.val*R.ATK_K*3;
+  t += K.turnDmg(n)*3;
   t += n.init*n.grow*2;
-  if(!n.evolved) t += (n.init*(R.EVO_HIT[n.sym]||0))/Math.max(1,n.evoLeft);
+  if(!n.evolved) t += (R.EVO_HIT[n.sym]||0)/Math.max(1,n.evoLeft);
   return t;
 }
 
@@ -3201,14 +3404,14 @@ function aiTurnH(S, opt={}){
 //@ 파일.50-wire
 
 const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,ev,
-  killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,outcome,
+  killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,turnDmg,outcome,
   supAmt,stabAmt,diagAmt,
   drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
-const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,ATK_W,ATK_TARGET};
+const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,BODY_HP,hpOfTags,ATK_W,ATK_TARGET};
 
-const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,STORY_CAP,packDeck,packPick,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
+const C={CARDS,DECK_D1,DECK_D2,PACKS,SWAP,STORY_N,PACK_PICK,packDeck,packPick,packOut,setupDeck,drawTurn,play,canPlay,draw,endTurnHand,shuffle,
          cardCost,cardNums,cardRaw,hasRevisit,rigTotal,handPicks,pickNeed,VAL_KIND};
 
 const P={SCRIPT,SESSIONS,makePatient};
@@ -3252,11 +3455,18 @@ get '관해'(){ return TT('관해 · 내과',
 get '관해도'(){ return TT('관해도 · 내과',
   `관해를 유지하는 자원. 상한 <b>${R.REM_MAX}</b>, 개시 시 초기값 <b>${R.REM_START}</b>.<br>매 턴 시작 시 <b>${R.REM_UPKEEP}</b>이 감소하며 부족할 시 관해가 끝난다.<br>관해 중 내과 카드를 낼 때마다 <b>+${R.REM_GAIN}</b>.`) },
 get '지연'(){ return TT('지연 · 내과',
-  `진화 카운터를 <b>N 늘린다</b>.<br>미룬 턴 1당 노드 수치가 초기값의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.`) },
+  `진화 카운터를 <b>N 늘린다</b>.<br>미룬 턴 1당 노드 수치가 <b>지금 수치</b>의 <b>${pctOf(R.DELAY_GROW)}</b>만큼 늘어난다.`
+  + `<br><span class="d">깎아 둔 자리는 미루는 값이 싸고, 부푼 자리는 비싸다.</span>`) },
 get '설치'(){ const rig = CARDS['거치'].v.rig, cap = Math.max(R.RIG_CAP_MIN, rig*R.RIG_CAP_MUL);
   return TT('설치 · 의공학',
   `노드에 매 턴 자동으로 억제하는 설치물을 설치한다.<br>같은 설치물에 설치 카드를 다시 쓰면 자동 억제 수치가 증가한다.<br>상한은 <b>설치한 카드 수치의 ${R.RIG_CAP_MUL}배</b>(최소 ${R.RIG_CAP_MIN}).<br>설치물은 <b>보호막을 무시</b>한다. 노드를 처치하면 설치물도 사라진다.`) },
 get '설치물'(){ return KWTIP['설치'] },
+get '부품'(){ return TT('부품 · 의공학',
+  `부품은 <b>설치물에 추가</b>할 수 있다. 설치물이 서 있지 않으면 붙일 수 없다.`
+  + `<br>설치물마다 추가 가능한 부품 수가 정해져 있다 — 지금은 <b>${R.RIG_PART_MAX}</b>칸이다.`
+  + `<br>칸이 다 차면 <b>가장 먼저 붙인 부품이 떨어져 나간다.</b> 그 부품이 올려 준 값도 함께 빠진다.`
+  + `<br>부품이 올린 값은 <b>설치 상한에 들지 않는다</b> — 상한은 설치물이 제 힘으로 커지는 데까지다.`
+  + `<br><span class="d">설치물을 개방해 태우면 붙어 있던 부품도 함께 사라진다.</span>`) },
 get '개방'(){ return TT('개방 · 의공학',
   `설치물을 소모해 그 노드를 <b>설치물 수치의 ${CARDS['출력 개방'].v.mult}배</b>만큼 억제한다.`
   + `<br>개방 피해는 <b>보호막을 무시</b>한다.`
@@ -3309,33 +3519,60 @@ get '부설'(){ return TT('부설 · 전이',
 const kwLabel = L => linkKws(L).join(' · ');
 const kwTip   = L => linkKws(L).map(k => LINKTIP[k] || TT(k, '')).join('<br><br>');
 
-const BEATTIP = {
-'분화': TT('분화', '부수 증상 하나를 생성한다. 증상 자리 상한에 닿아 있으면 아무 일도 일어나지 않는다.'),
-get '진행'(){ return TT('진행', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '가속'(){ return TT('가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '병기 가속'(){ return TT('병기 가속', `병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`) },
-get '성장'(){ return TT('성장', `모든 부수 증상이 초기값의 ${pctOf(SR.BEAT.성장)}만큼 성장한다.`) },
-'같은 박자': TT('같은 박자', '이번 턴은 아무것도 하지 않는다.'),
-'창': TT('창 · 아이 전용', '모든 부수 증상을 처치한다.'),
-'굳는다': TT('굳는다', '모든 증상에 보호막을 생성한다. 이미 보호막이 있다면 아무 일도 일어나지 않는다.'),
-get '몰린다'(){ return TT('몰린다', `수치가 가장 낮은 증상 하나가 초기값의 ${pctOf(SR.BEAT.몰린다)}만큼 성장한다.`) },
-'엮는다': TT('엮는다', '촉발 배선을 한 개 생성한다.'),
-get '번진다'(){ return TT('번진다 · 어부', `모든 통증이 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 성장한다.`) },
-'아문다': TT('아문다 · 어부', '수치가 가장 낮은 증상 하나를 휴면 상태로 만든다.'),
-get '치민다'(){ return TT('치민다 · 송이', `모든 증상이 초기값의 ${pctOf(SR.BEAT.치민다)}만큼 성장하고 정신이 한 단계 무너진다.`) },
-get '가라앉는다'(){ return TT('가라앉는다 · 송이', `모든 증상이 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 억제된다. 하한 1.`) },
-'고유': TT('고유', '이 병의 고유 행동.'),
+//@ 문안.체력태그 — 태그 한 줄 이름표
+const tagLabel = t => {
+  const part = [];
+  if(BODY_HP[t]!==undefined) part.push('체격 '+BODY_HP[t]);
+  if(HP_TAG[t]) part.push('×'+HP_TAG[t]);
+  return part.join(' · ') || '체격 '+BODY_HP[BODY_DEF];
 };
 
-const UNIQTIP = {
-get '아이:3'(){ return TT('파고든다 · 고유', `통증과 호흡곤란의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`) },
-'아이:4': TT('알아듣지 못한다 · 고유', '정신 상태가 한 단계 무너진다.'),
-'아이:5': TT('터진다 · 고유', '휴면 상태의 증상 하나가 초기값으로 부활한다.'),
-get '어부:3'(){ return TT('긁는다 · 고유', `활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이고 감염이 없으면 이차 감염이 새로 앉는다.`) },
-'송이:3': TT('지금이면 괜찮아진다 · 고유', '휴면 상태의 증상 하나를 부활시키고 정신을 한 단계 무너뜨린다.'),
+//@ 문안.박자 — 병 노드 박자의 뜻풀이. 판 툴팁과 악보 서랍이 같이 읽는다
+const BEATDOC = {
+  '분화':   {label:'자리를 하나 늘린다',
+    why:()=>'부수 증상 하나를 생성한다. 증상 자리 상한에 닿아 있으면 「성장」으로 대신한다.'},
+  '성장':   {label:'살아 있는 자리가 전부 자란다',
+    why:()=>`모든 부수 증상이 초기값의 ${pctOf(SR.BEAT.성장)}만큼 성장한다.`},
+  '같은 박자': {label:'쉰다',
+    why:()=>'이번 턴은 아무것도 하지 않는다.'},
+  '진행':   {label:'병기 시계를 당긴다',
+    why:()=>`병기 시계를 ${SR.BEAT_CLOCK + 1} 당긴다.`},
+  '창':     {of:'아이 전용', label:'판이 무너진다',
+    why:()=>'모든 부수 증상을 처치한다.'},
+  '굳는다': {label:'벗겨진 보호막을 다시 두른다',
+    why:()=>'모든 증상에 보호막을 생성한다. 이미 모두 보호막이 있다면 「성장」으로 대신한다.'},
+  '몰린다': {label:'가장 옅은 자리 하나만 크게',
+    why:()=>`수치가 가장 낮은 증상 하나가 초기값의 ${pctOf(SR.BEAT.몰린다)}만큼 성장한다.`},
+  '엮는다': {label:'자리 둘 사이에 촉발 배선을 놓는다',
+    why:()=>'촉발 배선을 한 개 생성한다.'},
+  '번진다': {of:'어부', label:'통증 자리만 골라 오른다',
+    why:()=>`모든 통증이 초기값의 ${pctOf(SR.BEAT.번진다)}만큼 성장한다.`},
+  '아문다': {of:'어부', label:'가장 옅은 자리가 스스로 가라앉는다',
+    why:()=>'수치가 가장 낮은 증상 하나를 휴면 상태로 만든다.'},
+  '치민다': {of:'송이', label:'전부 오르고 정신이 무너진다',
+    why:()=>`모든 증상이 초기값의 ${pctOf(SR.BEAT.치민다)}만큼 성장하고 정신이 한 단계 무너진다.`},
+  '가라앉는다': {of:'송이', label:'전부 내려간다',
+    why:()=>`모든 증상이 초기값의 ${pctOf(SR.BEAT.가라앉는다)}만큼 억제된다. 하한 1.`},
+  '파고든다': {of:'아이 병기3', label:'신경계 자리의 진화를 당긴다',
+    why:()=>`통증과 호흡곤란의 진화 시계를 ${SR.BEAT_EVO_PULL}씩 당긴다.`},
+  '알아듣지 못한다': {of:'아이 병기4', label:'정신을 한 단계 무너뜨린다',
+    why:()=>'정신 상태가 한 단계 무너진다.'},
+  '터진다': {of:'아이 병기5', label:'재워 둔 자리가 다시 일어난다',
+    why:()=>'휴면 상태의 증상 하나가 초기값으로 부활한다.'},
+  '긁는다': {of:'어부', label:'긁어서 이차 감염이 앉는다',
+    why:()=>`활성 통증 자리가 ${SR.BEAT_SCRATCH_N} 이상이고 감염이 없으면 이차 감염이 새로 앉는다.`},
+  '지금이면 괜찮아진다': {of:'송이', label:'재운 자리를 깨우고 정신을 무너뜨린다',
+    why:()=>'휴면 상태의 증상 하나를 부활시키고 정신을 한 단계 무너뜨린다.'},
 };
 
-const KWORDS = ['관해도','관해','설치물','설치','개방','약화','기세','재진','지연'];
+const BEATTIP = {};
+const beatDocTip = k => TT(k + (BEATDOC[k].of ? ' · ' + BEATDOC[k].of + ' 전용' : ''), BEATDOC[k].why());
+for(const k of Object.keys(BEATDOC))
+  Object.defineProperty(BEATTIP, k, {enumerable:true, get(){ return beatDocTip(k) }});
+for(const a of BEAT_ALIAS)
+  Object.defineProperty(BEATTIP, a, {enumerable:true, get(){ return TT(a, BEATDOC['진행'].why()) }});
+
+const KWORDS = ['관해도','관해','설치물','설치','부품','개방','약화','기세','재진','지연'];
 
 //@ 화면.증상수치설명 — 증상 고유 수치의 이름표와 설명문
 const SYMDOC = {
@@ -3346,7 +3583,7 @@ const SYMDOC = {
   탈수:     {label:'안정화 나누기', step:0.5,
              why:()=>`살아 있는 동안 안정화가 쌓는 값을 이 수로 나눈다. 지금 값 ${R.DEHY_STAB} 이면 <b>${pctOf(1/R.DEHY_STAB)}</b>만 남는다.<br>진화하면 이 자리의 보호막을 아예 못 깎는다.`},
   발열:     {label:'진화 수치 배수', step:0.1,
-             why:()=>`진화하는 턴에 수치가 이 배수만큼 뛴다.<br>매 턴 피해는 공격 증상 공통값(수치의 <b>${pctOf(R.ATK_K)}</b>)을 쓴다.`},
+             why:()=>`진화하는 턴에 수치가 이 배수만큼 뛴다.<br>매 턴 피해는 <b>최대 ${R.TURN_DMG.발열}</b>에 남은 수치 몫을 곱해서 낸다 — 수치가 뛰면 피해도 따라 뛴다.`},
   통증:     {label:'처치선 배율', step:0.05,
              why:()=>`살아 있는 동안 판 전체의 처치선에 이 값을 곱한다. 여러 자리면 곱연산으로 겹친다.<br>하한은 규칙값(지금 <b>${pctOf(R.PAIN_FLOOR)}</b>)이다.<br>진화하면 통증 말고는 아무것도 처치할 수 없다.`},
   호흡곤란: {label:'드로우 감소', step:1,
@@ -3354,7 +3591,7 @@ const SYMDOC = {
 };
 
 const EVOTXT_F = {
-  발열:     n=>`수치가 <b>${sp(n,'발열')}배</b>로 뛴 상태다. 매 턴 피해는 그대로 수치의 ${pctOf(R.ATK_K)}.`,
+  발열:     n=>`수치가 <b>${sp(n,'발열')}배</b>로 뛴 상태다. 매 턴 피해도 그만큼 커졌다 — 최대 ${R.TURN_DMG.발열} 에 초기값 대비 수치 몫을 곱한다.`,
   출혈:     n=>`매 턴 성장이 <b>${pctOf(sp(n,'출혈'))}</b>로 ${R.EVO_BLEED_ACC}배가 됐다. 클수록 더 빨리 큰다.`,
   감염:     n=>`만드는 총 성장이 <b>현재 수치의 ${pctOf(sp(n,'감염')*R.EVO_X2)}</b>로 ${R.EVO_X2}배가 됐다. 자기 진단 요구도 ${R.EVO_INF_DIAG} 올랐다.`,
   탈수:     n=>`이 자리의 보호막을 <b>아예 깎을 수 없다</b>. 안정화가 통하지 않는다.`,
@@ -3366,14 +3603,14 @@ const EVOTXT_F = {
 const spOf = (n, sym) => (n ? sp(n, sym) : SYMPARAM[sym].def());
 const SYMBODY = {
   발열: n => ({
-    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.`,
+    now : `매 턴 <b>최대 ${R.TURN_DMG.발열}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례한다.`,
     will: `진화 시 수치가 <b>${numOf(spOf(n,'발열'))}배</b>로 증가한다. 상한은 초기값의 ${numOf(R.VAL_CAP)}배다.`,
-    done: `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.<br>진화하며 수치가 <b>${numOf(spOf(n,'발열'))}배</b>로 뛰었다 — 때리는 값도 그만큼 크다.`,
+    done: `매 턴 <b>최대 ${R.TURN_DMG.발열}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례한다.<br>진화하며 수치가 <b>${numOf(spOf(n,'발열'))}배</b>로 뛰었다 — 때리는 값도 그만큼 크다.`,
   }),
   출혈: n => ({
-    now : `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다.`,
+    now : `매 턴 <b>최대 ${R.TURN_DMG.출혈}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례하고, 수치가 초기값을 넘으면 그 최대치도 넘어간다 — 끝까지 부풀면 ${K.turnDmg({sym:'출혈', init:100, val:100*R.VAL_CAP})} 이다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다.`,
     will: `진화 시 성장률이 ${numOf(R.EVO_BLEED_ACC)}배로 빨라진다.`,
-    done: `매 턴 수치의 ${pctOf(R.ATK_K)}만큼 피해를 준다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다 — 진화로 ${numOf(R.EVO_BLEED_ACC)}배가 된 값이다.`,
+    done: `매 턴 <b>최대 ${R.TURN_DMG.출혈}</b>의 피해를 준다. 실제 피해는 남은 수치에 비례한다.<br>매 턴 <b>현재 수치의 ${pctOf(spOf(n,'출혈'))}</b>만큼 성장한다 — 진화로 ${numOf(R.EVO_BLEED_ACC)}배가 된 값이다.`,
   }),
   감염: n => ({
     now : `다른 모든 노드에 성장률을 <b>이 증상 수치의 ${pctOf(spOf(n,'감염'))}</b> 부여한다. 총량을 노드들이 나눠 갖는다.`,
@@ -3506,8 +3743,10 @@ const RULE_DOC = {
   INF_G:'감염이 만드는 총 성장 — 현재 수치의 이 비율을 다른 자리들이 나눠 갖는다',
   GROW_HOLD:'성장 정지 지속 턴 — 「멈춰!」', NOATK_G:'공격 증상이 없는 판의 기본 성장률',
   VAL_CAP:'노드 수치 상한 — 초기값의 몇 배까지',
-  ATK_K:'발열·출혈이 매 턴 때리는 몫 (수치의 몇 배)',
-  EVO_HIT:'진화 즉발 피해 — 진화 시점 수치의 몇 배', EVO_FEVER_GROW:'발열 진화 시 수치 배수',
+  ATK_K:'점화(촉발선)가 때리는 몫 — 턴당 피해는 TURN_DMG 로 옮겼다',
+  TURN_DMG:'증상별 턴당 최대 피해 — 실제 피해는 남은 수치 몫만큼 깎인다',
+  TURN_DMG_MIN:'최대 피해가 있는 자리가 살아 있는 한 때리는 바닥',
+  EVO_HIT:'진화 즉발 피해 — 수치를 보지 않는 고정값', EVO_FEVER_GROW:'발열 진화 시 수치 배수',
   EVO_BLEED_ACC:'출혈 진화 시 성장 배수', DORMANT:'휴면에서 돌아오는 데 걸리는 턴',
   SHIELD_CUT:'보호막 경감률', SHIELD_MAX:'보호막을 벗기는 데 드는 안정화',
   DEHY_STAB:'탈수 — 안정화를 나누는 수',
@@ -3531,7 +3770,7 @@ const RULE_DOC = {
   BLEED_FLOOR:'사혈 뒤 남아야 하는 체력',
   REM_MAX:'관해도 상한', REM_START:'관해 개시 시 관해도', REM_UPKEEP:'매 턴 빠지는 관해도',
   REM_GAIN:'관해 중 내과 카드 한 장당 관해도', REM_DIAG_BONUS:'관해 중 진단 보정',
-  DELAY_GROW:'지연 1턴당 노드 수치 증가 (초기값 기준)',
+  DELAY_GROW:'지연 1턴당 노드 수치 증가 (지금 수치 기준)',
   COMFORT_CUT:'「편하게」 완화 한 겹이 방침 배수에서 빼는 값',
   DIS_BASE:'레벨별 병 노드 기본 수치 (LVTAB.dis 에서 온다)', STAGE_TURNS:'병기 시계 기본 턴',
   PARAM_NEED:'증거 하나에 드는 검사 파라미터', EVID_TOTAL:'병마다 있는 증거 수',
@@ -3556,7 +3795,7 @@ const RULE_DOC = {
 const RULE_GROUP = {
   R:[['처치와 처치선', ['KILL_LINE','KILL_COST','REFUND','SWEEP_CAP','SWEEP_K','DIS_KILL_LINE','DIS_SHIELD','WEAK_STACK','WEAK_STACK_DIS','WEAK_LINE_MAX','PAIN_T','PAIN_FLOOR','PAIN_STACK']],
      ['성장과 진화', ['BLEED_G','BLEED_ABS','INF_G','GROW_HOLD','NOATK_G','VAL_CAP','EVO_HIT','EVO_FEVER_GROW','EVO_BLEED_ACC','EVO_X2','EVO_INF_DIAG','DORMANT']],
-     ['피해와 정신', ['ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_CUT']],
+     ['피해와 정신', ['TURN_DMG','TURN_DMG_MIN','ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_CUT']],
      ['보호막과 안정화', ['SHIELD_CUT','SHIELD_MAX','DEHY_STAB']],
      ['손과 코스트', ['ENERGY','HAND','DRAW_CUT','PLAY_CAP']],
      ['진단과 재진', ['DIAG_NEED','DIAG_NEED_UP','DIAG_CUT_R2','DIAG_CUT_LATE','DIAG_DEMOTE_ROUND','DIAG_DEEP_MAX']],
@@ -3575,6 +3814,88 @@ const RULE_GROUP = {
 
 //@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
 const PATCH_NOTES = [
+{v:'0.4', size:'M', date:'2026-09-04', tag:'게임플레이 변경', body:`
+전투
+
+-레벨에 따른 환자 체력 표 삭제.
+-이제 체력은 환자 체격과 체력 태그를 조합하여 구성됨.
+*체격: 소아 120 · 성인 170 · 노동자 200 · 군인 200
+*체력 태그는 전부 ×0.85로 통일. 한 환자에 둘까지 (초안)
+
+-증상의 턴당 피해를 최대 피해와 남은 수치로 계산하도록 변경
+*실제 피해 = 올림(최대 피해 × 현재 수치 ÷ 초기값)
+*증상별 최대 피해: 출혈 9 · 발열 5. 감염 · 탈수 · 통증 · 호흡곤란은 0
+*턴당 피해 상한은 최대 피해의 3배.
+
+-진화 즉발 피해를 고정값으로 변경
+*출혈 36 · 발열 20 · 그 외 24
+
+-모든 레벨에서 증상의 진화 카운터 +1
+
+-송이의 진화 레벨을 1에서 5로 변경
+
+-지연의 수치 증가를 초기값 기준에서 현재 수치 기준으로 변경
+*미룬 턴 1당 지금 수치의 10%
+
+-분과 보급 카드팩에 카드 한 장씩 추가
+*피를 본다 — 외과 · 0코 · 사혈 1단 · 2장 뽑는다
+*하루만 더 — 내과 · 1코 · 지연 2
+*덧대기 — 의공학 · 0코 · 부품, 설치 +2
+
+-「부품」 키워드 구현
+
+-처치 시 강반응이 정신을 악화시키던 문제 수정
+
+-진단 요구치를 넘긴 몫이 다음 회차로 넘어가던 문제 수정
+
+시뮬레이터
+
+-스토리 가방을 기본 카드팩과 고르는 카드팩 2개로 고정
+*보급 카드팩을 둘까지 편성 가능
+*가방 15장에서 16장으로 증가
+*스토리 전투에서 카드 개수 고정
+
+-만들기에 「병 노드」 탭 추가
+*병 노드 커스텀 제작 가능
+*이름 · 체격 · 항목별 레벨, 병기별 수치 · 병기 시계 · 수치 이월 · 활성 부수 명부 지정
+*악보를 병기마다 짜고 패턴 순서와 길이 변경
+*만든 병 노드를 저장하면 스토리 병 노드 목록에 반영
+
+-커스텀 병 노드의 시작 병기를 1까지 지정할 수 있도록 변경
+
+-체격과 체력 태그 칸을 분리
+
+편의성 개선과 버그 수정
+
+-체력 태그를 붙이면 체격이 꺼지던 문제 수정
+
+-전이 연결선이 처치 시 증상이 생길 자리로 이어지도록 변경
+
+-강화형 연결선이 진단 후에도 감춰지던 문제 수정
+
+-발열 노드의 툴팁이 뜨지 않던 문제 수정
+
+-카드 텍스트가 길면 카드가 손패 줄을 벗어나던 문제 수정
+
+-드로우 연출을 뽑은 카드 전부에 동시에 표시하도록 변경
+*드로우 카드로 뽑은 카드에도 연출 추가
+
+-연결선 흐름 연출 제거, 화살촉으로 진행 방향 표시
+
+-보호막과 안정화 눈금 가독성 개선
+
+-병 노드의 다음 행동 아이콘 확대
+
+-코드 최적화
+
+-오류 검사기 보강
+
+-만들고 재는 도구를 tools/ 아래로 정리
+
+-버그 수정
+`},
+
+   
 {v:'0.3', size:'M', date:'2026-09-01', tag:'게임플레이 변경', body:`
 시뮬레이터
 
@@ -3647,7 +3968,7 @@ const PATCH_NOTES = [
 `},
 
    
-{v:'26.2', size:'m', date:'2026-08-24', tag:'편의성 개선', body:` 
+{v:'25.2', size:'m', date:'2026-08-24', tag:'편의성 개선', body:` 
 게임플레이
 
 -스토리 전투에서 덱을 카드팩 단위로 편성하도록 변경
@@ -3740,7 +4061,7 @@ const esc = t => String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 
 //@ 화면.패널 — §9.5 모드별 판 · 가방 상한
 const PANES = {one:{started:false}, sess:{started:false}, story:{started:false},
-               batch:{started:true}, make:{started:true}};
+               batch:{started:true}, make:{started:true}, score:{started:true}};
 
 //@ 화면.물들이기 — 바탕값과 지금 값이 다르면 색으로 알린다
 const numText = x => (typeof x==='number' && !Number.isInteger(x)) ? (Math.round(x*10)/10).toFixed(1) : String(x);
@@ -3750,6 +4071,25 @@ function driftSpan(base, eff, body, upIsGood=true){
   if(eff===base) return numText(base);
   const better = upIsGood ? eff>base : eff<base;
   return `<span class="${better?'vup':'vdn'}"${body?tip(body):''}>${numText(eff)}</span>`;
+}
+
+//@ 문안.배선드러남 — 작업대와 무대가 함께 보는 조건
+const enhShown = S => !!S && (S.nodes||[]).some(n=>n.revealed);
+
+//@ 화면.태그칸 — 체격(하나) · 체력 태그(둘까지)
+function tagBoxHTML(tags, pre, fnBody, fnTag){
+  const t = tags || [], body = bodyOf(t), mult = multTags(t);
+  const row = (lab, note, items) =>
+    `<div class="bar sub">${lab}<span class="right d">${note}</span></div>`
+    + `<div class="tags">${items}</div>`;
+  return row('체격', '',
+      BODY_LIST().map(x=>`<label><input type="radio" name="${esc(pre)}_body" value="${esc(x)}"`
+        + `${x===body?' checked':''} onchange="${fnBody}('${esc(x)}')">${esc(x)}`
+        + ` <span class="d">${esc(tagLabel(x))}</span></label>`).join(''))
+  + row('체력 태그', `${mult.length}/${TAG_CAP} · 체력 ${hpOfTags(t)}`,
+      HP_TAG_LIST().map(x=>`<label><input type="checkbox" ${t.includes(x)?'checked':''}`
+        + ` onchange="${fnTag}('${esc(x)}')">${esc(x)}`
+        + ` <span class="d">${esc(tagLabel(x))}</span></label>`).join(''));
 }
 
 //@ 파일.70-ui/tooltip
@@ -3799,14 +4139,7 @@ function tipFix(panel, html){
   addEventListener('scroll', ()=>{ const b=box(); if(b) b.style.display='none' }, true);
 })();
 
-function beatTip(S,n){
-  const b = nextBeat(S,n);
-  if(b==='고유'){
-    const k = `${S.board.boss}:${n.stage}`;
-    return UNIQTIP[k] || BEATTIP['고유'];
-  }
-  return BEATTIP[b] || null;
-}
+function beatTip(S,n){ return BEATTIP[nextBeat(S,n)] || null }
 
 function policyTip(k){
   const P = SR.POLICY[k]; if(!P) return null;
@@ -4135,6 +4468,7 @@ function render(){
   if(PK){ renderPack(); return }
   if(MODE==='batch'){ $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join(''); return }
   if(MODE==='make'){ renderMake(); return }
+  if(MODE==='score'){ renderScore(); return }
   if(MODE==='sess'){ renderSess(); return }
   if(!S) return;
   renderInto(MODE==='story' ? 'st' : 'on');
@@ -4195,13 +4529,13 @@ function nodeMarks(S, n){
     n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
     n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
     n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
-    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>상한 ${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rig)}<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}${n.rigCap?`/${n.rigCap}`:''}</span>`:'',
+    n.rig?`<span class="m rig"${tip(TT('설치물',`매 턴 종료 시 이 자리를 <b>${n.rig}</b> 억제한다. 보호막을 무시한다.<br>설치 ${n.rigBase||0}/${n.rigCap||Math.max(R.RIG_CAP_MIN,n.rigBase||n.rig)}${n.rig-(n.rigBase||0)?` · 부품 +${n.rig-(n.rigBase||0)}`:''}<br>부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0} — 부품은 설치 상한에 안 든다<br><br>개방하면 <b>−${n.rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`))}>설치물 ${n.rig}</span>`:'',
     n.rigLent?`<span class="m rig"${tip(TT('빌려온 물건',`매 턴 종료 시 이 자리를 <b>${n.rigLent}</b> 따로 억제한다. 보호막을 무시한다.<br><br>남의 손을 타지 않는다 — 설치 카드로 쌓이지 않고 개방으로 태울 수도 없다.<br>보통 설치물과 같은 자리에 나란히 놓인다.`))}>빌려온 물건 ${n.rigLent}</span>`:'',
     gAdd>0?`<span class="m gr"${tip(TT('성장', growWhy(S,n)))}>성장 +${gAdd}</span>`:'',
     n.growHold>0?`<span class="m"${tip(TT('성장 정지',`이 자리는 <b>${n.growHold}턴</b> 자라지 않는다.<br>감염이 나눠 주는 몫도 그동안 받지 않고 그 몫은 다른 자리로 넘어가지 않는다.`))}>성장 정지 ${n.growHold}</span>`:'',
     n.role==='disease'?'':(n.evolved
       ?`<span class="m ev"${tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'')))}>진화함</span>`
-      :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다. 피해가 먼저, 수치 증가는 그 뒤다.<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
+      :`<span class="m"${tip(TT('진화까지',`남은 턴 <b>${n.revealed?n.evoLeft:'?'}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}<br><br>진화하는 턴에 <b>${R.EVO_HIT[n.sym]||0}</b>이 즉시 환자에게 들어간다. 수치를 보지 않는 고정값이다. 피해가 먼저, 수치 증가는 그 뒤다.<br><br>문진 「언제부터 아프셨나요」나 진단 1회차로 열린다.`))}>진화까지 ${n.revealed?n.evoLeft:'?'}</span>`),
     n.delayed?`<span class="m dl"${tip(KWTIP['지연'])}>지연 ${n.delayed}</span>`:'',
     (SYMDOC[n.sym] && n.role!=='disease')
       ?`<span class="m"${tip(TT(n.sym+' · '+SYMDOC[n.sym].label, SYMDOC[n.sym].why()
@@ -4209,7 +4543,7 @@ function nodeMarks(S, n){
       + (sp(n)!==SYMPARAM[n.sym].def()?` <span class="d">(권위본 ${SYMPARAM[n.sym].def()} 에서 고침)</span>`:'')))
       }>${SYMDOC[n.sym].label} ${sp(n)}</span>`:'',
     `<span class="m"${tip((n.diagRound>=1 ? KWTIP['재진'] : KWTIP['진단']) + `<br><br>이 자리 — ${n.diagRound}회차 완료 · 다음 회차 요구 <b>${n.diagNeed}</b> · 쌓은 값 ${n.diagAcc}`
-      + (n.diagRound>=1?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
+      + (n.diagRound>=1 && S.revisitArmed?'<br><span style="color:#98302A">재진 태그 없이는 더 못 연다.</span>':''))}>진단 ${n.diagRound}회 ${n.diagAcc}/${n.diagNeed}</span>`,
     n.demoted?`<span class="m dm"${tip(TT('반응 강등','진단 2회차의 값. 강반응이 영구히 약반응으로 내려간다.<br>강반응이 터뜨리는 전이 · 촉발 강화를 이 자리에서는 더 못 본다.'))}>반응 강등</span>`:'',
     n.chronic?`<span class="m"${tip(TT('만성','오래 끌어온 자리다. 억제가 잘 듣지 않는다.'))}>만성</span>`:'',
     n.muted?`<span class="m dm">이번 턴 잠잠</span>`:'',
@@ -4228,8 +4562,8 @@ function renderInto(h){
   const cuts = comfortCuts(S);
 
   const tagTip = (BOARD.tags||[]).length
-    ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>×${HP_TAG[t]}</b>`).join('<br>')
-        + `<br><br>기본 체력 ${LVTAB[BOARD.level]?LVTAB[BOARD.level].hp:'—'} 에 곱연산으로 걸린다.`)) : '';
+    ? tip(TT('체력 태그', (BOARD.tags||[]).map(t=>`${t} <b>${tagLabel(t)}</b>`).join('<br>')
+        + `<br><br>체격 ${bodyHp(BOARD.tags||[])} 에서 출발해 곱연산으로 걸린다.`)) : '';
   const mindTip = tip(TT('정신 · '+S.mind, mindTipBody(S)));
   const hpTip   = tip(TT('환자 체력', hpTipBody(S, f)));
 
@@ -4281,7 +4615,7 @@ function renderInto(h){
   }).join('') || '<div class="empty">판이 비었다.</div>';
 
   const bl=basicLines(ns.filter(n=>n.role!=='disease').map(n=>n.sym));
-  const shown=ns.some(n=>n.revealed);
+  const shown=enhShown(S);
   $(h+'_wires').innerHTML=
     (bl.length||(S.enh||[]).length ? '' : '<span class="wire hid">연결선 없음</span>')
     + bl.map(l=>`<span class="wire"${tip(kwTip(l))}>${l.a} 처치 시 → ${l.b} <em>${kwLabel(l)}</em></span>`).join('')
@@ -4417,7 +4751,7 @@ function stateHTML(){
   if(dls.length){
     rows.push(`<div class="st"${tip(KWTIP['지연'])}>
       <div class="stt"><span>지연</span><b>${dls.reduce((a,n)=>a+n.delayed,0)}</b></div>
-      <div class="stnote">${dls.map(n=>`${n.sym} +${n.delayed}턴 · 수치 +${Math.ceil(n.init*R.DELAY_GROW)*n.delayed}`).join('<br>')}</div></div>`);
+      <div class="stnote">${dls.map(n=>`${n.sym} +${n.delayed}턴 · 수치 +${n.delayAdd||0}`).join('<br>')}</div></div>`);
   }
   const rv = ns.filter(n=>n.diagRound>=1);
   const held = [...new Set([...Object.keys(S.revisitOn||{}).filter(k=>S.revisitOn[k]),
@@ -4425,7 +4759,7 @@ function stateHTML(){
   if(rv.length || held.length){
     rows.push(`<div class="st"${tip(KWTIP['재진'])}>
       <div class="stt"><span>재진</span><b>${held.length?held.length+'장':rv.length+'자리'}</b></div>
-      <div class="stnote">${held.map(k=>`<b>${k}</b> — ${[(S.revisitOn||{})[k]?'재진':'', (S.diagPlus||{})[k]?`진단 +${S.diagPlus[k]}`:''].filter(Boolean).join(' · ')}`).join('<br>')}
+      <div class="stnote">${held.map(k=>`<b>${k}</b> — ${[(S.diagPlus||{})[k]?`진단 +${S.diagPlus[k]}`:'', (S.revisitOn||{})[k]?'재진':''].filter(Boolean).join(', ')}`).join('<br>')}
         ${held.length&&rv.length?'<br>':''}
         ${rv.map(n=>`${n.role==='disease'?'병':n.sym} ${n.diagRound}회 · 다음 ${n.diagNeed}`).join('<br>')}</div></div>`);
   }
@@ -4806,7 +5140,7 @@ function deckLine(id, list, cap){
 
 function openDeckOne(){
   openDeck({pool:POOL.d3, cap:ONE_CAP, min:3, init:ONE_DECK, title:'단판 가방',
-    note:'분과 보급 6장과 NPC 6장이 모두 열려 있다.',
+    note:`분과 보급 ${DEPT_ALL.length}장과 NPC ${NPC6.length}장이 모두 열려 있다.`,
     cb:list=>{ ONE_DECK=list; deckLine('one_deck',ONE_DECK,ONE_CAP);
                log(`<span class="d">가방 — ${list.join(' · ')}</span>`); render() }});
 }
@@ -4867,10 +5201,14 @@ function openPackStory(){
 }
 
 function pkToggle(id){
-  const p = PACKS.find(x=>x.id===id), was = !!PK.on[id];
+  const p = PACKS.find(x=>x.id===id);
+  if(PK.on[id]){                                      // 든 것을 다시 눌렀다 — 자리는 빌 수 없다
+    PK.msg = `${p.name}${eul(p.name)} 빼려면 다른 팩을 고른다 — 카드팩은 늘 ${PACK_PICK}개다.`;
+    PK.open = null; renderPack(); return;
+  }
+  const out = packOut(PK.on, id).map(x => (PACKS.find(q=>q.id===x)||{}).name).filter(Boolean);
   PK.on = packPick(PK.on, id);
-  PK.msg = was && PK.on[id] ? ''                      // 고른 팩을 다시 누른 것 — 달라진 게 없다
-         : `${p.name}${eul(p.name)} ${!PK.on[id] ? '뺐다' : p.group ? '골랐다' : '들였다'} — ${p.cards.join(' · ')}.`;
+  PK.msg = `${p.name}${eul(p.name)} 골랐다${out.length?` — 「${out.join(' · ')}」 이 빠진다`:''}. ${p.cards.join(' · ')}.`;
   PK.open = null; renderPack();
 }
 
@@ -4909,7 +5247,7 @@ function renderPack(){
   const onN = PACKS.filter(p=>p.fixed||PK.on[p.id]).length;
 
   $('dk_body').innerHTML =
-      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_CAP}장</div>`
+      `<div class="chart">스토리 가방 — 카드팩 <b>${onN}</b>개 · <b>${deck.length}</b>/${STORY_N}장</div>`
     + `<div class="bar"><span>외과 ${by.외과}</span><span>내과 ${by.내과}</span><span>의공학 ${by.의공학}</span><span>공통 ${by.공통}</span>
         <span class="right">${PK.msg?`<i>${esc(PK.msg)}</i>`:''}</span></div>`
     + packsHTML()
@@ -4927,11 +5265,12 @@ function renderPack(){
 }
 
 function packsHTML(){
-  let out = '', group = null;
+  let out = '', headed = false;
   for(const p of PACKS){
-    if(p.group !== group){
-      group = p.group;
-      if(group) out += `<div class="bar">${esc(PACK_GROUP[group]||'')}</div>`;
+    if(!p.fixed && !headed){
+      headed = true;
+      out += `<div class="bar">고르는 카드팩 — ${PACK_PICK}개<span class="right d">`
+           + `${Object.keys(PK.on).length}/${PACK_PICK} 골랐다</span></div>`;
     }
     out += packHTML(p);
   }
@@ -4940,10 +5279,10 @@ function packsHTML(){
 
 function packHTML(p){
   const on = p.fixed || !!PK.on[p.id];
+  const full = Object.keys(PK.on).length >= PACK_PICK;
   const knob = p.fixed ? `<span class="right d">늘 든다</span>`
-             : p.group ? (on ? `<span class="right d">골랐다</span>`
-                             : `<button class="mini right go" onclick="pkToggle('${p.id}')">이걸로 고른다</button>`)
-                       : `<button class="mini right${on?'':' go'}" onclick="pkToggle('${p.id}')">${on?'뺀다':'들인다'}</button>`;
+             : on ? `<span class="right d">골랐다</span>`
+                  : `<button class="mini right go" onclick="pkToggle('${p.id}')">${full?'이걸로 바꾼다':'이걸로 고른다'}</button>`;
   return `<div class="pack ${on?'':'off'}">
     <div class="packhead"><b>${esc(p.name)}</b><span class="d">${p.cards.length}장</span>${knob}</div>
     <div class="hand">${p.cards.map(base=>slotHTML(base, on)).join('')}</div></div>`;
@@ -4998,29 +5337,23 @@ addEventListener('resize', ()=>{ if(PK && PK.open) pkPlace() });
 function packLine(){
   const by={외과:0,내과:0,의공학:0,공통:0}; for(const c of STORY_DECK) by[CARDS[c].dept]++;
   const onN = PACKS.filter(p=>p.fixed||STORY_PACKS[p.id]).length;
-  $('story_deck').innerHTML = `팩 <b>${onN}</b> · <b>${STORY_DECK.length}</b>/${STORY_CAP}장`
+  $('story_deck').innerHTML = `팩 <b>${onN}</b> · <b>${STORY_DECK.length}</b>/${STORY_N}장`
     + ` · 외 ${by.외과} 내 ${by.내과} 공학 ${by.의공학} 공통 ${by.공통}`;
 }
 
 //@ 파일.70-ui/one
 
 //@ 화면.단판 — §9.12 단판 모드
-//@ 화면.태그칸 — 체력 태그 칸을 표에서 만든다
+let ONE_TAGS = [];
 function renderTagBox(){
   const box = $('tagbox'); if(!box) return;
-  box.innerHTML = Object.keys(HP_TAG).map(t =>
-    `<label><input type="checkbox" class="tag" value="${t}" onchange="tagPick('${t}')">${t} <span class="d">×${HP_TAG[t]}</span></label>`).join('');
+  box.innerHTML = tagBoxHTML(ONE_TAGS, 'one', 'tagBody', 'tagPick');
   const note = $('tagnote');
-  if(note) note.textContent = `${TAG_CAP}개까지 · `
-    + TAG_GROUP.map(g=>g.join('↔')).join(' · ') + ' 은 함께 붙지 않는다';
+  if(note) note.textContent = TAG_GROUP.map(g=>g.join(' ↔ ')).join(' · ') + ' 은 함께 붙지 않는다';
 }
 
-function tagPick(t){
-  const box = [...document.querySelectorAll('.tag')];
-  const on = box.filter(x=>x.checked).map(x=>x.value);
-  const next = box.find(x=>x.value===t).checked ? tagAdd(on.filter(x=>x!==t), t) : on.filter(x=>x!==t);
-  for(const x of box) x.checked = next.includes(x.value);
-}
+function tagBody(t){ ONE_TAGS = bodySet(ONE_TAGS, t); renderTagBox() }
+function tagPick(t){ ONE_TAGS = tagToggle(ONE_TAGS, t); renderTagBox() }
 
 function reseed(){ $('seed').value = (Math.random()*1e9)|0 }
 
@@ -5035,8 +5368,7 @@ function newGame(){
     BOARD = buildCustom();
   }
   else if(src==='level'){
-    const tags=[...document.querySelectorAll('.tag:checked')].map(x=>x.value);
-    BOARD = makeBoard(+$('lv').value, mulberry32(seed), {tags});
+    BOARD = makeBoard(+$('lv').value, mulberry32(seed), {tags:ONE_TAGS.slice()});
   } else BOARD = makePatient(src, seed);
   S = newState(BOARD,{mind:$('mind').value}); S.board=BOARD;
   setupDeck(S, ONE_DECK, mulberry32(seed+1)); S.rng=mulberry32(seed);
@@ -5048,6 +5380,16 @@ function newGame(){
 //@ 파일.70-ui/story-ui
 
 //@ 화면.스토리 — §9.13 스토리 모드
+//@ 화면.병기고르개 — BOSS 표에서 짓는다
+function renderBossPick(){
+  const sel = $('boss'); if(!sel) return;
+  const was = sel.value;
+  sel.innerHTML = Object.keys(BOSS).filter(k=>k!==DIS_KEY)
+      .map(k=>`<option>${esc(k)}</option>`).join('')
+    + '<option value="custom">만든 환자</option>';
+  if(was && [...sel.options].some(o=>o.value===was)) sel.value = was;
+}
+
 function newStory(){
   PICK = null;
   const key=$('boss').value, seed=+$('seed').value, rng=mulberry32(seed);
@@ -5063,8 +5405,10 @@ function newStory(){
   setupDeck(S, STORY_DECK, mulberry32(seed+1)); S.rng=rng;
   S.param=0; S.evid=1; S.paramAcc=0; S.act=1; S.policy=null; S.act1Beat=0; S.comfort=0;
   SEL=null; LOG=[]; UNDO=[]; SESS=null; PANES.story.started=true;
-  const b = BOSS[BOARD.boss] || {name:CUSTOM.name, stage0:BOARD.nodes[0].stage, hp:BOARD.hp, noDeath:BOARD.noDeath};
-  log(`<b>${b.name}</b> · 병기 ${BOARD.nodes[0].stage} · 체력 ${b.hp}${BOARD.noDeath?' <span class="d">(체력 0이 되지 않는다)</span>':''}${ovrNote()}`);
+  const b = BOARD.script ? {name:BOARD.script.name, hp:BOARD.hp, noDeath:BOARD.noDeath} : BOSS[BOARD.boss];
+  log(`<b>${b.name}</b> · 병기 ${BOARD.nodes[0].stage} · 체력 ${b.hp}`
+    + `${BOARD.noDeath?' <span class="d">(체력 0이 되지 않는다)</span>':''}`
+    + `${BOARD.score?' <span class="d">· 손으로 짠 악보</span>':''}${ovrNote()}`);
 
   const pol = $('sk_pol').value;
   if(pol){
@@ -5331,7 +5675,7 @@ document.addEventListener('keydown', e=>{
   const t=e.target.tagName;
   if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   if(PK){ if(e.key==='Escape'){ e.preventDefault(); PK.open ? pkClose() : pkCancel() } return }
-  if(DB || MODE==='batch' || MODE==='make' || !S) return;
+  if(DB || MODE==='batch' || MODE==='make' || MODE==='score' || !S) return;
   const inFight = MODE!=='sess' || (SESS && SESS.phase==='fight');
   const k=e.key;
   if(k==='Escape'){ e.preventDefault(); cancelPick(); return }
@@ -5351,10 +5695,10 @@ document.addEventListener('keydown', e=>{
 });
 
 //@ 화면.모드 — §9.17 탭 갈아타기
+const PANE_IDS = () => [...Object.keys(PANES).map(m=>'pane-'+m), 'pane-deck'];
+
 function showPane(m){
-  for(const id of ['pane-one','pane-sess','pane-story','pane-batch','pane-make','pane-deck']){
-    const e=$(id); if(e) e.style.display='none';
-  }
+  for(const id of PANE_IDS()){ const e=$(id); if(e) e.style.display='none' }
   $('pane-'+m).style.display='';
 }
 
@@ -5366,9 +5710,7 @@ function setMode(m){
   const P = PANES[m]||{};
   S=P.S||null; BOARD=P.BOARD||null; SEL=P.SEL??null; LOG=P.LOG||[]; UNDO=P.UNDO||[]; SESS=P.SESS||null;
   for(const b of document.querySelectorAll('.tab')) b.classList.toggle('on', b.dataset.m===m);
-  for(const id of ['side-one','side-sess','side-story','side-batch','side-make']){
-    const e=$(id); if(e) e.style.display='none';
-  }
+  for(const m of Object.keys(PANES)){ const e=$('side-'+m); if(e) e.style.display='none' }
   $('side-'+m).style.display='';
   showPane(m);
   const bu=$('btnundo'); if(bu) bu.disabled = !UNDO.length;
@@ -5744,9 +6086,12 @@ const FXE = {
     c.classList.add('deny'); setTimeout(()=>c.classList.remove('deny'), fxDur(360));
     await fxWait(120);
   },
-  async dealHand(){
-    const cs = document.querySelectorAll('#sg_hand .card');
-    cs.forEach((e,i)=>{ e.classList.add('dealt'); e.style.animationDelay = (i*90)+'ms' });
+  async dealHand(k){
+    if(!k) return;                       // slice(-0) 은 줄 전체다 — 0 을 걸러야 한다
+    stageHand();
+    const cs = [...document.querySelectorAll('#sg_hand .card')].slice(-k);
+    if(!cs.length) return;
+    cs.forEach(e=>{ e.style.animationDelay = '0ms'; e.classList.add('dealt') });
     await fxWait(440);
   },
   async pause(ms){ await fxWait(ms) },
@@ -5808,8 +6153,9 @@ function stageMeasure(){
 }
 
 function setHTML(el, html){
-  if(!el || el.__h === html) return;
+  if(!el || el.__h === html) return false;
   el.__h = html; el.innerHTML = html;
+  return true;
 }
 function stageEl(n){
   if(!n || !S) return null;
@@ -5864,9 +6210,11 @@ const ICO = {
 const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm',
   '부설':'kwLay', '만개':'kwBloom', '연쇄':'kwChain', '불응':'kwBack', '확산':'bSpread'};
 const BEATICO = {
-  '분화':'bSpawn', '고유':'bUniq', '성장':'grow', '몰린다':'grow', '치민다':'grow',
+  '분화':'bSpawn', '성장':'grow', '몰린다':'grow', '치민다':'grow',
   '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
   '창':'bWin', '같은 박자':'bSame', '굳는다':'bHard', '진행':'bFast', '가속':'bFast',
+  '파고든다':'bUniq', '알아듣지 못한다':'bUniq', '터진다':'bUniq',
+  '긁는다':'bUniq', '지금이면 괜찮아진다':'bUniq',
 };
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 
@@ -6016,8 +6364,7 @@ function badgeSVG(S, n, sz){
       const col = n.evoLeft<=1 ? '#98302A' : '#E8E2D2';
       const a=-90+360*p, [px,py]=P2(ex,ey,a,17);
       s += `<g${tip(TT('진화까지', `남은 턴 <b>${n.evoLeft}</b>${n.delayed?` <span class="d">(지연 ${n.delayed})</span>`:''}`
-            + `<br><br>진화하는 턴에 <b>진화 시점 수치의 ${pctOf(R.EVO_HIT[n.sym]||0)}</b>가 즉시 환자에게 들어간다.`
-            + `<br>지금 진화하면 −${Math.ceil(n.val*(R.EVO_HIT[n.sym]||0))}.`))}>`
+            + `<br><br>진화하는 턴에 <b>${R.EVO_HIT[n.sym]||0}</b>이 즉시 환자에게 들어간다. 수치를 보지 않는 고정값이다.`))}>`
         +  `<circle cx="${ex}" cy="${ey}" r="17" fill="#14181C" stroke="${col}" stroke-width="1.8"/>`
         +  (p>0?`<path d="M${ex} ${ey} L${ex} ${ey-17} A17 17 0 ${p>.5?1:0} 1 ${px} ${py} Z" fill="${col}" opacity=".25"/>`:'')
         +  `<text x="${ex}" y="${ey+5.5}" text-anchor="middle" font-size="15" font-weight="800"`
@@ -6054,10 +6401,10 @@ function badgeSVG(S, n, sz){
 
     const bt = (typeof nextBeat==='function' && S.board && S.board.boss) ? nextBeat(S, n) : null;
     if(bt){
-      const [bx,by]=P(270, RR+25), r=17;
+      const [bx,by]=P(0, RR+25), r=24, sc=1.4;
       s += `<g${tip(beatTip(S,n) || TT('다음 박자', esc(bt)))}>`
-        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="1.8"/>`
-        + `<g transform="translate(${(bx-10).toFixed(1)},${(by-10).toFixed(1)})" fill="none" stroke="#C9A44A"`
+        + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="2.4"/>`
+        + `<g transform="translate(${(bx-10*sc).toFixed(1)},${(by-10*sc).toFixed(1)}) scale(${sc})" fill="none" stroke="#C9A44A"`
         + ` stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">`
         + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g></g>`;
     }
@@ -6065,11 +6412,14 @@ function badgeSVG(S, n, sz){
 
   const rig=(n.rig||0), lent=(n.rigLent||0);
   if(rig||lent){
-    const [ix,iy]=P(39,RB), w=44, h=34, cap=n.rigCap||Math.max(R.RIG_CAP_MIN,rig);
-    const slots=Math.max(1, Math.min(6, cap||1)), on=Math.round(rig/Math.max(1,cap)*slots);
+    const base=(n.rigBase||0), pv=rig-base;
+    const [ix,iy]=P(39,RB), w=44, h=34, cap=n.rigCap||Math.max(R.RIG_CAP_MIN,base||rig);
+    const slots=Math.max(1, Math.min(6, cap||1)), on=Math.round(Math.min(base,cap)/Math.max(1,cap)*slots);
     s += `<g transform="translate(${ix-w/2},${iy-h/2})"${tip(TT('설치물',
           `매 턴 종료 시 이 자리를 <b>${rig+lent}</b> 억제한다. 보호막을 무시한다.`
-          + (rig?`<br>상한 ${cap}`:'') + (lent?`<br>빌려온 물건 ${lent} — 남의 손을 타지 않는다`:'')
+          + (rig?`<br>설치 ${base}/${cap}${pv?` · 부품 +${pv}`:''}`
+               + `<br>부품 ${(n.rigParts||[]).length}/${n.rigPartMax||0} — 부품은 설치 상한에 안 든다`:'')
+          + (lent?`<br>빌려온 물건 ${lent} — 남의 손을 타지 않는다`:'')
           + (rig?`<br><br>개방하면 <b>−${rig*CARDS['출력 개방'].v.mult}</b> 한 방으로 태울 수 있다.`:'')))}>`
       + `<rect x="0" y="0" width="${w}" height="${h}" fill="#14181C" stroke="#7AA8B2" stroke-width="1.8"/>`
       + `<rect x="7" y="-4" width="30" height="5" fill="#7AA8B2"/>`
@@ -6158,10 +6508,12 @@ function dialSVG(S, n){
           `받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.`
           + `<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 <b>${Math.floor(n.stabAcc||0)}</b> — ${left} 남았다.`
           + `<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>`
-      + arcS(A0, A0+SPAN, 9, 'rgba(122,168,178,.30)', 1)
-      + arcS(A0, A0+SPAN*f, 9, '#9FD4DE', .95)
-      + `<text x="${c}" y="42" text-anchor="middle" font-size="21" font-weight="800"`
-      + ` font-family="ui-monospace,monospace" fill="#9FD4DE">${left}</text></g>`;
+      + arcS(A0, A0+SPAN, 10, 'rgba(14,20,24,.55)', 1)
+      + arcS(A0, A0+SPAN, 10, 'rgba(122,168,178,.42)', 1)
+      + arcS(A0, A0+SPAN*f, 10, '#B8E4EC', 1)
+      + `<text x="${c}" y="45" text-anchor="middle" font-size="25" font-weight="800"`
+      + ` font-family="ui-monospace,monospace" fill="#D6EFF4"`
+      + ` stroke="#0E1418" stroke-width="4.5" paint-order="stroke" stroke-linejoin="round">${left}</text></g>`;
   }
 
   const ix = S.nodes.indexOf(n);
@@ -6194,20 +6546,45 @@ function dialSVG(S, n){
   return s;
 }
 
-function stageLayout(){
+//@ 무대.배선목록 — 자리잡기와 그리기가 함께 보는 목록
+function stageLines(live){
+  if(!S) return [];
+  const ns = live.filter(n=>n.role!=='disease');
+  const shown = enhShown(S);
+  return [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
+          ...((S.enh)||[]).map(e=>({...e, enh:true}))]
+    .filter(l => !(l.enh && !shown));
+}
+
+const GH_W = 0.55;
+let SG_GHOST = [];
+function stageGhosts(live, lines){
+  const on = new Set(live.filter(n=>n.role!=='disease').map(n=>n.sym));
+  const out = [];
+  for(const l of lines){
+    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b) || out.includes(l.b)) continue;
+    out.push(l.b);
+  }
+  return out;
+}
+
+function stageLayout(live, lines){
   if(!S) return 0;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const dis  = S.nodes.find(n=>n.role==='disease' && !n.dead);
-  const row  = alive(S).filter(n=>n!==dis);
-  const CN   = row.length || 1;
+  const dis  = live.find(n=>n.role==='disease');
+  const row  = live.filter(n=>n!==dis);
+  const gh   = stageGhosts(live, lines);
+  const CN   = (row.length + GH_W*gh.length) || 1;
   const SZ   = Math.max(118, Math.min(dis ? 200 : 280, (W*0.97)/CN - 96));
   const cy   = dis ? H*0.68 : H*0.46;
+  const slot = (at,w) => W*0.015 + (W*0.97)*(at + w/2)/CN;
   row.forEach((n,i)=>{
-    n.px = W*0.015 + (W*0.97)*(i+0.5)/CN;
+    n.px = slot(i, 1);
     n.py = cy;
     n.sz = SZ;
   });
+  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ}));
   if(dis){ dis.px = W/2; dis.py = H*0.30; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
@@ -6216,7 +6593,9 @@ function stageLayout(){
 function stageSync(){
   if(!STAGE_ON) return;                 // 나간 뒤에 도는 연출이 빈 판을 세우지 않게
   const B = stageBoard(); if(!B || !S) return;
-  const SZ = stageLayout();
+  const live  = alive(S);
+  const lines = stageLines(live);
+  const SZ = stageLayout(live, lines);
   const IM = intentMap(forecast());
 
   for(const [ix, el] of [...STAGE_ELS]){
@@ -6251,7 +6630,7 @@ function stageSync(){
     el.classList.toggle('noshield', !n.shielded);
     el.classList.toggle('sh50',  !!n.shielded && n.shReduc > R.SHIELD_CUT);
     el.classList.toggle('warn',  evoSoon(n));
-    el.classList.toggle('sel',   SEL===alive(S).indexOf(n));
+    el.classList.toggle('sel',   SEL===live.indexOf(n));
     el.classList.toggle('tgt',   STAGE_MODE!==null);
     el.classList.toggle('dis',   n.role==='disease');
     el.classList.toggle('imm',   imm);
@@ -6278,32 +6657,49 @@ function stageSync(){
     if(fresh){ el.classList.add('pop'); setTimeout(()=>el.classList.remove('pop'), 620) }
   });
 
-  stageLinks();
+  stageLinks(live, lines);
 }
 
-function stageLinks(){
+function stageLinks(live, lines){
   if(!S) return;
   if(!SG_BW) stageMeasure();
   const W = SG_BW, H = SG_BH;
-  const ns = alive(S).filter(n=>n.role!=='disease');
-  const shown = alive(S).some(n=>n.revealed);
-  const BADGE_TOP = n => (n.py - n.sz/2 - 82)/H*744;
+  const ns = live.filter(n=>n.role!=='disease');
+  const [VW, VH] = [1210, 744];
+  const LX = x => x/W*VW, LY = y => y/H*VH;
+  const BADGE_PAD = 58 + 24;
+  const BADGE_TOP = n => LY(n.py - n.sz/2 - BADGE_PAD);
   const rowTop = ns.length ? Math.min(...ns.map(BADGE_TOP)) : 120;
-  const lines = [...basicLines(ns.map(n=>n.sym)).map(l=>({...l, enh:false})),
-                 ...((S.enh)||[]).map(e=>({...e, enh:true}))];
+
+  const dz = live.find(n=>n.role==='disease' && n.px!==undefined);
+  const DZ = dz ? {top:LY(dz.py - dz.sz/2 - BADGE_PAD), bot:LY(dz.py + dz.sz/2 + BADGE_PAD),
+                   l:  LX(dz.px - dz.sz/2 - BADGE_PAD), r:  LX(dz.px + dz.sz/2 + BADGE_PAD)} : null;
 
   let out = '';
 
+  const C_TRANS = '#B8776F';
+
+  const topOf = p => LY(p.py - p.sz*0.56);
+
   let lane = 0;
   for(const l of lines){
-    if(l.enh && !shown) continue;
-    const A = ns.find(x=>x.sym===l.a), Bn = ns.find(x=>x.sym===l.b);
+    const A = ns.find(x=>x.sym===l.a);
+    const Bn = ns.find(x=>x.sym===l.b) || SG_GHOST.find(g=>g.sym===l.b);
     if(!A || !Bn || A.px===undefined || Bn.px===undefined || A===Bn) continue;
-    const sx=A.px/W*1210, ex=Bn.px/W*1210;
-    const top=(A.py - A.sz*0.56)/H*744, ly=Math.max(14, rowTop - 20 - lane*30); lane++;
-    const mx=(sx+ex)/2;
+    const sx=LX(A.px), ex=LX(Bn.px);
+    const top=topOf(A), topB=topOf(Bn);
+    const ly = Math.max(14, rowTop - 20 - lane*30); lane++;
+    let mx = (sx+ex)/2;
+    if(DZ && ly < DZ.bot && ly > DZ.top && mx > DZ.l && mx < DZ.r){
+      const lo = Math.min(sx,ex) + 26, hi = Math.max(sx,ex) - 26;
+      const left = DZ.l - 22, right = DZ.r + 22;
+      const okL = left >= lo, okR = right <= hi;
+      if(okL && okR) mx = (mx - DZ.l) < (DZ.r - mx) ? left : right;
+      else if(okL)   mx = left;
+      else if(okR)   mx = right;
+    }
     const hk = linkHead(l), mods = linkKws(l).filter(isEnhKw);
-    const c = linkKind(l)==='trans' ? '#B8776F' : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
+    const c = linkKind(l)==='trans' ? C_TRANS : (hk==='경화' ? '#4DD4C8' : '#C8B79A');
     const lt = kwTip(l) + `<br><br><b>${l.a}</b> 처치 시 → <b>${l.b}</b>`
       + (l.enh ? '<br><span class="d">강화형 — 이 환자에게만 걸린 배선이다.</span>' : '');
     const dir = ex > sx ? 1 : -1;
@@ -6311,10 +6707,9 @@ function stageLinks(){
       + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
       + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
-      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${top-9}" fill="none"`
+      + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none"`
       + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
-      + `<path d="M${ex-7} ${top-11} L${ex} ${top-1} L${ex+7} ${top-11} Z" fill="${c}"/>`
+      + `<path d="M${ex-7} ${topB-11} L${ex} ${topB-1} L${ex+7} ${topB-11} Z" fill="${c}"/>`
       + chev(34*dir) + chev(56*dir)
       + `<circle cx="${mx.toFixed(1)}" cy="${ly}" r="12.5" fill="#14181C" stroke="${c}" stroke-width="2"/>`
       + `<g transform="translate(${(mx-9).toFixed(1)},${(ly-9).toFixed(1)}) scale(.9)" fill="none"`
@@ -6340,6 +6735,7 @@ let STAGE_MODE = null;        // null | 'card' | 'treat'  — 자리를 겨누�
 let STAGE_CARD = null;        // 겨누고 있는 카드 id
 
 //@ 무대.열기 — 작업대에서 전투로 넘어간다
+let SG_DEALT = null;                  // 첫 손을 낸 판 — 아래 stageOpen 이 본다
 function stageOpen(){
   if(!S) return;
   STAGE_ON = true; STAGE_MODE = null; STAGE_CARD = null;
@@ -6349,6 +6745,11 @@ function stageOpen(){
   document.body.classList.add('sgon');
   const wasQuiet = STAGE_QUIET; STAGE_QUIET = false;
   try{ stageFit(); stageFlow() } finally { STAGE_QUIET = wasQuiet }
+  if(S.turn<=1 && !S.acts && SG_DEALT !== S && (S.hand||[]).length){
+    SG_DEALT = S;
+    fxq(()=>FXE.dealHand(S.hand.length), ['hand']);
+    fxFlush();
+  }
 }
 
 function stageClose(){
@@ -6417,7 +6818,7 @@ function stageChart(){
   const tags = hide
     ? '<span class="ktag hid">체력 태그 미상</span>'
     : ((BOARD.tags||[]).length
-        ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, `체력 <b>×${HP_TAG[t]}</b>`))}>${esc(t)} ×${HP_TAG[t]}</span>`).join('')
+        ? (BOARD.tags||[]).map(t=>`<span class="ktag"${tip(TT(t, tagLabel(t)))}>${esc(t)} ${esc(tagLabel(t))}</span>`).join('')
         : '<span class="ktag">특이 없음</span>');
 
   const badge = MODE==='story'
@@ -6554,7 +6955,7 @@ function stageHand(){
     left = handPicks(S, PICK.id);
     for(const x of PICK.chosen){ const i=left.indexOf(x); if(i>=0) left.splice(i,1) }
   }
-  $('sg_hand').innerHTML = (pend
+  const changed = setHTML($('sg_hand'), (pend
     ? `<div class="empty" style="width:100%">「${esc(PICK.id)}」 — ${pickNeed(S,PICK.id)-PICK.chosen.length}장 더 고른다. <span class="d">Esc 로 취소</span></div>`
     : '')
   + S.hand.map(id=>{
@@ -6568,7 +6969,34 @@ function stageHand(){
       return cardHTML(id, {S, node:selNode, dim:!ok, mark:aiming,
         onclick:`stageCardClick('${id}')`,
         foot: why?`<span class="keep why">${why}</span>`:''});
-    }).join('') || '<div class="empty">손이 비었다.</div>';
+    }).join('') || '<div class="empty">손이 비었다.</div>');
+  if(changed) fitHandText();
+}
+
+//@ 화면.카드글맞춤 — 칸은 그대로 두고 글자를 줄인다
+const FIT_MAX = 16, FIT_MIN = 11;      // 위는 style.css 의 #sg_hand .ctext, 아래는 위 설명
+
+const FIT_CACHE = new Map();
+
+function fitOne(t, box){
+  t.style.fontSize = '';
+  if(box.scrollHeight <= box.clientHeight) return '';        // 그대로 들어간다
+  let px = Math.max(FIT_MIN,
+    Math.floor(FIT_MAX * Math.sqrt(box.clientHeight / box.scrollHeight) * 2) / 2);
+  t.style.fontSize = px + 'px';
+  while(px > FIT_MIN && box.scrollHeight > box.clientHeight){
+    px -= 0.5; t.style.fontSize = px.toFixed(1) + 'px';
+  }
+  return px.toFixed(1) + 'px';
+}
+
+function fitHandText(){
+  for(const t of document.querySelectorAll('#sg_hand .ctext')){
+    const box = t.parentElement; if(!box) continue;      // .cbody 가 실제 칸이다
+    const key = t.textContent;
+    if(FIT_CACHE.has(key)) t.style.fontSize = FIT_CACHE.get(key);
+    else FIT_CACHE.set(key, fitOne(t, box));
+  }
 }
 
 const MIND_FACE = {
@@ -6720,7 +7148,7 @@ function fxMark(S){
 function fxPlanLog(log, before, plan){
   plan = plan || {};
   const cur = fxMark(S);
-  let killed = false, turned = false, turnHp = 0;
+  let killed = false, drew = 0, turnHp = 0;
   const nk = n => 'n' + S.nodes.indexOf(n);
 
   for(const e of (log||[])){
@@ -6754,7 +7182,7 @@ function fxPlanLog(log, before, plan){
         if(e.why==='bleed') fxq(()=>FXE.patPay(e.amt), ['pat']);
         else                turnHp += e.amt;
         break;
-      case 'turn':       turned = true; break;
+      case 'draw':       drew += e.k; break;
     }
   }
 
@@ -6787,7 +7215,7 @@ function fxPlanLog(log, before, plan){
     if(c !== a && c && c !== 'none' && S.nodes[i] && !S.nodes[i].dead) fxq(()=>FXE.zone(S.nodes[i], c), [nk(S.nodes[i])]);
   }
 
-  if(turned) fxq(()=>FXE.dealHand(), ['hand']);
+  if(drew) fxq(()=>FXE.dealHand(drew), ['hand']);
   sayHpCheck();
 }
 
@@ -7382,12 +7810,16 @@ async function batchStory(){
 
 //@ 화면.만들기 — §9.20 환자 직접 짜기
 let CUSTOM = {
-  name:'커스텀 환자', hp:280, level:3, core:'', talk:3, tags:[],
+  name:'커스텀 환자', hp:hpOfTags([]), level:3, core:'', talk:3, tags:[], score:null, scoreFrom:null,
   nodes:[{sym:'발열', init:65, evo:4, shielded:true, grow:0, p:''},
          {sym:'통증', init:50, evo:5, shielded:true, grow:0, p:''}],
   enh:[],
   dis:null,
 };
+
+function mkNote(txt){
+  for(const id of ['mk_note','sc_note']){ const e=$(id); if(e) e.textContent=txt }
+}
 
 function mkSet(path, v){
   const seg=path.split('.'); let o=CUSTOM;
@@ -7419,42 +7851,120 @@ function mkKwMod(i, k, on){
 
 function mkDelEnh(i){ CUSTOM.enh.splice(i,1); renderMake() }
 
+const DIS_KEY = '커스텀';
+
+//@ 만들기.병노드등록 — 손으로 짠 정의를 BOSS 표에 올린다
+function disRegister(d, key){
+  const sts = disStages(d);
+  const only = o => Object.fromEntries(sts.filter(s=>o && o[s]!=null).map(s=>[s, o[s]]));
+  const tags = tagsClean(d.tags);
+  const b = {
+    name: d.name || '커스텀 병 노드',
+    stage0: sts[0], stageMax: sts[sts.length-1],
+    noDeath: !!d.noDeath,
+    tags: tags.slice(),
+    hp: hpOfTags(tags),
+    seed: (d.seed||[]).slice(),
+    lv: {...(d.lv||{})},
+    disVal: only(d.disVal), clock: only(d.clock), carry: only(d.carry),
+    beats: Object.fromEntries(sts.map(s => {
+      const line = scoreClean({[s]: (d.beats||{})[s] || []});
+      return [s, line ? line[s] : ['분화','성장']];
+    })),
+    policy: (BOSS[d.from] || {}).policy,       // 방침 설명문은 밑그림 것을 빌린다
+    custom: true,
+  };
+  if(d.dupType) b.dupType = d.dupType;
+  if(disRosterOn(d)){
+    b.syms = Object.fromEntries(sts.map(s => [s, d.syms[s].slice()]));
+    b.roster = {};
+  }
+  BOSS[key || DIS_KEY] = b;
+  if(b.syms) for(const s of sts)
+    b.roster[s] = b.syms[s].map((sym,i)=>[sym, stageBand(key || DIS_KEY, s, i)]);
+  return b;
+}
+
+//@ 만들기.명부돎 — 명부가 실제로 도는가
+function disRosterOn(d){
+  const sts = disStages(d);
+  return sts.length > 0 && sts.every(s => ((d.syms||{})[s]||[]).length);
+}
+
+function disStages(d){
+  const lo = STAGE_LO, hi = STAGE_HI;
+  const a = Math.max(lo, Math.min(hi, +d.stage || lo));
+  const b = Math.max(lo, Math.min(hi, +d.stageMax || a));
+  const out = [];
+  for(let s = Math.min(a,b); s <= Math.max(a,b); s++) out.push(s);
+  return out;
+}
+
+//@ 만들기.병노드뜨기 — 고른 병 노드를 통째로 베껴 온다
+function disFrom(key){
+  const b = BOSS[key];
+  const sts = [];
+  for(let s=b.stage0; s<=b.stageMax; s++) sts.push(s);
+  const pick = (o, dflt) => Object.fromEntries(sts.map(s => [s, o ? o[s] : dflt(s)]));
+  return {
+    from: key,                                   // 어느 병 노드를 밑그림으로 떴는가
+    name: b.name,
+    stage: b.stage0, stageMax: b.stageMax,
+    noDeath: !!b.noDeath,
+    tags: (b.tags||[]).slice(),
+    seed: (b.seed||[]).slice(),
+    dupType: b.dupType || '',
+    lv: {...(b.lv||{})},                         // 항목별 레벨 — band · evo · spots · dis · enh
+    disVal: pick(null, s => stageDisVal(key, s)),   // 병기별 병 노드 수치
+    clock:  pick(null, s => stageTurns(key, s)),    // 병기별 시계
+    carry:  pick(null, s => stageCarry(key, s)),    // 병기별 이월 비율
+    syms:   Object.fromEntries(sts.map(s => [s, b.syms && b.syms[s] ? b.syms[s].slice() : null])),
+    beats:  Object.fromEntries(sts.map(s => [s, bossScore(key, s).slice()])),
+  };
+}
+
 function mkToggleDis(){
-  CUSTOM.dis = CUSTOM.dis ? null
-    : {boss:'아이', stage:3, stageMax:5, init:SR.DIS_BASE[3], clock:SR.STAGE_TURNS, noDeath:true};
+  CUSTOM.dis = CUSTOM.dis ? null : disFrom('아이');
   renderMake();
 }
 
-function mkToggleTag(t){
-  CUSTOM.tags = CUSTOM.tags.includes(t)
-    ? CUSTOM.tags.filter(x=>x!==t)
-    : tagAdd(CUSTOM.tags, t);
+function mkTags(next){
+  const was = hpOfTags(CUSTOM.tags);
+  CUSTOM.tags = next;
+  if(+CUSTOM.hp === was) CUSTOM.hp = hpOfTags(CUSTOM.tags);
   renderMake();
 }
+function mkPickBody(t){ mkTags(bodySet(CUSTOM.tags, t)) }
+function mkToggleTag(t){ mkTags(tagToggle(CUSTOM.tags, t)) }
 
 function mkLoadFrom(){
   const id=$('mk_from').value; if(!id) return;
   const p=SCRIPT[id], b=makePatient(id, +$('seed').value);
   CUSTOM = {name:p.name, hp:b.hp, level:p.lv, core:p.core, talk:p.talk??3, tags:(p.tags||[]).slice(),
     nodes:b.nodes.map(n=>({sym:n.sym, init:n.init, evo:n.evo, shielded:n.shielded, grow:n.grow})),
-    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:Array.isArray(e.k)?e.k.slice():e.k})), dis:null};
-  $('mk_note').textContent = `${p.name} 을(를) 본으로 가져왔다.`;
+    enh:(b.enh||[]).map(e=>({a:e.a,b:e.b,k:Array.isArray(e.k)?e.k.slice():e.k})),
+    dis:null, score:null, scoreFrom:null};
+  mkNote(`${p.name} 을(를) 본으로 가져왔다.`);
   renderMake();
 }
 
-function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); $('mk_note').textContent='JSON 으로 내보냈다.' }
+function mkToJson(){ $('mk_json').value = JSON.stringify(CUSTOM, null, 1); mkNote('JSON 으로 내보냈다.') }
 
 function mkFromJson(){
   try{ const o=JSON.parse($('mk_json').value); if(!o.nodes) throw new Error('nodes 가 없다');
-       CUSTOM=o; $('mk_note').textContent='읽어들였다.'; renderMake() }
-  catch(e){ $('mk_note').textContent='읽지 못했다 — '+e.message }
+       const drop = tagsUnknown(o.tags);
+       o.tags = tagsClean(o.tags);
+       CUSTOM=o;
+       mkNote('읽어들였다.' + (drop.length?` 모르는 태그는 뺐다 — ${drop.join(' · ')}`:''));
+       renderMake() }
+  catch(e){ mkNote('읽지 못했다 — '+e.message) }
 }
 
 function buildCustom(){
   const mk = o => {
     const n = {sym:o.sym, init:+o.init, val:+o.init, shielded:!!o.shielded,
       shReduc:o.shielded?R.SHIELD_CUT:0, stabAcc:0, grow:+o.grow||0, evo:+o.evo, evoLeft:+o.evo,
-      evolved:false, dead:false, dormT:0, rig:0, rigUp:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
+      evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0, rigCap:0, rigLent:0, delayed:0, weak:0, diagRound:0, diagAcc:0,
       diagNeed:R.DIAG_NEED, demoted:false, revealed:false, spawned:false, role:'sym'};
     const d = SYMPARAM[o.sym];
     if(d && o.p!==undefined && o.p!==null && o.p!=='' && Number.isFinite(+o.p)) n[d.key] = +o.p;
@@ -7468,12 +7978,15 @@ function buildCustom(){
     script:{name:CUSTOM.name, talk:+CUSTOM.talk||0, tried:'없음', lv:lvl}};
   if(CUSTOM.dis){
     const d=CUSTOM.dis;
-    const dis={sym:'병', role:'disease', init:+d.init, val:+d.init, shielded:false, shReduc:0,
-      stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigUp:0,
-      weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, demoted:false, revealed:false,
-      spawned:false, stage:+d.stage, stageMax:+d.stageMax, stageClock:+d.clock, beat:0};
+    disRegister(d);                       // BOSS['커스텀'] 로 올린다 — 커널은 보통 보스로 읽는다
+    const st = +d.stage, v0 = stageDisVal(DIS_KEY, st);
+    const dis={sym:'병', role:'disease', init:v0, val:v0, shielded:false, shReduc:0,
+      stabAcc:0, grow:0, evo:99, evoLeft:99, evolved:false, dead:false, dormT:0, rig:0, rigBase:0, rigParts:[], rigPartMax:0,
+      weak:0, diagRound:0, diagAcc:0, diagNeed:R.DIAG_NEED, resist:0, resistBack:false,
+      demoted:false, revealed:false,
+      spawned:false, stage:st, stageMax:+d.stageMax, stageClock:stageTurns(DIS_KEY, st), beat:0};
     board.nodes = [dis, ...syms];
-    board.boss = d.boss; board.core='병'; board.noDeath = !!d.noDeath;
+    board.boss = DIS_KEY; board.core='병'; board.noDeath = !!d.noDeath;
   }
   board.S = S_of({nodes:syms, enh:board.enh, evoBase:board.evoBase});
   board.lvCalc = lv_of(board.S);
@@ -7482,7 +7995,7 @@ function buildCustom(){
 
 function mkStart(){
   const b = buildCustom();
-  if(!b.nodes.length){ $('mk_note').textContent='자리가 하나는 있어야 한다.'; return }
+  if(!b.nodes.length){ mkNote('자리가 하나는 있어야 한다.'); return }
   if(CUSTOM.dis){ $('boss').value='custom'; PANES.story.started=true; setMode('story'); newStory() }
   else { $('src').value='custom'; PANES.one.started=true; setMode('one'); newGame() }
 }
@@ -7506,8 +8019,7 @@ function renderMake(){
        <label class="mk">핵심 증상<input value="${esc(CUSTOM.core)}" placeholder="비우면 첫 자리" onchange="mkSet('core',this.value)"></label>
        <label class="mk">말수<input type="number" value="${CUSTOM.talk}" onchange="mkSet('talk',this.value)"></label>
      </div>
-     <div class="bar">체력 태그</div>
-     <div class="tags">${Object.keys(HP_TAG).map(t=>`<label><input type="checkbox" ${CUSTOM.tags.includes(t)?'checked':''} onchange="mkToggleTag('${t}')">${t} <span class="d">×${HP_TAG[t]}</span></label>`).join('')}</div>
+     ${tagBoxHTML(CUSTOM.tags, 'mk', 'mkPickBody', 'mkToggleTag')}
 
      <div class="bar">증상 자리 <span class="right"><button class="mini" onclick="mkAddNode()">+ 자리</button></span></div>
      <div class="note">「효과 비율」은 그 증상을 그 증상이게 만드는 값이다. 증상을 바꾸면 항목도 바뀐다.
@@ -7543,11 +8055,13 @@ function renderMake(){
         <td><button class="mini" onclick="mkDelEnh(${i})">뺀다</button></td></tr>`}).join('')
     + `</table>
      <div class="bar">병 노드 <span class="right"><button class="mini" onclick="mkToggleDis()">${CUSTOM.dis?'끈다':'켠다'}</button></span></div>`
-    + (CUSTOM.dis ? `<div class="note">악보(분화·고유·진행)는 고른 보스의 것을 빌려 쓴다. 병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.</div>
+    + (CUSTOM.dis ? `<div class="note">악보는 고른 병 노드의 것을 밑그림으로 쓴다. 「악보」 탭에서 병기마다 고쳐 짤 수 있다 ${CUSTOM.score?'— <b>지금 손댄 악보가 실려 있다</b>':''}.<br>
+         병기가 오를 때의 수치는 SR.DIS_BASE 를 따른다 — 그 값을 바꾸려면 「규칙 덮어쓰기」를 쓴다.
+         <button class="mini" onclick="setMode('score')">악보를 짠다</button></div>
        <div class="mkgrid">
          <label class="mk">악보<select onchange="mkSet('dis.boss',this.value)">${Object.keys(BOSS).map(k=>`<option ${k===CUSTOM.dis.boss?'selected':''}>${k}</option>`).join('')}</select></label>
-         <label class="mk">시작 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
-         <label class="mk">최대 병기<input type="number" min="3" max="5" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
+         <label class="mk">시작 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${CUSTOM.dis.stage}" onchange="mkSet('dis.stage',this.value)"></label>
+         <label class="mk">최대 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${CUSTOM.dis.stageMax}" onchange="mkSet('dis.stageMax',this.value)"></label>
          <label class="mk">병 노드 수치<input type="number" value="${CUSTOM.dis.init}" onchange="mkSet('dis.init',this.value)"></label>
          <label class="mk">병기 시계<input type="number" value="${CUSTOM.dis.clock}" onchange="mkSet('dis.clock',this.value)"></label>
          <label class="mk">체력 0이 안 된다<input type="checkbox" ${CUSTOM.dis.noDeath?'checked':''} onchange="mkSet('dis.noDeath',this.checked)"></label>
@@ -7555,6 +8069,313 @@ function renderMake(){
   $('log').innerHTML=LOG.map(t=>`<div>${t}</div>`).join('');
   renderAIW();
 }
+
+//@ 파일.80-tools/score
+
+//@ 화면.악보 — §9.21 병 노드 악보 짜기
+
+let SCORE_AIM = null;
+
+function scStages(){ return CUSTOM.dis ? disStages(CUSTOM.dis) : [] }
+
+function scLine(st){
+  const d = CUSTOM.dis;
+  if(!d) return [];
+  if(!d.beats) d.beats = {};
+  if(!d.beats[st] || !d.beats[st].length) d.beats[st] = bossScore(d.from || '아이', st).slice();
+  return d.beats[st];
+}
+
+function scSet(st, i, v){ scLine(st)[i] = v; SCORE_AIM = st; scTouch(); renderScore() }
+
+function scMove(st, i, d){
+  const L = scLine(st), j = i + d;
+  if(j < 0 || j >= L.length) return;
+  const x = L[i]; L[i] = L[j]; L[j] = x;
+  SCORE_AIM = st; scTouch(); renderScore();
+}
+
+function scDel(st, i){
+  const L = scLine(st);
+  if(L.length <= 1) return;              // 빈 악보는 둘 수 없다 — 병이 할 일이 없어진다
+  L.splice(i, 1); SCORE_AIM = st; scTouch(); renderScore();
+}
+
+function scAdd(st, beat){ scLine(st).push(beat || '성장'); SCORE_AIM = st; scTouch(); renderScore() }
+
+function scReset(st){
+  if(CUSTOM.dis && CUSTOM.dis.beats) delete CUSTOM.dis.beats[st];
+  SCORE_AIM = st; scTouch(); renderScore();
+}
+
+function scResetAll(){
+  if(!CUSTOM.dis) return;
+  const keep = CUSTOM.dis.from;
+  CUSTOM.dis = disFrom(keep);
+  scTouch(); renderScore();
+}
+
+function scSetDis(path, v){
+  const seg = String(path).split('.');
+  let o = CUSTOM.dis;
+  for(let i=0;i<seg.length-1;i++){ if(!o[seg[i]]) o[seg[i]] = {}; o = o[seg[i]] }
+  const k = seg[seg.length-1];
+  o[k] = (typeof o[k]==='boolean') ? !!v : (typeof o[k]==='number' || o[k]===undefined ? (v===''?undefined:(isNaN(+v)?v:+v)) : v);
+  if(o[k]===undefined) delete o[k];
+  scTouch(); renderScore();
+}
+
+function scPickFrom(key){ CUSTOM.dis = disFrom(key); SCORE_AIM = null; scTouch(); renderScore() }
+
+function scOn(){ if(!CUSTOM.dis) mkToggleDis(); renderScore() }
+
+function scSymAdd(st){
+  const d = CUSTOM.dis; d.syms = d.syms || {};
+  d.syms[st] = (d.syms[st] || []).concat(ALLSYM[0]);
+  scTouch(); renderScore();
+}
+function scSymSet(st, i, v){ CUSTOM.dis.syms[st][i] = v; scTouch(); renderScore() }
+function scSymDel(st, i){
+  const L = CUSTOM.dis.syms[st];
+  L.splice(i, 1);
+  if(!L.length) CUSTOM.dis.syms[st] = null;
+  scTouch(); renderScore();
+}
+
+//@ 만들기.병노드저장 — 브라우저에 남는 커스텀 병 노드
+const DIS_STORE = 'intern.dis.v1';
+
+function disSaved(){
+  try{ return JSON.parse(localStorage.getItem(DIS_STORE) || '{}') }
+  catch(e){ return {} }                     // 읽을 수 없으면 없는 것으로 친다
+}
+function disSaveAll(all){
+  try{ localStorage.setItem(DIS_STORE, JSON.stringify(all)); return true }
+  catch(e){ return false }                  // 사생활 모드 · 저장 공간 참 — 조용히 실패하지 않는다
+}
+function disRegisterSaved(){
+  const all = disSaved(), ok = [], bad = [];
+  for(const nm in all){
+    try{ disRegister(all[nm], nm); ok.push(nm) }
+    catch(e){ bad.push(nm) }
+  }
+  if(bad.length) log(`<i>저장한 병 노드 ${bad.length}개를 읽지 못했다 — ${esc(bad.join(' · '))}</i>`);
+  return ok;
+}
+
+let SC_SAVE_OPEN = false, SC_DIRTY = false;
+
+function scSaveOpen(){ SC_SAVE_OPEN = true; renderScore() }
+function scSaveClose(){ SC_SAVE_OPEN = false; renderScore() }
+function scSaveDo(){
+  const nm = ($('sc_savename').value || '').trim();
+  if(!nm){ mkNote('이름을 적어야 저장한다.'); return }
+  if(BOSS[nm] && !BOSS[nm].custom){ mkNote(`「${nm}」 은 권위본 병 노드의 이름이다. 다른 이름을 쓴다.`); return }
+  const all = disSaved();
+  all[nm] = JSON.parse(JSON.stringify(CUSTOM.dis));
+  all[nm].name = nm;
+  if(!disSaveAll(all)){ mkNote('브라우저가 저장을 막았다 — 사생활 모드인지 본다.'); return }
+  disRegister(all[nm], nm); renderBossPick();
+  CUSTOM.dis.name = nm; SC_DIRTY = false; SC_SAVE_OPEN = false;
+  mkNote(`「${nm}」 으로 저장했다. 스토리 탭의 병기 고르개에도 뜬다.`);
+  renderScore();
+}
+function scSaveLoad(nm){
+  const all = disSaved(); if(!all[nm]) return;
+  CUSTOM.dis = JSON.parse(JSON.stringify(all[nm]));
+  CUSTOM.dis.tags = tagsClean(CUSTOM.dis.tags);
+  SC_DIRTY = false; SCORE_AIM = null;
+  mkNote(`「${nm}」 을 불러왔다.`);
+  renderScore();
+}
+function scSaveDrop(nm){
+  const all = disSaved(); delete all[nm];
+  disSaveAll(all); delete BOSS[nm]; renderBossPick();
+  mkNote(`「${nm}」 을 지웠다.`);
+  renderScore();
+}
+function scLeave(){
+  if(SC_DIRTY){
+    SC_DIRTY = false;                       // 한 번 알렸으면 다음 누름은 그냥 보낸다
+    mkNote('손댄 병 노드를 아직 저장하지 않았다. 한 번 더 누르면 저장하지 않고 넘어간다.');
+    renderScore(); return;
+  }
+  setMode('make');
+}
+
+function renderScore(){
+  tipReset();
+  const host = $('sc_body');
+  if(!host) return;
+
+  if(!CUSTOM.dis){
+    host.innerHTML =
+      `<div class="chart">병 노드가 없다</div>
+       <div class="note">병 노드는 스토리 판의 한가운데다 — 병기를 올리며 자리를 뿜고, 악보대로 매 턴 한 수를 둔다.<br>
+         「만들기」의 병 노드를 켜거나, 아래 단추로 바로 켠다.</div>
+       <button onclick="scOn()">병 노드를 켠다</button>`;
+    $('sc_side').innerHTML = '';
+    $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+    return;
+  }
+
+  const d = CUSTOM.dis, sts = scStages();
+  if(SCORE_AIM === null || !sts.includes(SCORE_AIM)) SCORE_AIM = sts[0];
+
+  const opt = cur => BEAT_LIST.map(x =>
+    `<option value="${esc(x)}" ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
+  const symOpt = cur => ALLSYM.map(x =>
+    `<option value="${esc(x)}" ${x===cur?'selected':''}>${esc(x)}</option>`).join('');
+  const doc = b => {
+    const e = BEATDOC[b];
+    return e ? TT(b + (e.of?' · '+e.of:'') + ' — ' + e.label, e.why()) : TT(b, '설명이 아직 없는 박자다.');
+  };
+  const hp = hpOfTags(d.tags||[]);
+
+  let h = `<div class="chart">병 노드 — ${esc(d.name||'이름 없음')} · 밑그림 <b>${esc(d.from||'—')}</b>`
+        + ` · 병기 ${sts[0]}${sts.length>1?`~${sts[sts.length-1]}`:''} · 체력 ${hp}${SC_DIRTY?' <span style="color:var(--blood)">· 저장 안 됨</span>':''}</div>
+
+     <div class="bar">이름과 몸</div>
+     <div class="mkgrid">
+       <label class="mk">이름<input value="${esc(d.name||'')}" onchange="scSetDis('name',this.value)"></label>
+       <label class="mk">시작 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${d.stage}" onchange="scSetDis('stage',this.value)"></label>
+       <label class="mk">최종 병기<input type="number" min="${STAGE_LO}" max="${STAGE_HI}" value="${d.stageMax}" onchange="scSetDis('stageMax',this.value)"></label>
+       <label class="mk">체력 0이 안 된다<input type="checkbox" ${d.noDeath?'checked':''} onchange="scSetDis('noDeath',this.checked)"></label>
+     </div>
+     ${tagBoxHTML(d.tags, 'sc', 'scBody', 'scTag')}
+
+     <div class="bar">씨앗 자리 <span class="right d">3막에 들어설 때 이미 서 있는 자리</span></div>
+     <div class="scline">`
+     + (d.seed||[]).map((s,i)=>`<span class="beat">
+          <b class="n">${i+1}</b>
+          <select onchange="scSeedSet(${i},this.value)">${symOpt(s)}</select>
+          <button class="mini" onclick="scSeedDel(${i})" title="뺀다">×</button>
+        </span>`).join('')
+     + `<button class="mini addb" onclick="scSeedAdd()" title="씨앗 하나 더">+</button></div>`;
+
+  h += `<div class="bar">병기별</div>
+     <div class="note">수치는 그 병기에 들어설 때 병 노드가 갖는 값이다.
+       이월은 앞 병기에서 깎아 둔 몫을 얼마나 들고 가는가 —
+       <b>1</b> 이면 깎아 둔 비율이 그대로 유지되고, <b>0</b> 이면 새 수치로 되돌아간다.
+       시계는 그 병기가 몇 턴 만에 다음으로 넘어가는가다.</div>`;
+
+  const rosterOn = disRosterOn(d);
+  const empty = sts.filter(s => !((d.syms||{})[s]||[]).length);
+
+  for(const st of sts){
+    const roster = (d.syms||{})[st];
+    h += `<div class="bar">병기 ${st}${st===+d.stage?' · 시작':''}${st===+d.stageMax?' · 최종':''}</div>
+      <div class="mkgrid">
+        <label class="mk">병 노드 수치<input type="number" value="${(d.disVal||{})[st] ?? ''}"
+               placeholder="${SR.DIS_BASE[SLV(d.from||'아이','dis',st)]}" onchange="scSetDis('disVal.${st}',this.value)"></label>
+        <label class="mk">병기 시계<input type="number" min="1" max="30" value="${(d.clock||{})[st] ?? ''}"
+               placeholder="${SR.STAGE_TURNS}" onchange="scSetDis('clock.${st}',this.value)"></label>
+        <label class="mk">이월 비율<input type="number" min="0" max="1" step="0.1" value="${(d.carry||{})[st] ?? ''}"
+               placeholder="${SR.GIMMICK.PRORATE?1:0}" onchange="scSetDis('carry.${st}',this.value)"></label>
+      </div>
+      <div class="bar">활성 부수 <span class="right d">${
+          rosterOn ? '명부대로 — 앞 '+Math.max(1,(roster||[]).length-1)+'개가 진입 세트, 나머지는 분화가 채운다'
+        : (roster&&roster.length)
+          ? '안 돈다 — 빈 병기('+empty.join(' · ')+')가 있어 명부 전체가 꺼진다'
+          : '명부 없음 — 자리 상한('+SR.SPAWN_LV[SLV(d.from||'아이','spots',st)]+')까지 분화가 뿜는다'}</span></div>
+      <div class="scline">`
+      + (roster||[]).map((s,i)=>`<span class="beat">
+            <b class="n">${i+1}</b>
+            <select onchange="scSymSet(${st},${i},this.value)">${symOpt(s)}</select>
+            <button class="mini" onclick="scSymDel(${st},${i})" title="뺀다">×</button>
+          </span>`).join('')
+      + `<button class="mini addb" onclick="scSymAdd(${st})" title="자리 하나 더">+</button></div>`;
+  }
+
+  const LVITEM = [['band','자리 수치 밴드'],['evo','진화 시계'],['spots','자리 상한'],
+                  ['dis','병 노드 수치'],['enh','연결선']];
+  h += `<div class="bar">항목별 레벨</div>
+     <div class="note">병기 번호가 곧 레벨이다. 항목마다 어긋나게 하고 싶을 때만 적는다 —
+       비우면 병기 번호를 그대로 쓴다. 위의 「병 노드 수치」를 직접 적었으면 그쪽이 먼저다.</div>
+     <div class="mkgrid">`
+    + LVITEM.map(([k,nm])=>`<label class="mk">${nm}<input type="number" min="1" max="5"
+         value="${(d.lv||{})[k] ?? ''}" placeholder="병기 번호" onchange="scSetDis('lv.${k}',this.value)"></label>`).join('')
+    + `</div>`;
+
+  h += `<div class="bar">악보</div>
+     <div class="note">한 턴에 한 비트씩 나아가고, 끝에 닿으면 처음으로 돌아온다.
+       병기가 오르면 다시 1번부터다.<br>
+       헛도는 비트는 「성장」으로 대신 나간다 — 병이 통째로 노는 턴은 만들지 않는다.</div>`;
+
+  for(const st of sts){
+    const L = scLine(st), n = L.length, aim = st === SCORE_AIM;
+    const clk = (d.clock||{})[st] || SR.STAGE_TURNS;
+    const fit = n === clk ? `시계와 딱 맞는다 — 매 병기가 같은 흐름이다`
+      : n < clk ? `시계가 다 돌기 전에 악보가 한 바퀴 돈다 — 앞 ${clk-n}박자가 한 번 더 나온다`
+      : `뒤 ${n-clk}박자는 시계가 늘어져야 나온다`;
+    h += `<div class="bar">병기 ${st}
+        <span class="right">
+          <button class="mini" onclick="scAim(${st})"${aim?' disabled':''}>악보 선택</button>
+          <button class="mini" onclick="scReset(${st})">기본값으로</button>
+        </span></div>
+      <div class="scline${aim?' aim':''}">`
+      + L.map((b,i)=>`<span class="beat">
+            <b class="n">${i+1}</b>
+            <select${tip(doc(b))} onchange="scSet(${st},${i},this.value)">${opt(b)}</select>
+            <button class="mini" onclick="scMove(${st},${i},-1)" title="앞으로"${i===0?' disabled':''}>◀</button>
+            <button class="mini" onclick="scMove(${st},${i},1)" title="뒤로"${i===n-1?' disabled':''}>▶</button>
+            <button class="mini" onclick="scDel(${st},${i})" title="뺀다"${n<=1?' disabled':''}>×</button>
+          </span>`).join('')
+      + `<button class="mini addb" onclick="scAdd(${st})" title="끝에 한 박자 더">+</button></div>
+      <div class="scfoot"><span class="note">${n}박자 · 시계 ${clk}턴 · ${fit}</span></div>
+      <div class="scflow">${L.map(b=>esc(b)).join(' <span class="d">→</span> ')} <span class="d">↻</span></div>`;
+  }
+
+  h += `<div class="bar">쓸 수 있는 패턴 <span class="right d">누르면 병기 ${SCORE_AIM} 악보 끝에 붙는다</span></div>
+     <div class="note">이름 위에 손을 올리면 그 박자가 무엇을 하는지 나온다.</div>
+     <div class="scpal">`
+    + BEAT_LIST.map(b=>{
+        const e = BEATDOC[b];
+        return `<button class="pal"${tip(doc(b))} onclick="scAdd(${SCORE_AIM},'${esc(b)}')">
+            <b>${esc(b)}</b><span class="d">${e?esc(e.label):''}</span></button>`;
+      }).join('')
+    + `</div>`;
+
+  if(SC_SAVE_OPEN){
+    const saved = Object.keys(disSaved());
+    h += `<div class="scsave">
+        <div class="bar">커스텀 병 노드 저장 <span class="right"><button class="mini" onclick="scSaveClose()">닫는다</button></span></div>
+        <div class="note">브라우저에 남는다. 저장하면 스토리 탭의 병기 고르개와 만들기 탭에서 고를 수 있다.</div>
+        <label class="mk">이름<input id="sc_savename" value="${esc(d.name||'')}"></label>
+        <button class="go" onclick="scSaveDo()">이 이름으로 저장</button>`
+      + (saved.length ? `<div class="bar">저장해 둔 것</div>` + saved.map(nm=>
+          `<div class="scrow"><b>${esc(nm)}</b>
+             <span class="right">
+               <button class="mini" onclick="scSaveLoad('${esc(nm)}')">불러온다</button>
+               <button class="mini" onclick="scSaveDrop('${esc(nm)}')">지운다</button>
+             </span></div>`).join('') : '')
+      + `</div>`;
+  }
+
+  host.innerHTML = h;
+
+  const saved = Object.keys(disSaved());
+  $('sc_side').innerHTML =
+    `<label>밑그림 병 노드</label>
+     <select onchange="scPickFrom(this.value)">${Object.keys(BOSS).filter(k=>!BOSS[k].custom||saved.includes(k)).map(k=>
+        `<option ${k===d.from?'selected':''}>${esc(k)}</option>`).join('')}</select>
+     <div class="note">고른 병 노드를 통째로 떠 온다. 지금 손댄 것은 사라진다.</div>
+     <button onclick="scResetAll()">병 노드 변경</button>
+     <button onclick="scSaveOpen()">커스텀 병 노드 저장</button>
+     <button onclick="scLeave()">만들기로 간다</button>`;
+
+  $('log').innerHTML = LOG.map(t=>`<div>${t}</div>`).join('');
+}
+
+function scTag(x){ const d = CUSTOM.dis; d.tags = tagToggle(d.tags, x); scTouch(); renderScore() }
+function scBody(x){ const d = CUSTOM.dis; d.tags = bodySet(d.tags, x); scTouch(); renderScore() }
+function scSeedAdd(){ const d=CUSTOM.dis; d.seed=(d.seed||[]).concat(ALLSYM[0]); scTouch(); renderScore() }
+function scSeedSet(i,v){ CUSTOM.dis.seed[i]=v; scTouch(); renderScore() }
+function scSeedDel(i){ CUSTOM.dis.seed.splice(i,1); scTouch(); renderScore() }
+
+function scAim(st){ SCORE_AIM = st; renderScore() }
+
+function scTouch(){ SC_DIRTY = true }
 
 //@ 파일.90-boot
 
@@ -7564,6 +8385,9 @@ deckLine('one_deck', ONE_DECK, ONE_CAP);
 packLine();
 
 renderOvr();
+
+try{ disRegisterSaved() }catch(e){ /* 저장 공간을 못 읽는 판에서도 판은 돌아야 한다 */ }
+renderBossPick();
 
 PANES.one.started=true;
 

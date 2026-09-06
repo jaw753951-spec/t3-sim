@@ -112,9 +112,9 @@ body.sgon{overflow:hidden}
 /* 배선 자체는 손이 안 닿지만 메달에는 설명이 붙는다 — 그 자리만 되살린다 */
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
-/* 아직 안 난 자리 — 전이 배선이 닿는 빈 칸. 설명이 붙으므로 손이 닿아야 한다.
-   글꼴을 여기서 준다: SVG text 는 판의 글꼴을 물려받지 않는다 */
-#sg_links .ghz{pointer-events:auto;cursor:help;font-family:var(--sans)}
+/* 아직 안 난 자리(.ghz)를 그리던 규칙은 걷었다 — 그 칸을 아예 안 그린다
+   (무대.연결선). 되살릴 거면 손이 닿게 pointer-events 를 켜고 글꼴을 여기서
+   줘야 한다: SVG text 는 판의 글꼴을 물려받지 않는다 */
 /* 방향은 갈매기와 화살촉이 말한다 — 정적이다.
    전에는 대시를 흐르게 해서 방향을 냈는데, 줄이 서넛이면 판 위쪽 전체가 늘
        움직이고 있어 눈이 거기 붙들렸다. 갈무리 · 인쇄에도 안 남는다.

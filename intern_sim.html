@@ -451,8 +451,6 @@ body.sgon{overflow:hidden}
 #sg_links{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
 #sg_links .wirem{pointer-events:auto;cursor:help}
 
-#sg_links .ghz{pointer-events:auto;cursor:help;font-family:var(--sans)}
-
 #sg_links .wf{stroke-dasharray:16 9}
 #sg_links .wf.enh{stroke-dasharray:7 11}
 #sg_board.dark .gz:not(.evoing){filter:brightness(.42) saturate(.6);transition:filter .4s}
@@ -6573,10 +6571,8 @@ function stageGhosts(live, lines){
   const on = new Set(live.filter(n=>n.role!=='disease').map(n=>n.sym));
   const out = [];
   for(const l of lines){
-    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b)) continue;
-    const had = out.find(g=>g.sym===l.b);
-    if(had){ if(!had.from.includes(l.a)) had.from.push(l.a) }
-    else out.push({sym:l.b, from:[l.a]});
+    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b) || out.includes(l.b)) continue;
+    out.push(l.b);
   }
   return out;
 }
@@ -6597,7 +6593,7 @@ function stageLayout(live, lines){
     n.py = cy;
     n.sz = SZ;
   });
-  SG_GHOST = gh.map((g,i)=>({...g, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
+  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ}));
   if(dis){ dis.px = W/2; dis.py = H*0.30; dis.sz = Math.min(262, W*0.185) }
   return SZ;
 }
@@ -6692,23 +6688,6 @@ function stageLinks(live, lines){
 
   const C_TRANS = '#B8776F';
 
-  const kx = LX(1)/LY(1);
-  for(const g of SG_GHOST){
-    const gx=LX(g.px), gy=LY(g.py), rx=LX(g.sz/2), ry=LY(g.sz/2);
-    const gt = TT(`${g.sym} — 아직 안 난 자리`,
-      `<b>${esc(g.from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
-      + '<br><br><span class="d">칸만 비워 둔 것이다 — 지금은 아무것도 하지 않고,'
-      + ' 아무것도 여기에 걸 수 없다.</span>');
-    out += `<g class="ghz"${tip(gt)}>`
-      + `<ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"`
-      + ` fill="#14181C" fill-opacity=".55" stroke="${C_TRANS}" stroke-width="2.4"`
-      + ` stroke-dasharray="9 8" opacity=".6"/>`
-      + `<g transform="translate(${gx.toFixed(1)} ${gy.toFixed(1)}) scale(${kx.toFixed(3)} 1)">`
-      + `<text text-anchor="middle" y="7" fill="${C_TRANS}" opacity=".9"`
-      + ` font-size="20" font-weight="700">${esc(g.sym)}</text></g>`
-      + `</g>`;
-  }
-
   const topOf = p => LY(p.py - p.sz*0.56);
 
   let lane = 0;
@@ -6737,7 +6716,6 @@ function stageLinks(live, lines){
       + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
       + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
       + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none"`
       + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${topB-11} L${ex} ${topB-1} L${ex+7} ${topB-11} Z" fill="${c}"/>`

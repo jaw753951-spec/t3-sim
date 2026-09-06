@@ -665,12 +665,11 @@ function stageLines(live){
     .filter(l => !(l.enh && !shown));
 }
 
-/* 전이 배선이 낳을 자리 — 아직 판에 없는 도착점.
-   출발점 이름들을 함께 들고 나온다: 그리는 쪽이 설명을 달 때 lines 를 다시
-   훑지 않아도 되고, 「누구를 처치하면 여기 나는가」의 답이 여기 한 번만 적힌다.
+/* 전이 배선이 낳을 자리 — 아직 판에 없는 도착점의 증상 이름들.
+   이 자리는 **안 그린다** (아래 stageLinks). 칸만 잡아 두는 까닭은 둘이다:
+   배선이 가리킬 곳이 있어야 하고, 미리 비워 두면 실제로 날 때 줄이 안 흔들린다.
    빈 칸 하나가 계기 한 대의 GH_W 만큼을 먹는다. 1 로 두면 「날지도 모르는 자리」
-   하나 때문에 실제 자리가 전부 한 치수 작아진다 — 절반쯤이 자리를 알아볼 만하면서
-   줄을 덜 밀었다. */
+   하나 때문에 실제 자리가 전부 한 치수 작아진다. */
 const GH_W = 0.55;
 let SG_GHOST = [];
 function stageGhosts(live, lines){
@@ -679,10 +678,8 @@ function stageGhosts(live, lines){
   for(const l of lines){
     /* 출발점이 판에 있어야 그릴 수 있다 — 강화형 배선은 판에 없는 자리에서
        나가는 것이 있다 (되돌리기로 자리가 사라져도 S.enh 는 남는다) */
-    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b)) continue;
-    const had = out.find(g=>g.sym===l.b);
-    if(had){ if(!had.from.includes(l.a)) had.from.push(l.a) }
-    else out.push({sym:l.b, from:[l.a]});
+    if(!on.has(l.a) || !spawnsSpot(l) || on.has(l.b) || out.includes(l.b)) continue;
+    out.push(l.b);
   }
   return out;
 }
@@ -707,7 +704,10 @@ function stageLayout(live, lines){
     n.py = cy;
     n.sz = SZ;
   });
-  SG_GHOST = gh.map((g,i)=>({...g, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ*GH_W}));
+  /* 너비는 GH_W 만 먹지만 **크기는 실제 자리와 같게 적는다.** 이 sz 를 쓰는 곳은
+     배선이 화살촉을 어느 높이에 세울지 정하는 topOf 하나뿐인데, 칸을 안 그리게 된
+     지금 여기에 작은 값을 적으면 빈 칸으로 가는 화살촉만 다른 줄에 홀로 내려앉는다 */
+  SG_GHOST = gh.map((sym,i)=>({sym, px:slot(row.length + i*GH_W, GH_W), py:cy, sz:SZ}));
   /* 병 노드는 줄에 끼지 않고 위 가운데에 앉는다. 부수 증상보다 크되 전처럼
      판을 다 먹지는 않는다 — 330 은 배지까지 합쳐 판 높이의 절반을 넘었다 */
   /* 0.30 은 배지에서 거꾸로 잡은 값이다 — 병기 링 위 다음 박자 badge 가
@@ -868,22 +868,12 @@ function stageLinks(live, lines){
      글자는 x 로 늘어난다: #sg_links 는 1210×744 viewBox 를 판(1512×788)에
      preserveAspectRatio="none" 로 늘여 쓰므로 x 와 y 배율이 다르다. 재서 되돌린다 —
      판 크기가 바뀌어도 따라온다. 이 SVG 에 글자를 넣는 것은 여기가 처음이다 */
-  const kx = LX(1)/LY(1);
-  for(const g of SG_GHOST){
-    const gx=LX(g.px), gy=LY(g.py), rx=LX(g.sz/2), ry=LY(g.sz/2);
-    const gt = TT(`${g.sym} — 아직 안 난 자리`,
-      `<b>${esc(g.from.join(' · '))}</b> 처치 시 여기에 <b>${esc(g.sym)}</b> 자리가 난다.`
-      + '<br><br><span class="d">칸만 비워 둔 것이다 — 지금은 아무것도 하지 않고,'
-      + ' 아무것도 여기에 걸 수 없다.</span>');
-    out += `<g class="ghz"${tip(gt)}>`
-      + `<ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx.toFixed(1)}" ry="${ry.toFixed(1)}"`
-      + ` fill="#14181C" fill-opacity=".55" stroke="${C_TRANS}" stroke-width="2.4"`
-      + ` stroke-dasharray="9 8" opacity=".6"/>`
-      + `<g transform="translate(${gx.toFixed(1)} ${gy.toFixed(1)}) scale(${kx.toFixed(3)} 1)">`
-      + `<text text-anchor="middle" y="7" fill="${C_TRANS}" opacity=".9"`
-      + ` font-size="20" font-weight="700">${esc(g.sym)}</text></g>`
-      + `</g>`;
-  }
+  /* ★ 아직 안 난 자리를 **그리지 않는다.** 점선 테와 증상 이름을 세워 두었더니
+     아직 없는 것이 판 위에 있는 것처럼 읽혔다 — 자리 수를 눈으로 세는 데도
+     끼어들었다. 칸은 그대로 잡아 두고(stageLayout) 배선만 그리로 간다:
+     「무엇이 어디에 날지」는 배선이 가리키는 곳과 그 메달의 설명이 말한다.
+     되살릴 거면 stageGhosts 가 출발점 이름(from)도 함께 내야 한다 — 설명에
+     「누구를 처치하면 나는가」를 적으려면 그것이 필요해서 들고 있던 값이다. */
 
   /* 감염의 퍼짐 선은 걷었다 — 자리 넷을 먹이면 선이 넷 깔려 계기 뒤로
      지나가고 의도 칩을 가로질렀다. 지금은 자리 자체의 파문이 말한다
@@ -950,8 +940,11 @@ function stageLinks(live, lines){
     const chev = k => `<path d="M${(mx + k - 5*dir).toFixed(1)} ${(ly-6).toFixed(1)} `
       + `L${(mx + k).toFixed(1)} ${ly} L${(mx + k - 5*dir).toFixed(1)} ${(ly+6).toFixed(1)}"`
       + ` fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>`;
+    /* ★ 검정 받침 줄(width 8)을 걷었다. 줄을 두 번 그어 아래를 판 바탕색으로
+       깔아 두었는데, 위에 얹히는 줄이 대시라 그 틈으로 받침이 비쳐서 배선이
+       색–검정 줄무늬로 보였다. 받침을 걷으면 틈이 그냥 비고 대시 무늬만 남는다.
+       되살릴 거면 대시를 함께 손봐야 한다 — 받침만 도로 깔면 줄무늬도 돌아온다. */
     out += `<g class="wirem"${tip(lt)}>`
-      + `<path d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none" stroke="#14181C" stroke-width="8" stroke-linejoin="round"/>`
       + `<path class="wf${l.enh?' enh':''}" d="M${sx} ${top} V${ly} H${ex} V${topB-9}" fill="none"`
       + ` stroke="${c}" stroke-width="3.4" stroke-linejoin="round"/>`
       + `<path d="M${ex-7} ${topB-11} L${ex} ${topB-1} L${ex+7} ${topB-11} Z" fill="${c}"/>`

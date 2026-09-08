@@ -432,6 +432,22 @@ function stateHTML(){
       <div class="stnote">${['통증 비활성','호흡곤란 비활성','공황 아님']
         .map(x=>`${cuts.includes(x)?'●':'○'} ${x}`).join('<br>')}</div></div>`);
   }
+  /* 연명 — 정원과 닫힌 자리. 이 둘이 연명의 경주다 (스토리.정원 · 스토리.자리닫기).
+     화면에 안 내면 「왜 분화가 멎었는가」를 판에서 읽을 길이 없다 */
+  if(S.policy==='연명'){
+    const d = S.nodes.find(n=>n.role==='disease');
+    if(d && !d.dead){
+      const cap = spotCap(S, d), live = K.alive(S).filter(n=>n.role!=='disease').length;
+      rows.push(`<div class="st"${tip(TT('정원',
+          `자리가 <b>${cap}</b>까지 선다. 지금 ${live}자리.<br><br>`
+        + `<b>처치한 자리는 닫힌다</b> — 분화가 거기 다시 못 선다. 지금 ${S.closedN||0}곳.<br>`
+        + `휴면과 소멸은 자리를 <b>닫지 않는다</b>. 병이 스스로 쓸어 버린 자리도 도로 채워진다.<br>`
+        + `병기가 오를 때마다 정원이 <b>+${SR.LINGER_SPAWN}</b> 는다. 지금 +${S.spawnBonus||0}.`))}>
+        <div class="stt"><span>정원</span><b>${live}<span class="d">/${cap}</span></b></div>
+        <div class="stnote">닫힌 자리 ${S.closedN||0}${S.spawnBonus?` · 병기로 +${S.spawnBonus}`:''}`
+        + `${S.wiped?'<br><b>병이 쓸어 버린 판</b> — 자리가 다시 서야 판정이 열린다':''}</div></div>`);
+    }
+  }
   /* 병기 */
   const dis = S.nodes.find(n=>n.role==='disease');
   if(dis && !dis.dead){
@@ -446,7 +462,12 @@ function stateHTML(){
 function winNote(S){
   const dis=S.nodes[0], others=active(S).filter(n=>n.role!=='disease');
   if(S.policy==='완치') return `병 노드를 ${killLine(S,dis)}까지 내려서 끊는다. 지금 ${dis.val}.`;
-  if(S.policy==='연명') return `활성 부수 증상을 하나도 남기지 않는다. 지금 ${others.filter(n=>n.val>0).length}자리 남았다.`;
+  if(S.policy==='연명'){
+    const cap = spotCap(S, dis), live = K.alive(S).filter(n=>n.role!=='disease').length;
+    return `활성 부수 증상을 하나도 남기지 않는다. 지금 ${others.filter(n=>n.val>0).length}자리 남았다.`
+      + ` <span class="d">정원 ${live}/${cap} · 닫힌 자리 ${S.closedN||0}</span>`
+      + (S.wiped ? ' <b>병이 쓸어 버린 판이라 아직 안 친다.</b>' : '');
+  }
   if(S.policy==='편하게') return `병기 ${dis.stage}/${dis.stageMax} · 시계 ${dis.stageClock}턴. 최종 병기의 시계까지 다 돌 때 환자가 살아 있으면 이긴다. 완화 ${comfortCuts(S).length}겹.`;
   return '';
 }

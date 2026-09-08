@@ -32,6 +32,7 @@ node tools/sim_check.js              불변 조건 (레벨표 · 카드 본문 �
 node tools/sim_check.js  <옛것> <새것>     판정을 견준다 — 「판은 같다」가 나와야 한다
 node tools/ui_check.js   <옛것> <새것>     화면을 견준다 (헤드리스 크로미움)
 node tools/story_probe.js sweep 아이,어부,송이 [파일]    병이 노는 구간
+node tools/story_probe.js policy [파일]                 방침 셋이 실제로 갈리는가
 node tools/story_probe.js diff <옛것> <새것>             스토리 360판을 견준다
 node tools/stage_check.js [파일]      무대 자리 재기 (구역 겹침 · 칩 합 · 설명 빠짐)
 node tools/tips_doc.js               tools/docs/툴팁.md 를 소스에서 다시 뽑는다
@@ -53,6 +54,11 @@ node tools/lab/patch.js              src/ 를 안 건드리고 판본을 뽑는�
   페이지가 원래 들고 있던 판을 검사하게 되고, 그걸 모르면 결과를 거꾸로 읽는다.
 - **툴팁 문안을 고쳤으면 `node tools/tips_doc.js` 를 같이 돌린다.** `tools/docs/툴팁.md` 는
   소스에서 잘라 오는 문서다 — 안 돌리면 문서만 옛 문안을 말한다.
+- **검사기를 「없으면 건너뛴다」로 감쌀 때는 재려는 대상 자체에 걸지 않는다.**
+  `sim_check` 의 불변 조건 넷이 `BEAT_REST` 가 있는지로 감싸여 있었는데, 그 표를
+  걷자 넷이 통째로 조용히 건너뛰어지고 **그대로 통과했다.** 옛 파일을 받아 주려던
+  조건이 새 파일의 검사를 끄는 스위치가 된 것이다. 통과했다고 안심하기 전에
+  일부러 깨뜨려 무는지 한 번 본다.
 - **`sim_check` 와 `ui_check` 는 자리를 못 본다.** 둘은 판정과 글자를 견주므로
   칸이 서로 겹치거나 카드가 손패 줄 밖으로 나가도 글자는 그대로라 통과한다.
   화면 배치를 건드렸으면 `stage_check.js` 를 같이 돌린다 — 눈으로 넘기다

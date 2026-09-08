@@ -88,9 +88,11 @@ async function probe(browser, file){
     if (typeof SYMDOC === 'undefined' || typeof ovrSet !== 'function') return [];
     const RULEFREE = new Set(['KWTIP.개방','KWTIP.진단','LINKTIP.불응',
       'LINKTIP.부설','LINKTIP.만개','LINKTIP.연쇄','LINKTIP.확산',
-      'BEATTIP.분화','BEATTIP.같은 박자','BEATTIP.창','BEATTIP.굳는다','BEATTIP.엮는다',
-      'BEATTIP.아문다','BEATTIP.알아듣지 못한다','BEATTIP.터진다',
-      'BEATTIP.지금이면 괜찮아진다']);
+      'BEATTIP.분화','BEATTIP.엮는다','BEATTIP.아문다','BEATTIP.지금이면 괜찮아진다',
+      /* 「공격」의 숫자(기본값 · 자리당 감소)는 R·SR 이 아니라 보스 정의(BOSS[].atk)에
+         있다. 여기를 흔들어도 안 움직이는 것이 맞고, 실제 값은 판 위 아이콘에
+         계산된 뒤로 붙는다 — 설명문이 그 수를 글자로 되뇌면 되레 두 벌이 된다 */
+      'BEATTIP.공격']);
     const all = () => {
       const o = {};
       for (const [nm, d] of [['KWTIP',KWTIP],['LINKTIP',LINKTIP],['BEATTIP',BEATTIP],

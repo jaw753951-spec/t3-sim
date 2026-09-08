@@ -5,6 +5,7 @@
      node story_probe.js trace [보스] [방침] [씨앗] [파일]   한 판을 턴별로 훑는다
      node story_probe.js sweep [보스…] [파일]                 병이 노는 구간을 센다
      node story_probe.js diff  A.html B.html                   두 결과물의 판을 견준다
+     node story_probe.js policy [파일]                         방침 셋이 실제로 갈리는가
 
    sim_check 는 판의 '끝' 만 본다 — 몇 턴에 어떤 판정이 났는가. 여기는 '과정' 을 본다.
    비트 이름만으로는 안 보이는 것들이 있다. 「파고든다」라고 적어 놓고 아무 자리도
@@ -51,8 +52,12 @@ const ROWS = `((boss, policy, seed, cap) => {
   const a1 = act1(S, deck, {});
   applyPolicy(S, dis, policy, a1.correct);
 
-  /* 비트가 판을 바꿨는가 — 비트 번호는 빼고 본다 (그것만 늘 오른다) */
+  /* 비트가 판을 바꿨는가 — 비트 번호는 빼고 본다 (그것만 늘 오른다).
+     crave · wiped · closedN 이 든 까닭: 「갈망」은 상시 규칙만 설치하고, 소멸은 연명
+     판정을 닫고, 처치는 정원을 깎는다. 노드와 체력만 보던 동안 갈망이 360판에서
+     120회 「헛돈다」로 잘못 세어졌다 — 실제로는 매번 규칙을 걸고 있었다. */
   const snap = () => JSON.stringify({ hp:S.hp, mind:S.mind, enh:(S.enh||[]).length, n:S.nodes.length,
+    crave:!!S.crave, wiped:!!S.wiped, closed:S.closedN||0, cap:spotCap(S,dis),
     dis:[dis.val, dis.stage, dis.stageClock, dis.dead?1:0],
     nodes:S.nodes.filter(x=>x.role!=='disease').map(x=>[x.sym,x.val,x.dead?1:0,x.shielded?1:0,x.evoLeft]) });
 
@@ -82,7 +87,7 @@ const ROWS = `((boss, policy, seed, cap) => {
       /* storyPhase 가 병을 안 움직인 턴 — 3막에서는 없지만, 없다고 터지지는 않게 한다 */
       const m = mark || { beat:'—', line:'병이 움직이지 않았다', moved:false };
       rows.push({ t, stage:dis.stage, clock:dis.stageClock, up:ph.up, live, neuro,
-                  beat:m.beat, line:m.line, moved:m.moved,
+                  beat:m.beat, line:m.line, moved:m.moved, floor:hp0<=1,
                   liveAfter:K.active(S).filter(x=>x.role!=='disease').length,
                   dmg:hp0-S.hp, hp:S.hp, disVal:dis.val });
     }
@@ -119,8 +124,8 @@ function trace(boss, pol, seed, file){
    ③ 창 뒤로 몇 턴이 비는가 */
 function sweep(bosses, file){
   const ev = load(file), run = ev(ROWS), cap = capOf(ev);
-  /* 쉬는 비트는 그 파일의 표가 정한다. 표가 서기 전의 옛 파일이면 빈 표로 본다 */
-  const rest = ev('typeof BEAT_REST !== "undefined" ? BEAT_REST : {}');
+  /* v27 — 쉬는 비트 표(BEAT_REST)는 걷혔다. 이제 모든 박자가 판을 움직여야 하므로
+     봐 줄 이름이 없다. 옛 파일을 재면 「같은 박자」가 헛돎으로 잡히는데 그것이 맞다 */
   const seeds = seedList(SEEDS);
   const miss = {}, idleRun = {}, win = [];
   for (const boss of bosses) for (const pol of POLS) for (const seed of seeds) {
@@ -128,7 +133,10 @@ function sweep(bosses, file){
     let streak = 0;
     rows.forEach((r, i) => {
       if (r.end) return;
-      if (!r.moved && r.live > 0 && !rest[r.beat]) {              // 쉬는 비트는 헛도는 것이 아니다
+      /* 체력이 이미 바닥(noDeath 는 1 에서 멈춘다)이면 「공격」이 제값을 때려도 판이
+         안 움직인다. 비트가 헛돈 것이 아니라 더 깎을 데가 없는 것이다 — ② 가 hp>0 을
+         보는 것과 같은 까닭이다. 이것을 안 빼면 아이 병기5 의 공격이 36회 잘못 잡힌다 */
+      if (!r.moved && r.live > 0 && !r.floor) {
         const k = `${boss} · 병기${r.stage} · ${r.beat}`;
         miss[k] = miss[k] || { n:0, ex:null };
         miss[k].n++;
@@ -165,6 +173,95 @@ function sweep(bosses, file){
   }
 }
 
+/* ── policy ── 방침 셋이 실제로 갈리는가 ──────────────────────
+   인계 문서 §7.2 가 물은 여섯을 한 번에 잰다. 한 번 쓰고 마는 자를 lab/ 에 두지 않는다 —
+   손잡이(연명 정원 증가 · 흡수율 셋 · 공격값)를 만질 때마다 다시 재야 하는 것들이다.
+
+   ★ 사망률 · 승률은 못 쓰는 값이다 (§7.3). 셋 다 noDeath 판이고 자동 진행 AI 의
+     실력이 곧 하한선이라 설계값이 아니다. 그래도 「한 번이라도 나오는가」는 쓸 수 있다 —
+     0 이면 그 방침으로는 이길 길이 아예 없다는 뜻이고, 그때는 규칙을 조정할 자리다. */
+function policy(file){
+  const ev = load(file), run = ev(ROWS), cap = capOf(ev);
+  const RUN = ev(`((boss,pol,seed)=>{ const r=runStory(boss,C.DECK_D2,seed,pol,{});
+    return {out:r.out, turns:r.turns, stage:r.stage, hp:r.hp, hpMax:r.S?r.S.hpMax:0} })`);
+  const seeds = seedList(SEEDS);
+  console.log(`=== ${file} · 방침 갈래 · 씨앗 ${seeds.length} ===`);
+
+  for (const boss of BOSSES) {
+    console.log(`
+── ${boss} ──`);
+    for (const pol of POLS) {
+      const cnt = {}; let turns = 0, spare = 0, low = Infinity, big = 0, dmg = 0;
+      let lingerTurn = 0, reopen = 0;
+      for (const seed of seeds) {
+        const r = RUN(boss, pol, seed);
+        cnt[r.out] = (cnt[r.out] || 0) + 1; turns += r.turns;
+        if (r.hpMax) spare += r.hp / r.hpMax;
+        /* 그림자 런 — 판정과 무관하게 판이 얼마나 아팠는가 */
+        const rows = run(boss, pol, seed, cap);
+        for (const q of rows) {
+          if (q.end) continue;
+          dmg += q.dmg; big = Math.max(big, q.dmg); low = Math.min(low, q.hp);
+          if (q.liveAfter === 0) lingerTurn++;          // 활성 부수 0 인 턴이 났는가
+          if (q.live === 0 && q.liveAfter > 0) reopen++; // 빈 판에 자리가 다시 섰는가
+        }
+      }
+      const n = seeds.length;
+      console.log(`  ${pol.padEnd(4)} ${JSON.stringify(cnt).padEnd(30)}`
+        + ` 평균 ${(turns/n).toFixed(1)}턴 · 끝 체력 여백 ${(spare/n*100).toFixed(0)}%`
+        + ` · 최소 체력 ${low===Infinity?'—':low} · 최대 단타 ${big} · 총 피해 ${(dmg/n).toFixed(0)}`
+        + (pol==='연명' ? ` · 활성0 턴 ${lingerTurn} · 되선 판 ${reopen}` : ''));
+    }
+  }
+
+  /* 이음표 갈래 — 같은 보스 같은 최종 병기에서 **판 상태를 바꾸면** 궤적이 갈리는가.
+     갈래가 하나면 이음표가 고정 악보와 다를 것이 없다.
+     ★ 씨앗을 흔드는 것으로는 못 잰다. 씨앗은 자리의 초기 수치만 흔들 뿐 자리 수도
+       종류도 안 바꾸는데, 이음표가 보는 것은 그 수치가 아니라 자리 수 · 증상 종류 ·
+       휴면 · 배선이다. 처음에 씨앗으로 재서 「갈래 1가지」라는 답을 얻었다 —
+       이음표가 안 도는 것이 아니라 자가 딴 것을 재고 있었다. */
+  console.log('\n이음표 갈래 (최종 병기 · 판을 흔들었을 때의 박자 줄)');
+  const TRACK = ev(`((boss,fill,dorm)=>{
+    const rng=K.mulberry32(7); const board=makeDisease(boss,rng);
+    const S=K.newState(board,{}); S.board=board; S.rng=rng; S.act=3; S.policy='완치';
+    S.closedN=0; S.spawnBonus=0;
+    const dis=S.nodes[0]; dis.stage=dis.stageMax; dis.beat=0;
+    for(const n of S.nodes) if(n.role!=='disease'){ n.dead=true; n.val=0 }
+    for(const sym of fill){ const n=mkSpot(boss,dis.stage,sym,60,0); n.val=40; S.nodes.push(n) }
+    for(let i=0;i<dorm;i++){ const n=mkSpot(boss,dis.stage,'발열',60,0); n.val=0; n.dormT=2; S.nodes.push(n) }
+    const out=[];
+    for(let i=0;i<10;i++){ out.push(nextBeat(S,dis)); diseaseAct(S,dis,null); S.turn++ }
+    return out.join(' → ');
+  })`);
+  /* 흔드는 판 여섯 — 빈 판 · 자리 하나 · 통증 둘 · 호흡곤란 낀 판 · 꽉 찬 판 · 휴면이 있는 판 */
+  const SHAKE = [[[], 0], [['발열'], 0], [['통증','통증'], 0], [['통증','호흡곤란'], 0],
+                 [['발열','출혈','통증'], 0], [['발열'], 2]];
+  for (const boss of BOSSES) {
+    const seen = new Map();
+    for (const [fill, dorm] of SHAKE) {
+      const t = TRACK(boss, fill, dorm);
+      if (!seen.has(t)) seen.set(t, `${fill.length?fill.join('·'):'빈 판'}${dorm?` +휴면${dorm}`:''}`);
+    }
+    console.log(`  ${boss.padEnd(3)} 갈래 ${String(seen.size).padStart(2)}가지 / 흔든 판 ${SHAKE.length}`);
+    for (const [t, why] of seen) console.log(`      ${why.padEnd(14)} ${t}`);
+  }
+
+  /* 앵커 상한 — 여섯 바퀴째부터 성장으로 바뀌는가 */
+  console.log('\n앵커 상한');
+  const ANCHOR = ev(`((boss)=>{
+    const rng=K.mulberry32(7); const board=makeDisease(boss,rng);
+    const S=K.newState(board,{}); S.board=board; S.rng=rng; S.act=3; S.policy='완치';
+    const dis=S.nodes[0]; dis.stage=dis.stageMax;
+    const out=[];
+    for(let L=0;L<=SR.ANCHOR_LOOPS;L++){
+      dis.beat=L*SR.ANCHOR_EVERY; dis.beatTurn=null; dis.beatPick=null;
+      out.push((L+1)+'바퀴 '+nextBeat(S,dis));
+    }
+    return out.join(' · ');
+  })`);
+  for (const boss of BOSSES) console.log(`  ${boss.padEnd(3)} ${ANCHOR(boss)}`);
+}
+
 /* ── diff ── 규칙을 고친 몫을 잰다 ──
    sim_check 의 견주기는 스토리를 9판만 본다. 밸런스가 얼마나 움직였는지는 그것으로 안 나온다. */
 function diff(a, b){
@@ -196,6 +293,7 @@ const [mode, ...arg] = process.argv.slice(2);
 try {
   if (mode === 'trace') trace(arg[0] || '아이', arg[1] || '완치', +(arg[2] || 777), arg[3] || FILE);
   else if (mode === 'sweep') sweep((arg[0] || BOSSES.join(',')).split(','), arg[1] || FILE);
+  else if (mode === 'policy') policy(arg[0] || FILE);
   else if (mode === 'diff') {
     if (!arg[1]) throw new Error('두 파일을 넘긴다 — node story_probe.js diff A.html B.html');
     diff(arg[0], arg[1]);

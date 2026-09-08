@@ -19,6 +19,42 @@ let SCORE_AIM = null;
 /* 편집할 병기 — 시작 병기부터 최종 병기까지 */
 function scStages(){ return CUSTOM.dis ? disStages(CUSTOM.dis) : [] }
 
+/* 이 병기가 이음표로 도는가 — 커널의 linkStage 와 같은 차례를 본다.
+   ① 손으로 짠 악보가 있으면 그것이 먼저다  ② 최종 병기이고 밑그림 보스에 이음표가 있으면 이음표
+   두 벌로 적으면 화면이 「이음표로 돈다」고 하는데 판은 악보를 도는 일이 난다 */
+function linkOf(d, st){
+  if(((d.beats||{})[st]||[]).length) return null;
+  const b = BOSS[d.from || '아이'];
+  return (b && b.link && +st >= +d.stageMax) ? b : null;
+}
+
+/* 앵커와 이음표를 읽기 전용으로 편다 */
+function linkPanelHTML(d, st, b){
+  const cond = {
+    '공격': b.atk && b.atk.when==='half' ? '활성 자리가 정원 절반 이하'
+            : b.atk ? `활성 자리 ${b.atk.when} 이하` : '—',
+    '분화':'빈 자리 있음', '몰린다':'활성 자리 하나 이상', '엮는다':'배선 없는 쌍 있음',
+    '가슴을 쥡니다':'활성 호흡곤란 있음', '긁는다':'활성 통증 둘 이상 · 감염 없음',
+    '번진다':'활성 통증 있음', '치민다':'활성 자리 있음', '가라앉는다':'활성 자리 있음',
+    '지금이면 괜찮아진다':'휴면 자리 있음', '성장':'없다 — 늘 통과',
+  };
+  const beatSpan = k => `<span class="beat"${tip(doc(k))}><b>${esc(k)}</b></span>`;
+  return `<div class="bar">병기 ${st} · 최종
+      <span class="right"><button class="mini" onclick="scTakeOver(${st})">이 병기를 손으로 짠다</button></span></div>
+    <div class="note">이 병기는 고정 악보를 안 쓴다. <b>앵커</b>가 ${SR.ANCHOR_EVERY}턴마다 오고
+      (${SR.ANCHOR_LOOPS}바퀴까지 · 그 뒤로는 성장), 사이 칸은 <b>이음표</b>가 채운다 —
+      직전 행동으로 후보를 얻어 위에서부터 조건을 보고 처음 통과하는 것을 쓴다.
+      확률이 없고 같은 행동이 두 번 연속 오지 않는다.<br>
+      오른쪽 단추를 누르면 이 병기에 기본 악보가 깔리고, 그 순간부터 이음표 대신 그것이 돈다.</div>
+    <div class="scline">앵커 ${beatSpan(b.anchor)}<span class="d">· ${SR.ANCHOR_EVERY}턴 주기</span></div>
+    <div class="bar">이음표 <span class="right d">직전 행동 → 후보 (위에서부터)</span></div>`
+  + Object.keys(b.link).map(k=>`<div class="scflow">${beatSpan(k)} <span class="d">→</span> `
+      + b.link[k].map(beatSpan).join(' <span class="d">→</span> ') + `</div>`).join('')
+  + `<div class="bar">고르는 조건</div>`
+  + [...new Set([b.anchor, ...Object.values(b.link).flat()])]
+      .map(k=>`<div class="scfoot"><span class="note">${esc(k)} <span class="d">— ${esc(cond[k]||'없다 — 늘 통과')}</span></span></div>`).join('');
+}
+
 /* 그 병기의 악보. 이제 정의가 제 악보를 들고 있으므로 여기서 되짚을 것이 없다 —
    전에는 CUSTOM.score 를 따로 두고 「손댔는가」를 살펴 기본값과 갈랐다.
    병 노드가 보스 정의 한 벌이 되면서 악보는 그 정의의 한 칸이 됐다 */
@@ -31,6 +67,14 @@ function scLine(st){
 }
 
 function scSet(st, i, v){ scLine(st)[i] = v; SCORE_AIM = st; scTouch(); renderScore() }
+
+/* 이음표로 돌던 병기를 손으로 짜기 시작한다 — 기본 악보를 깔면 그 순간부터
+   그것이 이음표보다 먼저다 (스토리.이음판의 차례). scReset 과 반대 방향의 손이라
+   따로 둔다: scReset 은 적힌 악보를 지워 기본값으로 되돌리는 자다 */
+function scTakeOver(st){
+  scLine(st);                       // 없으면 밑그림 보스의 악보를 깔아 준다
+  SCORE_AIM = st; scTouch(); renderScore();
+}
 
 /* 앞뒤로 민다. 양 끝에서는 화면이 화살표를 꺼 두므로 넘어갈 자리가 없다 */
 function scMove(st, i, d){
@@ -276,6 +320,14 @@ function renderScore(){
        헛도는 비트는 「성장」으로 대신 나간다 — 병이 통째로 노는 턴은 만들지 않는다.</div>`;
 
   for(const st of sts){
+    /* 최종 병기가 이음표로 도는 보스는 여기 뜰 악보가 없다. 편집기 대신 앵커와
+       이음표를 읽기 전용 표로 보인다 — 빈 악보를 뜨워 두면 「짤 수 있는데 안 도는」
+       칸이 되어 화면이 거짓말을 한다.
+       ★ 손으로 짠 악보가 실려 있으면 그쪽이 먼저다 (스토리.이음판의 차례).
+         그래서 「이 병기를 손으로 짠다」 단추를 남겨 둔다 — 누르면 기본 악보가 깔리고
+         그 순간부터 이음표 대신 그것이 돈다. */
+    const lk = linkOf(d, st);
+    if(lk){ h += linkPanelHTML(d, st, lk); continue }
     const L = scLine(st), n = L.length, aim = st === SCORE_AIM;
     const clk = (d.clock||{})[st] || SR.STAGE_TURNS;
     const fit = n === clk ? `시계와 딱 맞는다 — 매 병기가 같은 흐름이다`

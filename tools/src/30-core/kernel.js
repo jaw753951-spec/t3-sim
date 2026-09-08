@@ -184,9 +184,9 @@ function supAmt(S,n,amt,opt={}){
   let v = amt;
   if(S.mind==='불안'||S.mind==='공황') v -= R.MIND_ANX_SUP;
   if(v<=0) return 0;
-  if(n.role==='disease'){
-    if(alive(S).some(x=>x.role!=='disease' && x.val>0)) v = Math.ceil(v*(1-R.DIS_SHIELD));
-  } else if(n.shielded && !opt.raw) v = Math.ceil(v*(1-n.shReduc));
+  /* 병 노드도 일반 자리와 같은 잣대를 탄다. 전에는 여기 병 노드 전용 갈래가 있었다
+     (부수가 살아 있으면 받는 피해 절반) — 걷은 까닭은 R.DIS_SHIELD 자리에 적었다 */
+  if(n.shielded && !opt.raw) v = Math.ceil(v*(1-n.shReduc));
   return v;
 }
 function suppress(S,n,amt,opt={}){
@@ -229,6 +229,12 @@ function stabilize(S,n,amt){
   const v = stabAmt(S,n,amt);
   if(v<=0){ if(amt>0 && immune(S,n)) ev(S,{t:'immune', n}); return }
   n.stabAcc += v;
+  /* 이번 턴에 안정화가 깎은 총량. S.lostThisTurn 과 같은 결의 계수기다 —
+     커널은 이것을 쓰지 않고 쌓기만 하고, 턴 시작에 0 으로 돌린다.
+     스토리의 「갈망」(송이)이 이 값을 읽어 병 노드 회복량을 낸다:
+     사건(S.ev)으로 읽으면 무대가 켜지 않은 판에서는 한 톨도 안 쌓여
+     화면 있는 판과 없는 판의 규칙이 갈린다 — 그래서 계수기로 둔다. */
+  S.stabThisTurn = (S.stabThisTurn||0) + v;
   ev(S,{t:'stab', n, amt:v});
   if(n.stabAcc >= R.SHIELD_MAX){ n.shielded=false; n.shReduc=0; n.stabAcc=0; mind(S,-1); ev(S,{t:'shBreak', n}) }
 }
@@ -806,6 +812,7 @@ function turnResolve(S){
   S.hitThisTurn = {};
   S.bledRate = 0;                                  // 사혈 턴 상한 초기화
   S.lostThisTurn = 0; S.bigHitFired = false;       // 여기부터 새 턴 몫이다 — 9의 피해가 새 턴으로 센다
+  S.stabThisTurn = 0;                              // 안정화 누적도 턴 몫이다 (스토리.갈망이 읽는다)
   /* 9 처치대기 — 공황이 미뤄 둔 처치. 코스트는 예약할 때 이미 냈으므로 여기서 보지 않는다.
      완화는 아직 걸려 있고 성장·진화·휴면 부활은 이미 지나갔다. 그래서 그 셋으로만 헛손질이 된다. */
   S.killLate = [];
@@ -838,7 +845,7 @@ function newState(board, opt={}){
           mind: opt.mind||'평정', turn:1, energy:R.ENERGY, played:0, hitThisTurn:{},
           killed:0, rush:0, rushArmed:!!opt.rushArmed, evoLog:0, over:false,
           rem:false, remTurns:0, remGauge:0, remOpened:false, remLast:null,
-          bledRate:0, lostThisTurn:0, bigHitFired:false, revisitOn:{}, revisitNow:false, diagPlus:{}, diagBonus:0, drawQueue:[], pendKill:[], killLate:[],
+          bledRate:0, lostThisTurn:0, stabThisTurn:0, bigHitFired:false, revisitOn:{}, revisitNow:false, diagPlus:{}, diagBonus:0, drawQueue:[], pendKill:[], killLate:[],
           drawBonus:0, mindGuard:false,
           hand:[], deck:[], discard:[], exiled:[], keepUses:{}};
 }

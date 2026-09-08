@@ -67,9 +67,7 @@ function effWhy(S, id, kind, node){
   if(kind==='억제'){
     if(c.live==='sup' && S.rush) w.push(`기세 ${S.rush} — 기세 1당 −${C.cardNums(S,id).per}`);
     if(S.mind==='불안'||S.mind==='공황') w.push(`${S.mind} — 억제 −${R.MIND_ANX_SUP}`);
-    if(node && node.role==='disease' && K.alive(S).some(x=>x.role!=='disease'&&x.val>0))
-      w.push(`부수 증상이 살아 있다 — 병 노드가 받는 피해 ${Math.round(R.DIS_SHIELD*100)}% 경감`);
-    else if(node && node.shielded) w.push(`보호막 — 받는 피해 ${Math.round(node.shReduc*100)}% 경감`);
+    if(node && node.shielded) w.push(`보호막 — 받는 피해 ${Math.round(node.shReduc*100)}% 경감`);
     if(node && K.immune(S,node)) w.push('1막 병 노드 — 어떤 효과도 안 통한다');
   }
   if(kind==='안정화'){

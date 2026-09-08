@@ -57,9 +57,40 @@ function tipFix(panel, html){
   addEventListener('scroll', ()=>{ const b=box(); if(b) b.style.display='none' }, true);
 })();
 
-/* 박자가 제 이름으로 악보에 적히므로 여기서 보스·병기를 되짚을 일이 없다 —
-   전에는 「고유」 하나를 받아 UNIQTIP['보스:병기'] 로 갈랐다 */
-function beatTip(S,n){ return BEATTIP[nextBeat(S,n)] || null }
+/* ── 박자 예고의 두 층 ────────────────────────────────────────
+   ① 아이콘과 숫자는 **늘 보인다.** 병이 다음 턴에 때릴지 늘릴지 얽을지는 가리지 않는다.
+   ② 박자 텍스트(무엇을 하는지의 글)는 **병 노드를 진단해야 열리고**, 한 번 열리면
+      그 전투 내내 유지된다. 오진이어도 진단하면 열린다 — 여는 것은 병명이 아니라 진단이다.
+
+   전에는 층이 없이 이름이 늘 그대로 보였다. 그러면 1막에서 아무것도 안 해도 3막의
+   병이 훤히 읽혀서, 진단에 손을 쓸 값이 없었다.
+   ★ 두 층을 가르는 잣대가 여기 하나다. 화면 여러 곳(무대 · 작업대 · 툴팁)이 이것을
+     본다 — 손으로 각자 물으면 한 곳만 고쳐도 나머지가 옛 규칙을 말한다. */
+//@ 화면.박자텍스트 — 진단해야 열리는 층
+const beatOpen = (S,n) => (n.diagRound||0) >= 1;
+
+/* 판에 뜨는 한 줄. 열렸으면 그 칸의 환자 쪽 말, 아니면 ??? 다.
+   공격 숫자는 층과 무관하게 늘 붙는다 */
+function beatLabel(S,n){
+  const bt = nextBeat(S,n);
+  const num = bt==='공격' ? disAtkAmt(S,n) : null;
+  const head = beatOpen(S,n) ? esc(beatSay(S,n)) : '???';
+  return num!=null ? `${head} <b>−${num}</b>` : head;
+}
+
+function beatTip(S,n){
+  const bt = nextBeat(S,n);
+  const num = bt==='공격' ? disAtkAmt(S,n) : null;
+  const atk = num!=null ? `<br><br>이번 예고 피해 <b>−${num}</b> — 활성 부수 자리가 줄수록 커진다.` : '';
+  if(!beatOpen(S,n))
+    return TT('다음 박자', '무엇을 할지는 아직 모른다.<br><b>병 노드를 진단하면</b> 이 칸의 글이 열리고 그 전투 내내 유지된다.'
+      + '<br><span class="d">오진이어도 진단하면 열린다.</span>' + atk);
+  const say = beatSay(S,n);
+  const head = say && say!==bt ? `<b>${esc(say)}</b><br><br>` : '';
+  /* 뜻풀이는 BEATDOC 한 집에서 온다 — 판 위 툴팁과 「악보」 서랍이 같은 말을 하게 (문안.박자) */
+  return BEATDOC[bt] ? TT(bt + (BEATDOC[bt].of ? ' · '+BEATDOC[bt].of+' 전용' : ''), head + BEATDOC[bt].why() + atk)
+                     : TT('다음 박자', head + esc(bt) + atk);
+}
 
 /* ── 방침 ── */
 function policyTip(k){

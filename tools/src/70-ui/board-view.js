@@ -142,7 +142,7 @@ function nodeMarks(S, n){
       정작 이 수가 궁금한 것은 아직 못 끊을 때다 */
     `<span class="m ln">선 ${lineSpan(S,n)}<span class="d">/${n.val}</span></span>`,
     n.role==='disease'?`<span class="m ev"${tip(TT('병기',`지금 병기 <b>${n.stage}</b> / 최대 ${n.stageMax}<br>병기 시계 <b>${n.stageClock}</b> — 0이 되면 병기가 한 칸 오른다.<br>병기가 오르면 병 노드 수치가 그만큼 이월되어 커진다.`))}>병기 ${n.stage}/${n.stageMax} · 시계 ${n.stageClock}</span>`:'',
-    n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${nextBeat(S,n)}</span>`:'',
+    n.role==='disease'?`<span class="m"${tip(beatTip(S,n))}>다음: ${beatLabel(S,n)}</span>`:'',
     n.shielded?`<span class="m sh"${tip(TT('보호막',`받는 피해가 <b>${pctOf(n.shReduc)}</b> 줄어든다.<br>안정화를 ${R.SHIELD_MAX} 누적하면 벗겨진다. 지금 ${Math.floor(n.stabAcc)}.<br>판에 탈수가 있으면 안정화가 ${R.DEHY_STAB} 로 나뉘어 ${pctOf(1/R.DEHY_STAB)} 만 쌓인다.<br><br>설치물의 자동 억제는 보호막을 무시한다.`))}>막 ${Math.floor(n.stabAcc)}/${R.SHIELD_MAX} · −${Math.round(n.shReduc*100)}%</span>`:'',
     n.weak?`<span class="m wk"${tip(KWTIP['약화'])}>약화 ${n.weak}</span>`:'',
     /* 표식은 **합**을 보인다 — 매 턴 깎는 값이 그것이다. 두 겹으로 갈라 적는 것은
@@ -229,7 +229,7 @@ function renderInto(h){
        문안 고르는 함수도 symTip 이라 그 초기화 식 안에서 자기 자신을 부르게 됐다
        (「Cannot access 'symTip' before initialization」로 작업대가 통째로 안 떴다) */
     const nameTip = n.role==='disease'
-      ? tip(TT('병 노드',`부수 증상이 하나라도 살아 있으면 받는 피해가 ${pctOf(R.DIS_SHIELD)} 줄어든다.<br>처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>성장 · 공격 · 진화를 타지 않는다. 대신 병기가 오른다.`))
+      ? tip(TT('병 노드',`처치선 바탕값은 초기값의 ${pctOf(R.DIS_KILL_LINE)} — 약화로만 올라간다.<br>스스로 자라지도 진화하지도 않는다. 대신 병기가 오르고, 악보대로 매 턴 한 수를 둔다.`))
       : tip(TT(n.sym + (n.evolved?' ✦':''), symTip(n)));
     const evoTip = tip(TT('진화함', (EVOTXT_F[n.sym]?EVOTXT_F[n.sym](n):'') + '<br><br><span class="d">한 번 진화한 자리는 되돌아가지 않는다.</span>'));
     return `<div class="node ${SEL===i?'sel':''} ${SYM[n.sym]&&SYM[n.sym].atk?'atk':''} ${n.evolved?'evo':''} ${n.role==='disease'?'dis':''}" onclick="pickNode(${i})">

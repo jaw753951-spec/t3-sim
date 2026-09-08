@@ -121,16 +121,20 @@ const ICO = {
 /* 배선 종류 → 그림. 메달에 글자를 안 쓰는 까닭은 아래 stageLinks 에 적었다 */
 const LINKICO = {'가속':'bFast', '경화':'bHard', '점화':'flame', '발현':'bSpawn', '무장발현':'imm',
   '부설':'kwLay', '만개':'kwBloom', '연쇄':'kwChain', '불응':'kwBack', '확산':'bSpread'};
-/* 박자 이름 → 그림. 없는 박자는 고유 표로 떨어진다 (새 보스가 새 박자를 들고
-   와도 화면이 안 깨진다) */
+/* 박자 이름 → **의도 아이콘 넷**. 그림을 박자마다 따로 두지 않는다 (문서 §5.2):
+     공격  병 노드가 직접 때린다. 계산된 숫자를 같이 띄운다
+     증식  분화
+     악화  자리를 키우거나 얽는 것 전부
+     ???   고유 행동 전부 — 무엇이 올지는 박자 텍스트가 열려야 안다
+   여기 없는 박자는 아래 || 가 ??? 로 받는다. 새 보스가 새 고유 박자를 들고 와도
+   저절로 ??? 자리에 앉는다 — 그림을 안 적어 화면이 깨지는 일이 없다.
+   ★ 고유 박자를 여기 적으면 안 된다. 적는 순간 그 한 수만 예고에서 벗겨진다. */
+//@ 화면.의도아이콘 — 공격 · 증식 · 악화 · ???
 const BEATICO = {
-  '분화':'bSpawn', '성장':'grow', '몰린다':'grow', '치민다':'grow',
-  '번진다':'bSpread', '엮는다':'bSpread', '아문다':'bDown', '가라앉는다':'bDown',
-  '창':'bWin', '같은 박자':'bSame', '굳는다':'bHard', '진행':'bFast', '가속':'bFast',
-  /* 고유 한 수 다섯 — 전에는 「고유」 한 이름이라 한 줄이면 됐다.
-     이름으로 쪼갠 뒤로는 저마다 적어 준다. 여기 없는 박자는 아래 || 가 고유 그림으로 받는다 */
-  '파고든다':'bUniq', '알아듣지 못한다':'bUniq', '터진다':'bUniq',
-  '긁는다':'bUniq', '지금이면 괜찮아진다':'bUniq',
+  '공격':'hit',
+  '분화':'bSpawn',
+  '성장':'grow', '몰린다':'grow', '치민다':'grow', '번진다':'bSpread', '엮는다':'bSpread',
+  '가라앉는다':'bDown',
 };
 const ico = k => `<svg class="ic" viewBox="0 0 20 20" aria-hidden="true"><path d="${ICO[k]}"/></svg>`;
 
@@ -414,8 +418,10 @@ function badgeSVG(S, n, sz){
         + ` font-weight="800" font-family="ui-monospace,monospace" fill="#241a08">${n.stage}</text></g>`;
     }
 
-    /* 다음 박자 — 링 꼭대기에 그림 하나. 글은 beatTip 이 말한다 */
+    /* 다음 박자 — 링 오른쪽에 그림 하나. 글은 beatTip 이 말한다.
+       공격이면 계산된 숫자를 같이 띄운다 — 플레이어가 뺄셈하지 않는다 (문서 §5.2) */
     const bt = (typeof nextBeat==='function' && S.board && S.board.boss) ? nextBeat(S, n) : null;
+    const bnum = (bt==='공격' && typeof disAtkAmt==='function') ? disAtkAmt(S, n) : null;
     if(bt){
       /* 병기 배지(r 17)보다 크게 둔다 — 병이 다음 턴에 무엇을 할지가 이 판에서
          가장 자주 보는 것인데 배지들 틈에 같은 크기로 묻혀 있었다.
@@ -424,11 +430,16 @@ function badgeSVG(S, n, sz){
          정수리(270°)에 있던 것을 옮긴 까닭: 보호막 눈금이 위쪽 200°~340° 를
          쓰므로 그 한가운데였다. 그림을 키우자 눈금 위에 그대로 얹혀 둘 다 못 읽었다 */
       const [bx,by]=P(0, RR+25), r=24, sc=1.4;
+      /* 숫자를 얹을 때는 그림을 위로 올려 자리를 낸다 — 겹치면 둘 다 못 읽는다 */
+      const dy = bnum!=null ? -5 : 0;
       s += `<g${tip(beatTip(S,n) || TT('다음 박자', esc(bt)))}>`
         + `<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="#14181C" stroke="#C9A44A" stroke-width="2.4"/>`
-        + `<g transform="translate(${(bx-10*sc).toFixed(1)},${(by-10*sc).toFixed(1)}) scale(${sc})" fill="none" stroke="#C9A44A"`
+        + `<g transform="translate(${(bx-10*sc).toFixed(1)},${(by-10*sc+dy).toFixed(1)}) scale(${sc})" fill="none" stroke="#C9A44A"`
         + ` stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">`
-        + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g></g>`;
+        + `<path d="${ICO[BEATICO[bt]||'bUniq']}"/></g>`
+        + (bnum!=null ? `<text x="${bx.toFixed(1)}" y="${(by+r-4).toFixed(1)}" text-anchor="middle" font-size="13"`
+            + ` font-weight="800" font-family="ui-monospace,monospace" fill="#E4867A">−${bnum}</text>` : '')
+        + `</g>`;
     }
   }
 

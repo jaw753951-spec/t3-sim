@@ -208,14 +208,23 @@ const INVARIANTS = `(() => {
   }
 
   /* ③ㄷ 병 노드의 비트가 헛돌지 않는가.
-     살아 있는 자리가 하나라도 있으면 「같은 박자」(설계상 쉼) 말고는 어떤 비트든
-     판을 바꿔야 한다. 「고유가 헛돌면 성장으로 대신한다」는 규약이 여기서 걸린다 —
-     고유가 실패하고도 문자열을 돌려주면 그 턴은 병이 통째로 노는 턴이 된다.
+     살아 있는 자리가 하나라도 있으면 어떤 비트든 판을 바꿔야 한다.
+     「헛돌면 폴백으로 대신한다」는 규약이 여기서 걸린다 — 고유가 실패하고도 문자열을
+     돌려주면 그 턴은 병이 통째로 노는 턴이 된다.
      세 가지 판에 세워 본다: 자리 하나 · 자리가 꽉 참 · 자리 하나에 정신이 바닥.
-     쉬는 비트는 BEAT_REST 가 정한다 — 여기에 목록을 또 적지 않는다.
-     그 표가 없는 옛 파일은 이 조건이 서기 전의 것이다 — 그때는 건너뛴다. */
-  if (typeof BEAT_REST !== 'undefined') {
-    const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length,
+
+     ★ 전에는 이 덩어리 전체가 「BEAT_REST 가 있으면」이라는 typeof 조건에 싸여 있었다.
+       쉬는 비트(「같은 박자」)를 걷으면서 그 표가 사라지자, 검사기가 ③ㄷ·③ㄹ·③ㅁ·③ㅂ 을
+       **통째로 조용히 건너뛰고 통과했다.** 새로 넣은 박자를 하나도 안 재고 있었다.
+       옛 파일을 받아 주려고 두른 조건이 새 파일의 검사를 끄는 스위치가 된 것이다 —
+       그러니 「없으면 건너뛴다」는 그 조건이 재려는 대상 자체에는 걸지 않는다.
+
+     ★ snap 에 hp 와 crave 가 든 까닭. 「공격」은 환자 체력만 깎고 노드를 안 건드리며,
+       「갈망」은 상시 규칙만 설치한다. 둘 다 노드 배열만 보던 잣대로는 「헛돈다」로
+       잘못 걸린다 — 판이 바뀌었는가를 노드로만 묻지 않는다. */
+  {
+    const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length, hp: S.hp,
+      crave: !!S.crave, wiped: !!S.wiped,
       clock: S.nodes[0].stageClock, stage: S.nodes[0].stage,
       nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0, x.evoLeft, x.dormT])});
     /* 병기 st 의 판을 세우고 자리를 fill 개만 살려 둔다 */
@@ -233,11 +242,12 @@ const INVARIANTS = `(() => {
       const b = BOSS[boss];
       for (const st in b.beats) {
         const stage = +st;
-        /* 자리가 꽉 찬 판 — 명부가 있으면 명부대로, 없으면 자리 상한만큼 */
-        const full = b.roster ? b.roster[stage].map(r => r[0])
-                              : new Array(SR.SPAWN_LV[SLV(boss, 'spots', stage)]).fill('발열');
+        /* 자리가 꽉 찬 판 — 정원(SR.SPAWN_LV)까지 채운다. 명부가 있으면 그 종류로 돌려
+           쓰고 모자라면 되풀이한다: 명부는 종류의 통이지 자리 상한이 아니다 (스토리.정원) */
+        const cap = SR.SPAWN_LV[SLV(boss, 'spots', stage)];
+        const pool = b.roster ? b.roster[stage].map(r => r[0]) : ['발열'];
+        const full = Array.from({length: cap}, (_, i) => pool[i % pool.length]);
         b.beats[st].forEach((beat, i) => {
-          if (BEAT_REST[beat]) return;
           for (const [what, fill, mind] of [['자리 하나', ['발열'], null],
                                             ['자리가 꽉 참', full, null],
                                             ['자리 하나 · 공황', ['발열'], '공황']]) {
@@ -261,10 +271,10 @@ const INVARIANTS = `(() => {
     if (typeof BEAT_LIST !== 'undefined') {
       for (const boss in BOSS) {
         const b = BOSS[boss], stage = b.stage0;
-        const full = b.roster ? b.roster[stage].map(r => r[0])
-                              : new Array(SR.SPAWN_LV[SLV(boss, 'spots', stage)]).fill('발열');
+        const cap = SR.SPAWN_LV[SLV(boss, 'spots', stage)];
+        const pool = b.roster ? b.roster[stage].map(r => r[0]) : ['발열'];
+        const full = Array.from({length: cap}, (_, i) => pool[i % pool.length]);
         for (const beat of BEAT_LIST) {
-          if (BEAT_REST[beat]) continue;
           for (const [what, fill] of [['자리 하나', ['발열']], ['자리가 꽉 참', full]]) {
             const S = stand(boss, stage, fill, null);
             S.board.score = { [stage]: [beat] };
@@ -286,12 +296,74 @@ const INVARIANTS = `(() => {
 
       /* ③ㅁ 보스가 지금 쓰는 비트가 전부 그 목록 안에 있는가.
          하나라도 빠지면 「악보」 탭이 그 병의 악보를 그대로 다시 짤 수 없다.
-         별명(「진행」의 다른 이름들)은 BEAT_ALIAS 가 쥔다 — 여기 손으로 적어 두면
-         이름을 하나 더할 때 검사기가 있지도 않은 어긋남을 알린다. */
+         별명 표(BEAT_ALIAS)는 「진행」과 함께 걷혔다 — 이제 이름이 곧 박자다. */
       for (const boss in BOSS) for (const st in BOSS[boss].beats)
         for (const beat of BOSS[boss].beats[st])
-          if (!BEAT_LIST.includes(beat) && !BEAT_ALIAS.includes(beat))
+          if (!BEAT_LIST.includes(beat))
             bad.push('악보 목록에 없는 박자를 보스가 쓴다 — ' + boss + ' 병기' + st + ' 「' + beat + '」');
+
+      /* ③ㅅ 최종 병기 — 앵커와 이음표.
+         ③ㄷ 는 b.beats 를 훑는데 최종 병기는 거기 없다 (고정 악보를 안 쓴다).
+         그래서 최종 병기의 한 수는 그 어느 조건에도 안 걸린다 — 여기가 그 자리다. */
+      for (const boss in BOSS) {
+        const b = BOSS[boss];
+        if (!b.link) continue;
+        const stage = b.stageMax;
+        const cap = SR.SPAWN_LV[SLV(boss, 'spots', stage)];
+        const pool = b.roster ? b.roster[stage].map(r => r[0]) : ['발열'];
+        const full = Array.from({length: cap}, (_, i) => pool[i % pool.length]);
+
+        /* ㄱ 앵커가 목록 안에 있고, 이음표가 그 이름을 키로 들고 있는가.
+           앵커가 이음표에 없으면 앵커 다음 칸이 늘 빈 후보가 되어 성장으로 샌다 */
+        if (!BEAT_LIST.includes(b.anchor))
+          bad.push('앵커가 악보 목록에 없다 — ' + boss + ' 「' + b.anchor + '」');
+        if (!b.link[b.anchor])
+          bad.push('이음표에 앵커 줄이 없다 — ' + boss + ' 「' + b.anchor + '」 다음이 늘 성장이 된다');
+
+        /* ㄴ 후보가 전부 목록 안에 있는가 · 키가 전부 도달 가능한가.
+           어느 후보에도 안 나오는 키는 죽은 줄이다 — 적어 두고도 한 번도 안 읽힌다 */
+        const reach = new Set([b.anchor]);
+        for (const k in b.link) for (const c of b.link[k]) {
+          reach.add(c);
+          if (!BEAT_LIST.includes(c))
+            bad.push('이음표 후보가 악보 목록에 없다 — ' + boss + ' 「' + k + '」 → 「' + c + '」');
+          if (c === k)
+            bad.push('이음표가 같은 행동을 잇는다 — ' + boss + ' 「' + k + '」 → 「' + c + '」');
+        }
+        for (const k in b.link)
+          if (!reach.has(k)) bad.push('이음표에 닿을 수 없는 줄이 있다 — ' + boss + ' 「' + k + '」');
+
+        /* ㄷ 앵커와 후보 전부가 판을 실제로 움직이는가 (③ㄹ 과 같은 잣대) */
+        for (const beat of reach) {
+          for (const [what, fill] of [['자리 하나', ['발열']], ['자리가 꽉 참', full]]) {
+            const S = stand(boss, stage, fill, null);
+            S.board.score = { [stage]: [beat] };
+            S.nodes[0].beat = 0; S.nodes[0].stage = stage;
+            const before = snap(S);
+            const line = diseaseAct(S, S.nodes[0], null);
+            if (snap(S) === before)
+              bad.push('최종 병기의 한 수가 헛돈다 — ' + boss + ' 「' + beat + '」 · ' + what + ' → 「' + line + '」');
+          }
+        }
+
+        /* ㄹ 앵커 상한 — SR.ANCHOR_LOOPS 바퀴까지만 앵커가 나오고 그 뒤로는 성장이다.
+           상한이 안 걸리면 최종 병기가 길어질수록 고유 기믹만 반복하는 판이 된다.
+           board.score 를 비워 두고 물어야 이음표 갈래가 선다 (linkStage 가 손으로 짠
+           악보를 먼저 보므로, 위 ㄷ 처럼 score 를 실으면 이 검사가 딴 것을 잰다) */
+        {
+          const S = stand(boss, stage, full, null);
+          const d = S.nodes[0]; d.stage = stage; d.stageMax = stage;
+          const every = SR.ANCHOR_EVERY;
+          for (let loop = 0; loop <= SR.ANCHOR_LOOPS; loop++) {
+            d.beat = loop * every; d.beatTurn = null; d.beatPick = null;
+            const got = nextBeat(S, d);
+            const want = loop < SR.ANCHOR_LOOPS ? b.anchor : '성장';
+            if (got !== want)
+              bad.push('앵커 상한이 안 맞는다 — ' + boss + ' ' + (loop + 1) + '바퀴째가 「' + got +
+                       '」 · 「' + want + '」 여야 한다');
+          }
+        }
+      }
 
       /* ③ㅂ 손으로 짠 악보가 커널에 들어올 때 모르는 이름이 걸러지는가 */
       const dirty = scoreClean({ 3: ['성장', '없는박자'], 4: [], 5: ['없는것만'] });

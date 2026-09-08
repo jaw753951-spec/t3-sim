@@ -3179,15 +3179,16 @@ function runStory(bossKey, deck, seed, policy, opt={}){
 //@ AI.평가 — 판 복제 · 판 점수
 function clone(S){
   const nodes = S.nodes.map(n=>({...n, rigParts:(n.rigParts||[]).slice()}));
+  const enh = (S.enh||[]).slice();
   const T = {...S,
-    nodes,
+    nodes, enh,
     hand:S.hand.slice(), deck:S.deck.slice(), discard:S.discard.slice(), exiled:S.exiled.slice(),
     keepUses:{...S.keepUses}, oncePlayed:{...(S.oncePlayed||{})}, hitThisTurn:{...S.hitThisTurn},
     rng: ()=>0.5, rec: null, revisitOn: {...(S.revisitOn||{})}, diagPlus: {...(S.diagPlus||{})},
     drawQueue: (S.drawQueue||[]).slice(),
     pendKill: (S.pendKill||[]).slice(), killLate: [],
     ev: null,
-    board: {...S.board, nodes},
+    board: {...S.board, nodes, enh},
   };
   return T;
 }

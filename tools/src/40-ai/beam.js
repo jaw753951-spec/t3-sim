@@ -9,8 +9,18 @@ function clone(S){
      가리킨다 — 탐색이 복제본에 부품을 붙이면 무대의 자리에도 붙는다.
      자리에 배열 칸이 생긴 것은 이것이 처음이라 여태 걸릴 일이 없었다 */
   const nodes = S.nodes.map(n=>({...n, rigParts:(n.rigParts||[]).slice()}));
+  /* 배선 목록도 따로 뜬다 — 위의 부품 목록과 같은 까닭이고, 아래 ev 를 null 로
+     박아 둔 것과도 같은 까닭이다.
+     ★ 이 한 줄이 없는 동안, 예고(forecast)가 「엮는다」를 뽑으면 복제본이 아니라
+       **진짜 판**에 배선이 실려 들어갔다. 그리기마다 부르는 함수라 예고를 오래
+       보고 있을수록 판에 배선이 늘었다.
+       빔 탐색에서는 rng 가 ()=>0.5 로 고정이라 「엮는다」가 늘 p===q 로 헛돌아
+       한 번도 안 드러났고, 실제 난수를 빌려 쓰는 예고에서만 났다 (화면.예고).
+     newState 가 enh:board.enh 로 판과 보드를 한 배열에 묶어 두므로 아래 board 도
+     같은 새 배열을 물려야 한다 — 한쪽만 뜨면 도로 갈린다. */
+  const enh = (S.enh||[]).slice();
   const T = {...S,
-    nodes,
+    nodes, enh,
     hand:S.hand.slice(), deck:S.deck.slice(), discard:S.discard.slice(), exiled:S.exiled.slice(),
     keepUses:{...S.keepUses}, oncePlayed:{...(S.oncePlayed||{})}, hitThisTurn:{...S.hitThisTurn},
     rng: ()=>0.5, rec: null, revisitOn: {...(S.revisitOn||{})}, diagPlus: {...(S.diagPlus||{})},
@@ -19,7 +29,7 @@ function clone(S){
     /* 사건 기록은 복제본이 물려받지 않는다. {...S} 로 뜨면 원본과 '같은 배열'을
        가리키게 되어 탐색이 무대의 줄에 사건을 쏟아붓는다 (forecast 도 이 clone 을 쓴다) */
     ev: null,
-    board: {...S.board, nodes},
+    board: {...S.board, nodes, enh},
   };
   return T;
 }

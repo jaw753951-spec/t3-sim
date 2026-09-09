@@ -439,13 +439,14 @@ function stateHTML(){
     if(d && !d.dead){
       const cap = spotCap(S, d), live = K.alive(S).filter(n=>n.role!=='disease').length;
       rows.push(`<div class="st"${tip(TT('정원',
-          `자리가 <b>${cap}</b>까지 선다. 지금 ${live}자리.<br><br>`
-        + `<b>처치한 자리는 닫힌다</b> — 분화가 거기 다시 못 선다. 지금 ${S.closedN||0}곳.<br>`
-        + `휴면과 소멸은 자리를 <b>닫지 않는다</b>. 병이 스스로 쓸어 버린 자리도 도로 채워진다.<br>`
+          `자리가 <b>${cap}</b>까지 선다. 지금 ${live}자리.<br>`
+        + `<b>정원이 0 이 되면 이긴다</b> — 병이 더 세울 데가 없다.<br><br>`
+        + `<b>처치한 자리만 닫힌다</b> — 분화가 거기 다시 못 선다. 지금 ${S.closedN||0}곳.<br>`
+        + `<b>휴면은 안 닫는다</b> — 재우기만 해서는 못 이긴다.<br>`
+        + `<b>소멸도 안 닫는다</b> — 병이 스스로 판을 쓸어도 정원은 한 칸도 안 준다.<br>`
         + `병기가 오를 때마다 정원이 <b>+${SR.LINGER_SPAWN}</b> 는다. 지금 +${S.spawnBonus||0}.`))}>
         <div class="stt"><span>정원</span><b>${live}<span class="d">/${cap}</span></b></div>
-        <div class="stnote">닫힌 자리 ${S.closedN||0}${S.spawnBonus?` · 병기로 +${S.spawnBonus}`:''}`
-        + `${S.wiped?'<br><b>병이 쓸어 버린 판</b> — 자리가 다시 서야 판정이 열린다':''}</div></div>`);
+        <div class="stnote">닫힌 자리 ${S.closedN||0}${S.spawnBonus?` · 병기로 +${S.spawnBonus}`:''}</div></div>`);
     }
   }
   /* 병기 */
@@ -464,9 +465,9 @@ function winNote(S){
   if(S.policy==='완치') return `병 노드를 ${killLine(S,dis)}까지 내려서 끊는다. 지금 ${dis.val}.`;
   if(S.policy==='연명'){
     const cap = spotCap(S, dis), live = K.alive(S).filter(n=>n.role!=='disease').length;
-    return `활성 부수 증상을 하나도 남기지 않는다. 지금 ${others.filter(n=>n.val>0).length}자리 남았다.`
-      + ` <span class="d">정원 ${live}/${cap} · 닫힌 자리 ${S.closedN||0}</span>`
-      + (S.wiped ? ' <b>병이 쓸어 버린 판이라 아직 안 친다.</b>' : '');
+    return `자리를 <b>처치로</b> 전부 닫는다. 정원 <b>${cap}</b>이 남았다 (지금 ${live}자리 서 있다).`
+      + ` <span class="d">닫은 자리 ${S.closedN||0}${S.spawnBonus?` · 병기가 +${S.spawnBonus} 돌려줬다`:''}`
+      + ` — 휴면과 소멸은 안 닫는다.</span>`;
   }
   if(S.policy==='편하게') return `병기 ${dis.stage}/${dis.stageMax} · 시계 ${dis.stageClock}턴. 최종 병기의 시계까지 다 돌 때 환자가 살아 있으면 이긴다. 완화 ${comfortCuts(S).length}겹.`;
   return '';

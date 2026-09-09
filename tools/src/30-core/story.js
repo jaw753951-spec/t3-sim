@@ -199,29 +199,18 @@ function wipeSpots(S){
   for(const x of S.nodes) if(x.role!=='disease' && !x.dead && x.val>0){
     sum += x.val; x.dead=true; x.vanished=true; x.val=0; n++;
   }
-  if(n) markVanish(S);
   return {n, sum};
 }
 
-/* ── 소멸이 만든 빈 판은 연명으로 안 쳐 준다 ──────────────────
-   병이 스스로 쓸어 버린 판은 플레이어가 비운 것이 아니다. **자리가 다시 서는 순간
-   풀린다** — 그러고 나서 플레이어가 도로 비우면 그때는 이긴 것이다.
+/* 「소멸이 만든 빈 판은 한 턴 안 친다」는 유예(S.wiped)를 걷었다. **되살리지 않는다.**
+   승리 조건이 「활성 부수 0」이던 동안에는 그 유예가 필요했다 — 턴 차례가
+   「판정 → 플레이어 → 병 → 정산」이라 창이 판을 쓸면 다음 분화가 오기 전에 판정이
+   먼저 떨어져서, 아이 연명이 40판 중 40판을 창이 떨어지는 그 턴에 이겼다.
 
-   ★ 왜 이 규칙이 필요한가. 턴 차례가 「판정 → 플레이어 → 병 → 정산」이라, 창이 턴 끝에
-     판을 쓸면 **다음 분화가 오기 전에** 다음 턴 시작 판정이 먼저 떨어진다. 그래서
-     「소멸은 자리를 안 닫으니 다음 분화가 그 자리를 채운다」만으로는 안 선다 —
-     실제로 아이 연명이 40판 중 40판, 전부 창이 떨어지는 그 턴에 이겼다.
-     한 턴만 봐주는 것으로도 모자랐다: 아이 병기3 악보는 창 다음이 「공격」이라
-     분화가 두 턴 뒤에 온다. 그래서 턴 수가 아니라 **자리가 섰는가**로 푼다.
-
-   푸는 자리를 자리마다 두지 않는다 — 분화 · 긁는다 · 옮아 앉는다의 되세우기 ·
-   휴면 부활 · 병기 진입까지 자리가 나는 길이 여섯이고, 하나만 빠뜨리면 연명이 영영
-   안 성립한다. 턴 끝에 「활성 부수가 있는가」 한 번만 묻는다 (storyTick).
-
-   「전 자리 폐쇄」와 다른 물건이다: 자리가 하나만 다시 서도 판정이 도로 열린다.
-   승리 조건은 여전히 「턴 시작에 활성 부수 0」 하나다. */
-//@ 스토리.소멸표시 — 병이 스스로 비운 판은 연명으로 안 친다
-function markVanish(S){ S.wiped = true }
+   승리 조건이 **자리를 다 닫는 것**으로 바뀌면서 그 구멍이 저절로 막혔다:
+   소멸은 자리를 안 닫으므로 창이 아무리 판을 쓸어도 정원이 한 칸도 안 준다.
+   플래그를 세워 두면 「병이 판을 쓸어 줬는데 왜 안 이기나」를 화면이 설명할 길이
+   없어지고, 푸는 자리를 자리마다 챙겨야 하는 짐만 남는다. */
 
 /* 성장 비트 — 폴백으로도 쓴다.
    ★ **현재 수치** 기준이다 (v27). 초기값 기준이던 동안은 깎아 놓은 자리에도 늘 같은
@@ -231,6 +220,37 @@ function growBeat(S){
   for(const n of K.active(S)) if(n.role!=='disease')
     n.val=Math.min(Math.floor(n.init*R.VAL_CAP), n.val+Math.ceil(n.val*SR.BEAT.성장));
   return '증상이 자란다';
+}
+
+/* 폴백으로 나가는 성장. **판이 비면 성장은 아무 일도 안 한다** — 그때 병을 놀리지
+   않으려고 사다리를 둔다: 분화 → 깨우기 → 성장.
+
+   ★ 이음표에 막다른 길이 있다. 어부의 「옮아 앉는다」 줄은 후보가 번진다 · 몰린다 ·
+     성장 셋인데 빈 판에서는 앞의 둘이 다 떨어진다. 성장은 lastAct 를 안 덮으므로
+     다음 턴도 같은 줄을 보고, 앵커로 넘겨 봐야 옮아 앉는다도 쓸 자리가 없어 도로
+     성장이다 — 실측에서 **11턴이 통째로 비었다.**
+     이음표를 손보는 대신 여기서 막는다. 표는 저자가 짠 것이고, 「병이 노는 턴을
+     만들지 않는다」는 표 하나가 아니라 판 전체에 걸리는 규약이기 때문이다.
+     새 보스가 새 이음표를 들고 와도 같은 함정에 다시 안 빠진다.
+
+   ★ 깨우기가 왜 필요한가. 자리를 **재우기만 하는** 플레이는 정원을 한 칸도 안 닫으면서
+     (휴면은 자리를 안 닫는다) 병이 세울 자리는 다 막는다 — 활성이 0이라 성장도 못 하고,
+     빈 자리가 없어 분화도 못 한다. 실측에서 어부 연명이 그 꼴로 열한 턴을 굴렀다.
+     재워 둔 자리를 깨우면 병은 할 일이 생기고, 플레이어는 「재우기로 시간을 벌 수
+     없다」를 배운다. 휴면은 2턴이면 어차피 스스로 일어난다(R.DORMANT) — 앞당길 뿐이다. */
+function growFallback(S, dis){
+  if(!K.active(S).some(n=>n.role!=='disease')){
+    const nd = spawnSpot(S, dis);                    // ① 세울 자리가 있으면 세운다
+    if(nd){ dis.lastAct = '분화'; dis.growRun = 0; return `분화 — ${nd.sym}` }
+    /* ② 세울 데가 없다 — 재워 둔 자리를 깨운다 */
+    const d = S.nodes.find(n=>n.role!=='disease' && !n.dead && n.val<=0);
+    if(d){
+      d.val=d.init; d.dormT=0; d.shielded=true; d.shReduc=R.SHIELD_CUT; d.stabAcc=0;
+      dis.growRun = 0;
+      return `재워 둔 자리가 일어난다 — ${d.sym}`;
+    }
+  }
+  return growBeat(S);                                // ③ 그래도 없으면 성장
 }
 
 /* ── 병 노드 공격 ── 판 반비례 ─────────────────────────────
@@ -425,18 +445,18 @@ function diseaseAct(S, dis, act){
       dis.growRun = 0;
       return run(b.anchor, true);
     }
-    return growBeat(S);
+    return growFallback(S, dis);
   };
 
   /* 박자 하나를 실제로 낸다. deep 이면 폴백에서 들어온 것이라 다시 폴백하지 않는다 */
   function run(beat, deep){
     if(beat==='분화'){
       const nd = spawnSpot(S, dis);
-      if(!nd) return deep ? growBeat(S) : fall(beat);
+      if(!nd) return deep ? growFallback(S, dis) : fall(beat);
       dis.lastAct = '분화'; dis.growRun = 0;
       return `분화 — ${nd.sym}`;
     }
-    if(beat==='성장'){ dis.growRun = (dis.growRun||0)+1; return growBeat(S) }
+    if(beat==='성장'){ dis.growRun = (dis.growRun||0)+1; return growFallback(S, dis) }
     /* 공격 — **고르는 조건이 없다.** 이음표가 후보를 추릴 때만 조건을 보고(스토리.이음조건),
        악보에 박힌 칸은 조건 없이 발동한다.
        ★ 다만 판이 꽉 차서 피해가 0 으로 막히면 대상 없는 박자와 같다 — §4.3 의 폴백
@@ -445,14 +465,14 @@ function diseaseAct(S, dis, act){
          불변 조건 ③ㄷ 가 세 보스에서 여섯 자리를 그렇게 잡았다. */
     if(beat==='공격'){
       const amt = disAtkAmt(S, dis);
-      if(amt<=0) return deep ? growBeat(S) : fall(beat);
+      if(amt<=0) return deep ? growFallback(S, dis) : fall(beat);
       hurtPatient(S, amt, 'atk', dis);
       dis.lastAct = beat; dis.growRun = 0;
       return `병이 때린다 — 체력 ${amt}`;
     }
     if(beat==='몰린다'){
       const ns = active(S).filter(x=>x.role!=='disease');
-      if(!ns.length) return deep ? growBeat(S) : fall(beat);
+      if(!ns.length) return deep ? growFallback(S, dis) : fall(beat);
       const x = ns.slice().sort((p,q)=>p.val-q.val)[0];
       /* 병 노드 **기준값**의 몫이다 — 자리의 초기값도 현재값도 아니고, 완치가 병 노드를
          깎아도 안 바뀐다 (stageDisVal 은 레벨표의 값을 낸다) */
@@ -463,7 +483,7 @@ function diseaseAct(S, dis, act){
     }
     if(beat==='엮는다'){
       const syms = [...new Set(active(S).filter(x=>x.role!=='disease').map(x=>x.sym))];
-      if(syms.length<2) return deep ? growBeat(S) : fall(beat);
+      if(syms.length<2) return deep ? growFallback(S, dis) : fall(beat);
       S.enh = S.enh || [];
       for(let g=0; g<30; g++){
         const p = syms[Math.floor(S.rng()*syms.length)], q = syms[Math.floor(S.rng()*syms.length)];
@@ -473,11 +493,11 @@ function diseaseAct(S, dis, act){
         dis.lastAct = beat; dis.growRun = 0;
         return '엮는다 — '+p+' → '+q;
       }
-      return deep ? growBeat(S) : fall(beat);      // 더 엮을 쌍이 없다 — 헛돈 것이다
+      return deep ? growFallback(S, dis) : fall(beat);      // 더 엮을 쌍이 없다 — 헛돈 것이다
     }
     if(beat==='번진다'){                            // 어부 — 통증만 골라 현재값 비율로 오른다
       const ps = active(S).filter(x=>x.role!=='disease' && x.sym==='통증');
-      if(!ps.length) return deep ? growBeat(S) : fall(beat);
+      if(!ps.length) return deep ? growFallback(S, dis) : fall(beat);
       for(const x of ps) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.val*SR.BEAT.번진다));
       dis.lastAct = beat; dis.growRun = 0;
       return '번진다';
@@ -487,13 +507,13 @@ function diseaseAct(S, dis, act){
       const mind0 = S.mind;
       for(const x of ns) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.val*SR.BEAT.치민다));
       mind(S,+1);
-      if(!ns.length && S.mind===mind0) return deep ? growBeat(S) : fall(beat);
+      if(!ns.length && S.mind===mind0) return deep ? growFallback(S, dis) : fall(beat);
       dis.lastAct = beat; dis.growRun = 0;
       return '치민다';
     }
     if(beat==='가라앉는다'){                         // 송이 — 정점을 지나면 저절로 내려간다. 0 까지는 안 간다
       const ns = active(S).filter(x=>x.role!=='disease');
-      if(!ns.length) return deep ? growBeat(S) : fall(beat);
+      if(!ns.length) return deep ? growFallback(S, dis) : fall(beat);
       for(const x of ns) x.val = Math.max(1, x.val - Math.ceil(x.val*SR.BEAT.가라앉는다));
       dis.lastAct = beat; dis.growRun = 0;
       return '가라앉는다';
@@ -501,7 +521,7 @@ function diseaseAct(S, dis, act){
     /* 고유 한 수 — 악보에 제 이름으로 적힌다. 헛돌면 폴백으로 대신한다 */
     if(UNIQ[beat]){
       const line = UNIQ[beat](S, dis);
-      if(!line) return deep ? growBeat(S) : fall(beat);
+      if(!line) return deep ? growFallback(S, dis) : fall(beat);
       dis.lastAct = beat; dis.growRun = 0;
       return line;
     }
@@ -645,9 +665,6 @@ function storyPhase(S, dis){
 /* 「편하게」 — 완화가 몇 겹으로 걸렸는지만 기록해 둔다 (승리 조건은 병기 소진) */
 function storyTick(S){
   closeKilled(S);                       // 턴 시작에 터진 처치(공황이 미뤄 둔 것)도 여기서 닫힌다
-  /* 자리가 다시 섰으면 소멸 표시를 푼다 — 자리가 나는 길 여섯을 각각 안 쫓아다니려고
-     여기서 한 번만 묻는다 (스토리.소멸표시) */
-  if(S.wiped && K.active(S).some(n=>n.role!=='disease')) S.wiped = false;
   if(S.policy!=='편하게') return;
   S.comfort = K.comfortCuts(S).length;
 }
@@ -659,12 +676,22 @@ function storyVerdict(S, dis, policy){
                                 //  v19 는 완치 방침에서만 봐서, 연명 중 병을 끊으면
                                 //  판정이 영영 나지 않고 턴만 흘렀다.
   if(!policy) return null;
-  /* 활성 부수 자리가 하나도 없으면 이긴다. 병 노드는 보지 않는다.
-     휴면도 '비운 것'으로 센다 — 눌러서 내보냈고 병은 그대로다.
-     ★ 병이 스스로 소멸로 비운 판은 안 친다 (스토리.소멸표시). 창·옮아 앉는다는 자리를
-       안 닫으므로 병이 다시 세우고, 그것을 플레이어가 도로 비웠을 때 이긴다. */
-  if(policy==='연명' && !dis.dead && !S.wiped
-     && !S.nodes.some(n=>n.role!=='disease' && !n.dead && n.val>0)) return '연명';
+  /* 연명 — **자리를 다 닫으면 이긴다.** 정원이 0 이면 병이 더 세울 데가 없다.
+     병 노드는 보지 않는다: 병은 그대로 두고 판만 닫는 것이 연명이다.
+
+     자리를 닫는 것은 **처치뿐이다** (스토리.자리닫기).
+       · 휴면은 안 닫는다 — 눌러 둔 것이지 없앤 것이 아니다. 재우기만 해서는 못 이긴다
+       · 소멸도 안 닫는다 — 창과 옮아 앉는다가 아무리 판을 쓸어도 정원이 한 칸도 안 준다
+
+     ★ 전에는 「턴 시작에 활성 부수 0」이었다. 그러면 병이 스스로 쓸어 버린 빈 판이
+       곧 승리가 되어(아이 연명 40판 중 40판이 창이 떨어지는 그 턴에 끝났다), 그것을
+       막으려고 유예 플래그를 따로 세워야 했다. 조건을 정원으로 옮기면 그 구멍이
+       저절로 막힌다 — 소멸이 자리를 안 닫는다는 규칙 하나가 그대로 답이 된다.
+
+     ★ 정원 0 이면 살아 있는 자리도 0 이다. 분화는 liveSpots < cap 일 때만 서므로
+       판 내내 liveSpots ≤ cap 이 유지되고, 처치는 둘을 함께 1씩 내린다.
+       그래서 이 한 줄이 「자리를 다 닫았다」와 「판이 비었다」를 같이 말한다. */
+  if(policy==='연명' && !dis.dead && spotCap(S, dis) <= 0) return '연명';
   /* 편하게 — 병이 최종 병기까지 다 간 시점에 환자가 살아 있으면 이긴다.
      스토리 보스 판은 noDeath 라 체력이 0 아래로 내려가도 죽은 것이 아니다.
      생존 판정은 판의 사망 규칙과 같은 잣대를 쓴다. */

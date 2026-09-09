@@ -1716,7 +1716,6 @@ const UNIQ = {
     const x = ns.slice().sort((p,q)=>q.val-p.val)[0];
     const was = x.val;
     x.dead = true; x.vanished = true; x.val = 0;
-    markVanish(S);                                      // 창과 같은 소멸이다 (스토리.소멸표시)
     const drain = Math.ceil(was*SR.MOVE_DRAIN);
     dis.val = Math.min(Math.floor(dis.init*R.VAL_CAP), dis.val + drain);
     const rest = Math.max(1, was - drain);
@@ -3004,17 +3003,27 @@ function wipeSpots(S){
   for(const x of S.nodes) if(x.role!=='disease' && !x.dead && x.val>0){
     sum += x.val; x.dead=true; x.vanished=true; x.val=0; n++;
   }
-  if(n) markVanish(S);
   return {n, sum};
 }
-
-//@ 스토리.소멸표시 — 병이 스스로 비운 판은 연명으로 안 친다
-function markVanish(S){ S.wiped = true }
 
 function growBeat(S){
   for(const n of K.active(S)) if(n.role!=='disease')
     n.val=Math.min(Math.floor(n.init*R.VAL_CAP), n.val+Math.ceil(n.val*SR.BEAT.성장));
   return '증상이 자란다';
+}
+
+function growFallback(S, dis){
+  if(!K.active(S).some(n=>n.role!=='disease')){
+    const nd = spawnSpot(S, dis);                    // ① 세울 자리가 있으면 세운다
+    if(nd){ dis.lastAct = '분화'; dis.growRun = 0; return `분화 — ${nd.sym}` }
+    const d = S.nodes.find(n=>n.role!=='disease' && !n.dead && n.val<=0);
+    if(d){
+      d.val=d.init; d.dormT=0; d.shielded=true; d.shReduc=R.SHIELD_CUT; d.stabAcc=0;
+      dis.growRun = 0;
+      return `재워 둔 자리가 일어난다 — ${d.sym}`;
+    }
+  }
+  return growBeat(S);                                // ③ 그래도 없으면 성장
 }
 
 //@ 스토리.병공격 — 판 반비례 타격. 예고와 실제가 같은 함수를 본다
@@ -3136,27 +3145,27 @@ function diseaseAct(S, dis, act){
       dis.growRun = 0;
       return run(b.anchor, true);
     }
-    return growBeat(S);
+    return growFallback(S, dis);
   };
 
   function run(beat, deep){
     if(beat==='분화'){
       const nd = spawnSpot(S, dis);
-      if(!nd) return deep ? growBeat(S) : fall(beat);
+      if(!nd) return deep ? growFallback(S, dis) : fall(beat);
       dis.lastAct = '분화'; dis.growRun = 0;
       return `분화 — ${nd.sym}`;
     }
-    if(beat==='성장'){ dis.growRun = (dis.growRun||0)+1; return growBeat(S) }
+    if(beat==='성장'){ dis.growRun = (dis.growRun||0)+1; return growFallback(S, dis) }
     if(beat==='공격'){
       const amt = disAtkAmt(S, dis);
-      if(amt<=0) return deep ? growBeat(S) : fall(beat);
+      if(amt<=0) return deep ? growFallback(S, dis) : fall(beat);
       hurtPatient(S, amt, 'atk', dis);
       dis.lastAct = beat; dis.growRun = 0;
       return `병이 때린다 — 체력 ${amt}`;
     }
     if(beat==='몰린다'){
       const ns = active(S).filter(x=>x.role!=='disease');
-      if(!ns.length) return deep ? growBeat(S) : fall(beat);
+      if(!ns.length) return deep ? growFallback(S, dis) : fall(beat);
       const x = ns.slice().sort((p,q)=>p.val-q.val)[0];
       const add = Math.ceil(stageDisVal(S.board.boss, dis.stage) * SR.BEAT_CROWD);
       x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + add);
@@ -3165,7 +3174,7 @@ function diseaseAct(S, dis, act){
     }
     if(beat==='엮는다'){
       const syms = [...new Set(active(S).filter(x=>x.role!=='disease').map(x=>x.sym))];
-      if(syms.length<2) return deep ? growBeat(S) : fall(beat);
+      if(syms.length<2) return deep ? growFallback(S, dis) : fall(beat);
       S.enh = S.enh || [];
       for(let g=0; g<30; g++){
         const p = syms[Math.floor(S.rng()*syms.length)], q = syms[Math.floor(S.rng()*syms.length)];
@@ -3175,11 +3184,11 @@ function diseaseAct(S, dis, act){
         dis.lastAct = beat; dis.growRun = 0;
         return '엮는다 — '+p+' → '+q;
       }
-      return deep ? growBeat(S) : fall(beat);      // 더 엮을 쌍이 없다 — 헛돈 것이다
+      return deep ? growFallback(S, dis) : fall(beat);      // 더 엮을 쌍이 없다 — 헛돈 것이다
     }
     if(beat==='번진다'){                            // 어부 — 통증만 골라 현재값 비율로 오른다
       const ps = active(S).filter(x=>x.role!=='disease' && x.sym==='통증');
-      if(!ps.length) return deep ? growBeat(S) : fall(beat);
+      if(!ps.length) return deep ? growFallback(S, dis) : fall(beat);
       for(const x of ps) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.val*SR.BEAT.번진다));
       dis.lastAct = beat; dis.growRun = 0;
       return '번진다';
@@ -3189,20 +3198,20 @@ function diseaseAct(S, dis, act){
       const mind0 = S.mind;
       for(const x of ns) x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + Math.ceil(x.val*SR.BEAT.치민다));
       mind(S,+1);
-      if(!ns.length && S.mind===mind0) return deep ? growBeat(S) : fall(beat);
+      if(!ns.length && S.mind===mind0) return deep ? growFallback(S, dis) : fall(beat);
       dis.lastAct = beat; dis.growRun = 0;
       return '치민다';
     }
     if(beat==='가라앉는다'){                         // 송이 — 정점을 지나면 저절로 내려간다. 0 까지는 안 간다
       const ns = active(S).filter(x=>x.role!=='disease');
-      if(!ns.length) return deep ? growBeat(S) : fall(beat);
+      if(!ns.length) return deep ? growFallback(S, dis) : fall(beat);
       for(const x of ns) x.val = Math.max(1, x.val - Math.ceil(x.val*SR.BEAT.가라앉는다));
       dis.lastAct = beat; dis.growRun = 0;
       return '가라앉는다';
     }
     if(UNIQ[beat]){
       const line = UNIQ[beat](S, dis);
-      if(!line) return deep ? growBeat(S) : fall(beat);
+      if(!line) return deep ? growFallback(S, dis) : fall(beat);
       dis.lastAct = beat; dis.growRun = 0;
       return line;
     }
@@ -3302,7 +3311,6 @@ function storyPhase(S, dis){
 
 function storyTick(S){
   closeKilled(S);                       // 턴 시작에 터진 처치(공황이 미뤄 둔 것)도 여기서 닫힌다
-  if(S.wiped && K.active(S).some(n=>n.role!=='disease')) S.wiped = false;
   if(S.policy!=='편하게') return;
   S.comfort = K.comfortCuts(S).length;
 }
@@ -3311,8 +3319,7 @@ function storyVerdict(S, dis, policy){
   if(S.hp<=0 && !S.board.noDeath) return '사망';
   if(dis.dead) return '완치';   // 어떤 방침으로 들어갔든 병을 끊었으면 완치다.
   if(!policy) return null;
-  if(policy==='연명' && !dis.dead && !S.wiped
-     && !S.nodes.some(n=>n.role!=='disease' && !n.dead && n.val>0)) return '연명';
+  if(policy==='연명' && !dis.dead && spotCap(S, dis) <= 0) return '연명';
   if(policy==='편하게' && dis.finished && (S.hp>0 || S.board.noDeath)) return '호전';
   return null;
 }
@@ -4087,11 +4094,11 @@ const PATCH_NOTES = [
 
 -세 방침이 전부 같은 플레이로 수렴하던 것을 고침. 이제 방침마다 다른 판이 됨
 
--연명: 처치한 자리는 닫힘. 분화가 그 자리에 다시 서지 못함
-*휴면은 자리를 닫지 않음
-*소멸(창 · 옮아 앉는다)도 자리를 닫지 않음
+-연명 승리 조건 변경: 활성 부수 0에서 「처치로 모든 자리를 닫는 것」으로
+*자리를 닫는 것은 처치뿐. 정원이 0이 되면 병이 더 세울 데가 없음
+*휴면은 자리를 닫지 않음. 재우기만 해서는 이길 수 없음
+*소멸(창 · 옮아 앉는다)도 자리를 닫지 않음. 병이 판을 쓸어도 정원은 그대로
 *병기가 오를 때마다 정원 +1 (연명 전용)
-*병이 스스로 쓸어 버린 판은 승리로 치지 않음. 자리가 다시 서면 판정이 열림
 
 -완치: 병기 시계와 무관해짐. 지는 길은 환자 사망뿐
 
@@ -4141,6 +4148,7 @@ const PATCH_NOTES = [
 
 -대상 없는 박자는 성장으로 대신. 성장이 두 번 연속되면 세 번째는 고유 행동
 *송이의 「지금이면 괜찮아진다」만 폴백이 분화
+*판이 비면 성장 대신 자리를 세움. 세울 데도 없으면 재워 둔 자리를 깨움
 
 -박자 삭제: 진행 · 같은 박자 · 굳는다 · 파고든다 · 알아듣지 못한다 · 터진다
 
@@ -4517,7 +4525,7 @@ function policyTip(k){
   if(P.dmgUp) dbuf.push(`환자가 받는 피해 <b>+${(P.dmgUp*100)|0}%</b>`);
   const win = {
     '완치':'병 노드를 처치선까지 내려 처치한다.',
-    '연명':`활성 부수 증상을 모두 처치한다.`,
+    '연명':'부수 증상의 자리를 <b>처치로</b> 전부 닫는다. 휴면과 소멸은 자리를 닫지 않는다.',
     '편하게':'병이 최종 병기에 도달할 때 까지 환자가 살아 있다.',
   }[k];
   let body = `<b>승리 조건</b><br>${win}<br><br><b>판에 새기는 것</b><br>`
@@ -5158,13 +5166,14 @@ function stateHTML(){
     if(d && !d.dead){
       const cap = spotCap(S, d), live = K.alive(S).filter(n=>n.role!=='disease').length;
       rows.push(`<div class="st"${tip(TT('정원',
-          `자리가 <b>${cap}</b>까지 선다. 지금 ${live}자리.<br><br>`
-        + `<b>처치한 자리는 닫힌다</b> — 분화가 거기 다시 못 선다. 지금 ${S.closedN||0}곳.<br>`
-        + `휴면과 소멸은 자리를 <b>닫지 않는다</b>. 병이 스스로 쓸어 버린 자리도 도로 채워진다.<br>`
+          `자리가 <b>${cap}</b>까지 선다. 지금 ${live}자리.<br>`
+        + `<b>정원이 0 이 되면 이긴다</b> — 병이 더 세울 데가 없다.<br><br>`
+        + `<b>처치한 자리만 닫힌다</b> — 분화가 거기 다시 못 선다. 지금 ${S.closedN||0}곳.<br>`
+        + `<b>휴면은 안 닫는다</b> — 재우기만 해서는 못 이긴다.<br>`
+        + `<b>소멸도 안 닫는다</b> — 병이 스스로 판을 쓸어도 정원은 한 칸도 안 준다.<br>`
         + `병기가 오를 때마다 정원이 <b>+${SR.LINGER_SPAWN}</b> 는다. 지금 +${S.spawnBonus||0}.`))}>
         <div class="stt"><span>정원</span><b>${live}<span class="d">/${cap}</span></b></div>
-        <div class="stnote">닫힌 자리 ${S.closedN||0}${S.spawnBonus?` · 병기로 +${S.spawnBonus}`:''}`
-        + `${S.wiped?'<br><b>병이 쓸어 버린 판</b> — 자리가 다시 서야 판정이 열린다':''}</div></div>`);
+        <div class="stnote">닫힌 자리 ${S.closedN||0}${S.spawnBonus?` · 병기로 +${S.spawnBonus}`:''}</div></div>`);
     }
   }
   const dis = S.nodes.find(n=>n.role==='disease');
@@ -5181,9 +5190,9 @@ function winNote(S){
   if(S.policy==='완치') return `병 노드를 ${killLine(S,dis)}까지 내려서 끊는다. 지금 ${dis.val}.`;
   if(S.policy==='연명'){
     const cap = spotCap(S, dis), live = K.alive(S).filter(n=>n.role!=='disease').length;
-    return `활성 부수 증상을 하나도 남기지 않는다. 지금 ${others.filter(n=>n.val>0).length}자리 남았다.`
-      + ` <span class="d">정원 ${live}/${cap} · 닫힌 자리 ${S.closedN||0}</span>`
-      + (S.wiped ? ' <b>병이 쓸어 버린 판이라 아직 안 친다.</b>' : '');
+    return `자리를 <b>처치로</b> 전부 닫는다. 정원 <b>${cap}</b>이 남았다 (지금 ${live}자리 서 있다).`
+      + ` <span class="d">닫은 자리 ${S.closedN||0}${S.spawnBonus?` · 병기가 +${S.spawnBonus} 돌려줬다`:''}`
+      + ` — 휴면과 소멸은 안 닫는다.</span>`;
   }
   if(S.policy==='편하게') return `병기 ${dis.stage}/${dis.stageMax} · 시계 ${dis.stageClock}턴. 최종 병기의 시계까지 다 돌 때 환자가 살아 있으면 이긴다. 완화 ${comfortCuts(S).length}겹.`;
   return '';

@@ -224,7 +224,7 @@ const INVARIANTS = `(() => {
        잘못 걸린다 — 판이 바뀌었는가를 노드로만 묻지 않는다. */
   {
     const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length, hp: S.hp,
-      crave: !!S.crave, wiped: !!S.wiped,
+      crave: !!S.crave,
       clock: S.nodes[0].stageClock, stage: S.nodes[0].stage,
       nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0, x.evoLeft, x.dormT])});
     /* 병기 st 의 판을 세우고 자리를 fill 개만 살려 둔다 */

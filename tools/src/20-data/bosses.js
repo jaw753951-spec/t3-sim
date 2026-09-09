@@ -37,8 +37,9 @@ const UNIQ = {
      휴면 자리(val<=0)는 안 쓸리고 흡수 대상도 아니다. 진화 자리는 활성이므로 쓸린다.
      턴 종료 박자라 그 턴의 성장이 들어간 뒤 값으로 센다.
 
-     ★ 창은 **연명 진척을 0으로 되돌리는 장치**다. 소멸이 자리를 닫아 버리면
-       그 노릇이 통째로 사라지고 아이의 연명이 무너진다 — 스토리.자리닫기를 볼 것. */
+     ★ 창은 **연명 진척을 0으로 되돌리는 장치**다 — 판은 비우되 자리는 안 닫으므로,
+       플레이어가 쌓아 둔 진척(닫힌 자리)에는 한 칸도 못 보태 준다. 소멸이 자리를
+       닫아 버리면 그 노릇이 뒤집혀 창이 승리 버튼이 된다 — 스토리.자리닫기를 볼 것. */
   '창': (S, dis) => {
     if(S.act!==3 || !SR.GIMMICK.WINDOW) return null;
     const got = wipeSpots(S);
@@ -99,7 +100,6 @@ const UNIQ = {
     const x = ns.slice().sort((p,q)=>q.val-p.val)[0];
     const was = x.val;
     x.dead = true; x.vanished = true; x.val = 0;
-    markVanish(S);                                      // 창과 같은 소멸이다 (스토리.소멸표시)
     const drain = Math.ceil(was*SR.MOVE_DRAIN);
     dis.val = Math.min(Math.floor(dis.init*R.VAL_CAP), dis.val + drain);
     const rest = Math.max(1, was - drain);

@@ -53,11 +53,11 @@ const ROWS = `((boss, policy, seed, cap) => {
   applyPolicy(S, dis, policy, a1.correct);
 
   /* 비트가 판을 바꿨는가 — 비트 번호는 빼고 본다 (그것만 늘 오른다).
-     crave · wiped · closedN 이 든 까닭: 「갈망」은 상시 규칙만 설치하고, 소멸은 연명
-     판정을 닫고, 처치는 정원을 깎는다. 노드와 체력만 보던 동안 갈망이 360판에서
-     120회 「헛돈다」로 잘못 세어졌다 — 실제로는 매번 규칙을 걸고 있었다. */
+     crave · closedN · cap 이 든 까닭: 「갈망」은 상시 규칙만 설치하고 처치는 정원을
+     깎는다. 노드와 체력만 보던 동안 갈망이 360판에서 120회 「헛돈다」로 잘못
+     세어졌다 — 실제로는 매번 규칙을 걸고 있었다. */
   const snap = () => JSON.stringify({ hp:S.hp, mind:S.mind, enh:(S.enh||[]).length, n:S.nodes.length,
-    crave:!!S.crave, wiped:!!S.wiped, closed:S.closedN||0, cap:spotCap(S,dis),
+    crave:!!S.crave, closed:S.closedN||0, cap:spotCap(S,dis),
     dis:[dis.val, dis.stage, dis.stageClock, dis.dead?1:0],
     nodes:S.nodes.filter(x=>x.role!=='disease').map(x=>[x.sym,x.val,x.dead?1:0,x.shielded?1:0,x.evoLeft]) });
 
@@ -202,7 +202,7 @@ function policy(file){
         for (const q of rows) {
           if (q.end) continue;
           dmg += q.dmg; big = Math.max(big, q.dmg); low = Math.min(low, q.hp);
-          if (q.liveAfter === 0) lingerTurn++;          // 활성 부수 0 인 턴이 났는가
+          if (q.liveAfter === 0) lingerTurn++;          // 판이 빈 턴 (닫힌 것과는 다르다)
           if (q.live === 0 && q.liveAfter > 0) reopen++; // 빈 판에 자리가 다시 섰는가
         }
       }
@@ -210,7 +210,7 @@ function policy(file){
       console.log(`  ${pol.padEnd(4)} ${JSON.stringify(cnt).padEnd(30)}`
         + ` 평균 ${(turns/n).toFixed(1)}턴 · 끝 체력 여백 ${(spare/n*100).toFixed(0)}%`
         + ` · 최소 체력 ${low===Infinity?'—':low} · 최대 단타 ${big} · 총 피해 ${(dmg/n).toFixed(0)}`
-        + (pol==='연명' ? ` · 활성0 턴 ${lingerTurn} · 되선 판 ${reopen}` : ''));
+        + (pol==='연명' ? ` · 빈 판 턴 ${lingerTurn} · 되선 판 ${reopen}` : ''));
     }
   }
 

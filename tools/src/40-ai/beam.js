@@ -67,6 +67,15 @@ function evalState(S){
 //@ AI.수 — 이번 턴에 둘 수 있는 수
 function moves(S){
   const out = [];
+  /* 스토리의 방침 둘은 병 노드를 표적에서 뺀다.
+     ★ 어느 방침으로 들어갔든 병 노드를 끊으면 **완치로 정산된다** (스토리.판정).
+       그래서 이 줄이 없으면 AI 가 연명·편하게에서도 병 노드부터 깎아 끊어 버리고,
+       그 두 방침이 판에서 아예 사라진다 — 실측에서 아이 연명 40판이 전부 완치로 났다.
+       연명이 이길 조건은 부수 자리에만 걸려 있고(자리를 다 닫는다), 편하게는 병을
+       놔두는 대가로 피해를 더 받는 방침이다. 둘 다 병 노드에 손댈 까닭이 없다.
+     판 상태 하나만 보므로 층 규칙을 어기지 않는다 — 스토리 밖에서는 S.policy 가 없다. */
+  const skipDis = (S.policy==='연명' || S.policy==='편하게')
+    ? S.nodes.findIndex(n=>n.role==='disease') : -1;
   /* S.nodes 를 한 번만 훑으면서 자리와 그 자리의 번호를 함께 쥔다 —
      alive() 를 두 벌 만들고 자리마다 indexOf 로 번호를 다시 찾던 자리다.
      차례는 그대로다: 처치가 먼저, 그 안에서는 명부 순서. 탐색 결과가 흔들리지 않는다. */
@@ -74,7 +83,7 @@ function moves(S){
   const canKillNow = S.energy>=R.KILL_COST && !S.rem;
   for(let i=0;i<S.nodes.length;i++){
     const n = S.nodes[i];
-    if(n.dead) continue;
+    if(n.dead || i===skipDis) continue;
     ix.set(n, i);
     if(n.val>0) live.push(n);
     /* 처치 — 광역 억제가 큰 것부터 */

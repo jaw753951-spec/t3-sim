@@ -86,8 +86,10 @@ function makeDisease(key, rng){
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
 }
 
-/* 카드로 병 노드를 치는 것도 정신 판정에 든다 — sweep 를 붙이지 않는다 */
-function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
+/* hitDisease 를 걷었다 — 손으로 짠 3막 고르개가 병 노드를 칠 때 쓰던 한 줄이다.
+   되살릴 일은 없다: 이제 병 노드도 다른 자리와 똑같이 **카드가** 친다 (C.play → 그 카드의
+   fx → K.suppress). 그 길이 정신 판정도 광역 억제 여부도 알아서 챙긴다.
+   되살린다면 sweep 를 안 붙이는 것이 요점이었다 — 카드가 일으킨 억제는 전부 정신에 든다. */
 
 /* ── 병 노드 행동 ── */
 /* 자리 하나를 명부대로 세운다 */
@@ -779,75 +781,33 @@ function act3(S, policy, correct, opt={}){
   return {out:'악화', turns:t, stage:dis.stage};
 }
 
-/* ── 연명의 표적 — 한 자리씩 차례로 닫는다 ────────────────────
-   처치선까지 **남은 몫이 가장 적은** 자리 하나를 골라 거기만 두들긴다.
+/* ── 스토리 3막의 플레이어 턴 ────────────────────────────────
+   **판을 도는 AI 를 그대로 쓴다** (AI.한턴). 단판과 세션이 쓰는 그 자다.
 
-   ★ 다른 방침의 잣대(가장 굵은 자리부터)를 그대로 쓰면 연명이 한 자리도 못 닫는다.
-     매 턴 제일 굵은 것이 바뀌므로 억제가 판 전체에 얇게 퍼지고, 어느 자리도 처치선에
-     못 닿는다 — 수치는 골고루 내려가는데 정원은 한 칸도 안 준다.
-     연명은 수치를 낮추는 놀이가 아니라 **자리를 닫는 놀이**다. 닫는 것은 처치뿐이므로
-     (스토리.자리닫기) 한 자리를 처치선 아래로 밀어 넣는 것이 유일한 진척이다.
+   ★ v27 까지 여기에는 손으로 짠 고르개가 따로 있었다. 그것은 **억제 카드만** 냈다 —
+     안정화로 보호막을 벗기지도(경감 30% 가 그대로 남는다), 약화로 처치선을 올리지도,
+     설치물을 놓지도, 진단으로 수치를 깎지도 않았다. 손패의 절반이 3막 내내 죽어 있었고,
+     그 손으로 잰 숫자를 밸런스 근거로 쓰고 있었다.
+     같은 40씨앗을 두 자로 재 보면 그 차이가 이렇다:
 
-   ★ 한 자리를 한 턴에 R.HIT_ANX 번 억제하면 평정이 불안으로 간다 (커널.억제).
-     그 앞에서 멈추고 다음으로 가까운 자리로 옮긴다 — 몰아치다 정신을 잃으면 억제가
-     매번 −MIND_ANX_SUP 씩 깎여 되레 느려진다. 옮길 데가 없으면 그대로 친다:
-     아무것도 안 하는 것보다는 낫다. */
-//@ 스토리.연명표적 — 처치선에 가장 가까운 자리 하나
-function lingerTarget(S, others){
-  const left = n => Math.max(0, n.val - K.killLine(S, n));
-  const hits = n => (S.hitThisTurn||{})[S.nodes.indexOf(n)] || 0;
-  const pool = others.filter(n => hits(n) < R.HIT_ANX - 1);
-  return (pool.length ? pool : others).slice()
-    .sort((a,b) => left(a)-left(b) || a.val-b.val)[0];
-}
+       완치  아이 23→40 · 어부 3→31 · 송이 16→28   (40판 중)
+       연명  아이  0→ 0 · 어부 24→40 · 송이  6→19
 
-//@ 스토리.턴 — 스토리 한 턴
+     아이의 연명이 두 자 모두 0 인 것이 이 갈아 끼우기의 값이다 — **AI 실력이 아니라
+     판의 구조**라는 것이 이제 드러난다. 전에는 둘을 못 갈랐다.
+
+   ★ 남겨 둔 한 수. 병 노드를 끊는 것은 카드가 아니라 판정이라 AI 의 수 목록에 없다.
+     완치에서 수치가 0 까지 내려갔으면 여기서 끊는다 — 표적 판단보다 앞에 둔다.
+     v25 에는 이 줄이 wantDis 에 묶여 있어서, 수치가 0 이 되는 순간 표적에서 빠져
+     영영 못 끊었다. */
+//@ 스토리.턴 — 스토리 한 턴. 판을 도는 AI 를 그대로 쓴다
 function storyTurn(S, dis, policy){
-  let guard=0;
-  while(S.played<R.PLAY_CAP && guard++<40){
-    if(S.hand.includes('소매를 걷습니다') && C.canPlay(S,'소매를 걷습니다')){ C.play(S,'소매를 걷습니다'); continue }
-    if(S.energy<=0) break;
-    /* 병 노드를 0까지 내렸으면 끊는다. 표적 판단보다 앞에 둔다 —
-       wantDis 에 묶여 있으면 수치가 0이 되는 순간 표적에서 빠져 영영 못 끊는다. */
-    if(policy==='완치' && !dis.dead && dis.val<=0 && S.energy>=R.KILL_COST){
-      S.energy-=R.KILL_COST; dis.dead=true; S.played++;
-      if(S.rec) S.rec.push('처치 병 노드'); return;
-    }
-    const others = K.active(S).filter(n=>n.role!=='disease');
-    let killable = others.filter(n=>K.reaction(S,n)!==null);
-    /* 「편하게」는 병 노드를 표적에서 뺀다.
-       그 밖에는 부수 증상이 다 사라졌을 때뿐 아니라,
-       이번 턴에 뽑을 수 있는 부수 증상이 하나도 없고 이미 한 수를 둔 뒤라면 병 노드를 친다.
-       분화가 부수 증상을 계속 뿜기 때문에 '부수가 다 없어지면'만 보면 그 순간이 오지 않는다. */
-    /* 연명은 승리선까지만 내리면 된다. 그 아래로 더 때리는 대신 부수 증상을 재우러 간다. */
-    /* v25 — 연명은 병 노드에 손대지 않는다. 이길 조건이 부수 자리에만 걸려 있다 */
-    const wantDis = policy==='완치' && dis.val > 0
-                    && (!others.length || (S.played>0 && !killable.length));
-
-    const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
-    if(!sup.length) break;
-    const card = sup.sort((a,b)=>(C.CARDS[b].v.sup||6)/Math.max(1,C.CARDS[b].cost)-(C.CARDS[a].v.sup||6)/Math.max(1,C.CARDS[a].cost))[0];
-    const cd = C.CARDS[card];
-    if(wantDis){
-      S.energy-=C.cardCost(S,card); hitDisease(S,dis,cd.v.sup||6); S.played++;
-      if(S.rec) S.rec.push(`${card} → 병 노드`);
-      const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
-      continue;
-    }
-    /* 부수 증상 — 뽑을 수 있으면 뽑는다 */
-    const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
-    /* v25 버그 — doKill 은 이미 예약된 자리에 false 를 돌려준다. 그 반환을 안 봐서
-       공황 판에서 같은 자리를 열 번 다시 예약하며 턴을 통째로 태웠다. */
-    if(kn && S.energy>=R.KILL_COST){
-      if(K.doKill(S,kn)){ S.played++; continue }
-      const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
-    }
-    /* 연명만 잣대가 다르다 — 굵은 것이 아니라 처치선에 가까운 것을 친다 (스토리.연명표적) */
-    const tgt = policy==='연명' ? lingerTarget(S, others)
-                                : others.slice().sort((a,b)=>b.val-a.val)[0];
-    if(!tgt) break;
-    if(!C.play(S, card, tgt)) break;
+  if(policy==='완치' && !dis.dead && dis.val<=0 && S.energy>=R.KILL_COST){
+    S.energy-=R.KILL_COST; dis.dead=true; S.played++;
+    if(S.rec) S.rec.push('처치 병 노드');
+    return;
   }
+  D.aiTurn(S, {});
 }
 
 /* ── 한 판 ── */

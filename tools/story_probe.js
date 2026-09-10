@@ -59,7 +59,11 @@ const ROWS = `((boss, policy, seed, cap) => {
   const snap = () => JSON.stringify({ hp:S.hp, mind:S.mind, enh:(S.enh||[]).length, n:S.nodes.length,
     crave:!!S.crave, closed:S.closedN||0, cap:spotCap(S,dis),
     dis:[dis.val, dis.stage, dis.stageClock, dis.dead?1:0],
-    nodes:S.nodes.filter(x=>x.role!=='disease').map(x=>[x.sym,x.val,x.dead?1:0,x.shielded?1:0,x.evoLeft]) });
+    /* stabAcc 가 든 까닭: 「달라고 합니다」·「갈망」은 이미 덮인 자리라도 **안정화 누적을
+       0 으로 되돌린다** — 플레이어가 쌓아 둔 진척을 지우는 실제 한 수다. shielded 만
+       보던 동안 그것이 「헛돈다」로 잘못 세어졌다 (AI 가 안정화를 쓰기 시작하면서 드러났다) */
+    nodes:S.nodes.filter(x=>x.role!=='disease')
+      .map(x=>[x.sym,x.val,x.dead?1:0,x.shielded?1:0,Math.floor(x.stabAcc||0),x.evoLeft]) });
 
   /* 병 행동만 따로 찍는다 — 비트 이름은 diseaseAct 가 세기 전에 읽어야 한다 */
   let mark = null;

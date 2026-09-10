@@ -2927,8 +2927,6 @@ function makeDisease(key, rng){
   return {nodes, enh:[], hp, hpMax:hp, noDeath:!!b.noDeath, level:5, core:'병', boss:key, evoBase:3, S:0, tags:b.tags};
 }
 
-function hitDisease(S, dis, amt){ return K.suppress(S, dis, amt) }
-
 function laySpot(S, slot, turn, stage){
   const init = slot[1] + Math.floor(S.rng()*SR.SPOT_SPREAD);
   const nd = mkSpot(S.board.boss, stage, slot[0], init, turn);
@@ -3396,50 +3394,14 @@ function act3(S, policy, correct, opt={}){
   return {out:'악화', turns:t, stage:dis.stage};
 }
 
-//@ 스토리.연명표적 — 처치선에 가장 가까운 자리 하나
-function lingerTarget(S, others){
-  const left = n => Math.max(0, n.val - K.killLine(S, n));
-  const hits = n => (S.hitThisTurn||{})[S.nodes.indexOf(n)] || 0;
-  const pool = others.filter(n => hits(n) < R.HIT_ANX - 1);
-  return (pool.length ? pool : others).slice()
-    .sort((a,b) => left(a)-left(b) || a.val-b.val)[0];
-}
-
-//@ 스토리.턴 — 스토리 한 턴
+//@ 스토리.턴 — 스토리 한 턴. 판을 도는 AI 를 그대로 쓴다
 function storyTurn(S, dis, policy){
-  let guard=0;
-  while(S.played<R.PLAY_CAP && guard++<40){
-    if(S.hand.includes('소매를 걷습니다') && C.canPlay(S,'소매를 걷습니다')){ C.play(S,'소매를 걷습니다'); continue }
-    if(S.energy<=0) break;
-    if(policy==='완치' && !dis.dead && dis.val<=0 && S.energy>=R.KILL_COST){
-      S.energy-=R.KILL_COST; dis.dead=true; S.played++;
-      if(S.rec) S.rec.push('처치 병 노드'); return;
-    }
-    const others = K.active(S).filter(n=>n.role!=='disease');
-    let killable = others.filter(n=>K.reaction(S,n)!==null);
-    const wantDis = policy==='완치' && dis.val > 0
-                    && (!others.length || (S.played>0 && !killable.length));
-
-    const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
-    if(!sup.length) break;
-    const card = sup.sort((a,b)=>(C.CARDS[b].v.sup||6)/Math.max(1,C.CARDS[b].cost)-(C.CARDS[a].v.sup||6)/Math.max(1,C.CARDS[a].cost))[0];
-    const cd = C.CARDS[card];
-    if(wantDis){
-      S.energy-=C.cardCost(S,card); hitDisease(S,dis,cd.v.sup||6); S.played++;
-      if(S.rec) S.rec.push(`${card} → 병 노드`);
-      const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
-      continue;
-    }
-    const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
-    if(kn && S.energy>=R.KILL_COST){
-      if(K.doKill(S,kn)){ S.played++; continue }
-      const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
-    }
-    const tgt = policy==='연명' ? lingerTarget(S, others)
-                                : others.slice().sort((a,b)=>b.val-a.val)[0];
-    if(!tgt) break;
-    if(!C.play(S, card, tgt)) break;
+  if(policy==='완치' && !dis.dead && dis.val<=0 && S.energy>=R.KILL_COST){
+    S.energy-=R.KILL_COST; dis.dead=true; S.played++;
+    if(S.rec) S.rec.push('처치 병 노드');
+    return;
   }
+  D.aiTurn(S, {});
 }
 
 //@ 스토리.러너 — 화면 없이 3막 완주
@@ -3501,11 +3463,13 @@ function evalState(S){
 //@ AI.수 — 이번 턴에 둘 수 있는 수
 function moves(S){
   const out = [];
+  const skipDis = (S.policy==='연명' || S.policy==='편하게')
+    ? S.nodes.findIndex(n=>n.role==='disease') : -1;
   const live = [], ix = new Map();
   const canKillNow = S.energy>=R.KILL_COST && !S.rem;
   for(let i=0;i<S.nodes.length;i++){
     const n = S.nodes[i];
-    if(n.dead) continue;
+    if(n.dead || i===skipDis) continue;
     ix.set(n, i);
     if(n.val>0) live.push(n);
     if(canKillNow && K.canKill(S,n)) out.push({t:'kill', i, s:K.sweepAmt(n)});
@@ -4104,9 +4068,10 @@ const PATCH_NOTES = [
 
 -세 방침이 전부 같은 플레이로 수렴하던 것을 고침. 이제 방침마다 다른 판이 됨
 
--자동 진행이 연명에서 한 자리씩 차례로 닫도록 변경
-*처치선에 가장 가까운 자리 하나를 골라 거기만 억제
-*한 자리를 한 턴에 두 번까지만 (세 번째부터 정신이 무너진다)
+-자동 진행이 스토리 3막에서 모든 카드를 쓰도록 변경
+*전에는 억제 카드만 냈다. 안정화 · 약화 · 진단 · 설치가 3막 내내 죽어 있었다
+*단판 · 세션이 쓰는 것과 같은 AI를 그대로 쓴다
+*연명과 편하게는 병 노드를 표적에서 뺀다 (끊으면 완치로 정산되므로)
 
 -연명 승리 조건 변경: 활성 부수 0에서 「처치로 모든 자리를 닫는 것」으로
 *자리를 닫는 것은 처치뿐. 정원이 0이 되면 병이 더 세울 데가 없음

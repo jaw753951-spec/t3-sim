@@ -226,7 +226,10 @@ const INVARIANTS = `(() => {
     const snap = S => JSON.stringify({mind: S.mind, enh: (S.enh || []).length, hp: S.hp,
       crave: !!S.crave,
       clock: S.nodes[0].stageClock, stage: S.nodes[0].stage,
-      nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0, x.evoLeft, x.dormT])});
+      /* stabAcc — 이미 덮인 자리에 보호막을 다시 두르면 안정화 누적이 0 으로 돌아간다.
+         shielded 만 보면 그 한 수가 「헛돈다」로 잘못 걸린다 (story_probe 도 같은 손) */
+      nodes: S.nodes.map(x => [x.sym, x.val, x.dead ? 1 : 0, x.shielded ? 1 : 0,
+                               Math.floor(x.stabAcc || 0), x.evoLeft, x.dormT])});
     /* 병기 st 의 판을 세우고 자리를 fill 개만 살려 둔다 */
     const stand = (boss, stage, fill, mind) => {
       const rng = K.mulberry32(99);

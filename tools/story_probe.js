@@ -87,6 +87,7 @@ const ROWS = `((boss, policy, seed, cap) => {
       /* storyPhase 가 병을 안 움직인 턴 — 3막에서는 없지만, 없다고 터지지는 않게 한다 */
       const m = mark || { beat:'—', line:'병이 움직이지 않았다', moved:false };
       rows.push({ t, stage:dis.stage, clock:dis.stageClock, up:ph.up, live, neuro,
+                  closed:S.closedN||0, cap:spotCap(S,dis),
                   beat:m.beat, line:m.line, moved:m.moved, floor:hp0<=1,
                   liveAfter:K.active(S).filter(x=>x.role!=='disease').length,
                   dmg:hp0-S.hp, hp:S.hp, disVal:dis.val });
@@ -192,13 +193,20 @@ function policy(file){
 ── ${boss} ──`);
     for (const pol of POLS) {
       const cnt = {}; let turns = 0, spare = 0, low = Infinity, big = 0, dmg = 0;
-      let lingerTurn = 0, reopen = 0;
+      let lingerTurn = 0, reopen = 0, closed = 0, capEnd = 0;
       for (const seed of seeds) {
         const r = RUN(boss, pol, seed);
         cnt[r.out] = (cnt[r.out] || 0) + 1; turns += r.turns;
         if (r.hpMax) spare += r.hp / r.hpMax;
         /* 그림자 런 — 판정과 무관하게 판이 얼마나 아팠는가 */
         const rows = run(boss, pol, seed, cap);
+        /* 연명의 진척은 승률이 아니라 **닫은 자리**로 잰다. 이기지 못한 판도 몇 칸까지
+           갔는지가 보여야 정원 손잡이를 어느 쪽으로 밀지 알 수 있다 —
+           승률만 보면 0/40 과 「한 칸도 못 닫았다」와 「한 칸 남기고 졌다」가 구분이 안 된다 */
+        /* 판정 줄(rows 의 마지막)에는 판 상태가 없다 — 그 앞의 마지막 턴을 본다.
+           그냥 마지막 줄을 읽으면 **이긴 판만 0 으로 세어져** 닫은 자리가 거꾸로 나온다 */
+        const last = [...rows].reverse().find(q => q.closed !== undefined) || {};
+        closed += last.closed || 0; capEnd += last.cap || 0;
         for (const q of rows) {
           if (q.end) continue;
           dmg += q.dmg; big = Math.max(big, q.dmg); low = Math.min(low, q.hp);
@@ -210,7 +218,8 @@ function policy(file){
       console.log(`  ${pol.padEnd(4)} ${JSON.stringify(cnt).padEnd(30)}`
         + ` 평균 ${(turns/n).toFixed(1)}턴 · 끝 체력 여백 ${(spare/n*100).toFixed(0)}%`
         + ` · 최소 체력 ${low===Infinity?'—':low} · 최대 단타 ${big} · 총 피해 ${(dmg/n).toFixed(0)}`
-        + (pol==='연명' ? ` · 빈 판 턴 ${lingerTurn} · 되선 판 ${reopen}` : ''));
+        + (pol==='연명' ? ` · 닫은 자리 ${(closed/n).toFixed(1)} · 남은 정원 ${(capEnd/n).toFixed(1)}`
+                          + ` · 빈 판 턴 ${lingerTurn}` : ''));
     }
   }
 

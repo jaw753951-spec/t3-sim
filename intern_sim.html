@@ -3396,6 +3396,15 @@ function act3(S, policy, correct, opt={}){
   return {out:'악화', turns:t, stage:dis.stage};
 }
 
+//@ 스토리.연명표적 — 처치선에 가장 가까운 자리 하나
+function lingerTarget(S, others){
+  const left = n => Math.max(0, n.val - K.killLine(S, n));
+  const hits = n => (S.hitThisTurn||{})[S.nodes.indexOf(n)] || 0;
+  const pool = others.filter(n => hits(n) < R.HIT_ANX - 1);
+  return (pool.length ? pool : others).slice()
+    .sort((a,b) => left(a)-left(b) || a.val-b.val)[0];
+}
+
 //@ 스토리.턴 — 스토리 한 턴
 function storyTurn(S, dis, policy){
   let guard=0;
@@ -3426,7 +3435,8 @@ function storyTurn(S, dis, policy){
       if(K.doKill(S,kn)){ S.played++; continue }
       const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
     }
-    const tgt = others.sort((a,b)=>b.val-a.val)[0];
+    const tgt = policy==='연명' ? lingerTarget(S, others)
+                                : others.slice().sort((a,b)=>b.val-a.val)[0];
     if(!tgt) break;
     if(!C.play(S, card, tgt)) break;
   }
@@ -4093,6 +4103,10 @@ const PATCH_NOTES = [
 스토리 · 치료 방침
 
 -세 방침이 전부 같은 플레이로 수렴하던 것을 고침. 이제 방침마다 다른 판이 됨
+
+-자동 진행이 연명에서 한 자리씩 차례로 닫도록 변경
+*처치선에 가장 가까운 자리 하나를 골라 거기만 억제
+*한 자리를 한 턴에 두 번까지만 (세 번째부터 정신이 무너진다)
 
 -연명 승리 조건 변경: 활성 부수 0에서 「처치로 모든 자리를 닫는 것」으로
 *자리를 닫는 것은 처치뿐. 정원이 0이 되면 병이 더 세울 데가 없음

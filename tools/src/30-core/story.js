@@ -779,6 +779,28 @@ function act3(S, policy, correct, opt={}){
   return {out:'악화', turns:t, stage:dis.stage};
 }
 
+/* ── 연명의 표적 — 한 자리씩 차례로 닫는다 ────────────────────
+   처치선까지 **남은 몫이 가장 적은** 자리 하나를 골라 거기만 두들긴다.
+
+   ★ 다른 방침의 잣대(가장 굵은 자리부터)를 그대로 쓰면 연명이 한 자리도 못 닫는다.
+     매 턴 제일 굵은 것이 바뀌므로 억제가 판 전체에 얇게 퍼지고, 어느 자리도 처치선에
+     못 닿는다 — 수치는 골고루 내려가는데 정원은 한 칸도 안 준다.
+     연명은 수치를 낮추는 놀이가 아니라 **자리를 닫는 놀이**다. 닫는 것은 처치뿐이므로
+     (스토리.자리닫기) 한 자리를 처치선 아래로 밀어 넣는 것이 유일한 진척이다.
+
+   ★ 한 자리를 한 턴에 R.HIT_ANX 번 억제하면 평정이 불안으로 간다 (커널.억제).
+     그 앞에서 멈추고 다음으로 가까운 자리로 옮긴다 — 몰아치다 정신을 잃으면 억제가
+     매번 −MIND_ANX_SUP 씩 깎여 되레 느려진다. 옮길 데가 없으면 그대로 친다:
+     아무것도 안 하는 것보다는 낫다. */
+//@ 스토리.연명표적 — 처치선에 가장 가까운 자리 하나
+function lingerTarget(S, others){
+  const left = n => Math.max(0, n.val - K.killLine(S, n));
+  const hits = n => (S.hitThisTurn||{})[S.nodes.indexOf(n)] || 0;
+  const pool = others.filter(n => hits(n) < R.HIT_ANX - 1);
+  return (pool.length ? pool : others).slice()
+    .sort((a,b) => left(a)-left(b) || a.val-b.val)[0];
+}
+
 //@ 스토리.턴 — 스토리 한 턴
 function storyTurn(S, dis, policy){
   let guard=0;
@@ -820,7 +842,9 @@ function storyTurn(S, dis, policy){
       if(K.doKill(S,kn)){ S.played++; continue }
       const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
     }
-    const tgt = others.sort((a,b)=>b.val-a.val)[0];
+    /* 연명만 잣대가 다르다 — 굵은 것이 아니라 처치선에 가까운 것을 친다 (스토리.연명표적) */
+    const tgt = policy==='연명' ? lingerTarget(S, others)
+                                : others.slice().sort((a,b)=>b.val-a.val)[0];
     if(!tgt) break;
     if(!C.play(S, card, tgt)) break;
   }

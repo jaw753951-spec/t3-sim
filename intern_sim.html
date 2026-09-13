@@ -1776,6 +1776,8 @@ const BOSS = {
           4:['발열','출혈','통증','호흡곤란']},
     atk:{base:{2:10, 3:15, 4:20}, per:5, when:'half'},
 
+    disVal:{2:270, 3:430, 4:650},
+
     beats:{2:['몰린다','분화','엮는다','창','공격','분화'],
            3:['몰린다','분화','창','공격','분화','공격']},
     say:{2:['자꾸 한쪽만 아파합니다','반점이 돋습니다','아픈 자리가 옮겨 다닙니다',
@@ -3166,7 +3168,7 @@ function diseaseAct(S, dis, act){
       const ns = active(S).filter(x=>x.role!=='disease');
       if(!ns.length) return deep ? growFallback(S, dis) : fall(beat);
       const x = ns.slice().sort((p,q)=>p.val-q.val)[0];
-      const add = Math.ceil(stageDisVal(S.board.boss, dis.stage) * SR.BEAT_CROWD);
+      const add = Math.ceil(SR.DIS_BASE[SLV(S.board.boss,'dis',dis.stage)] * SR.BEAT_CROWD);
       x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + add);
       dis.lastAct = beat; dis.growRun = 0;
       return `몰린다 — ${x.sym} +${add}`;
@@ -4104,6 +4106,13 @@ const PATCH_NOTES = [
 *증상 종류가 다 차고 정원이 남으면 같은 종류가 한 자리 더 섬
 
 스토리 · 보스
+
+-아이의 병 노드 수치를 75/120/180에서 270/430/650으로 상향
+*완치가 연명보다 먼 길이 되도록 맞춘 값. 병을 끊는 쪽이 판을 닫는 쪽보다 어렵다
+*연명과 편하게는 병 노드에 손대지 않으므로 이 값에 안 움직인다
+
+-「몰린다」의 기준값이 레벨표를 보도록 수정
+*보스가 병 노드 수치를 덮어써도 몰린다는 전투 레벨을 따른다
 
 -아이의 전투 레벨을 3-4-5에서 2-3-4로 하향
 *병 노드 수치 120/180/250 → 75/120/180

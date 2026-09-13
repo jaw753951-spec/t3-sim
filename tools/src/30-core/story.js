@@ -477,8 +477,15 @@ function diseaseAct(S, dis, act){
       if(!ns.length) return deep ? growFallback(S, dis) : fall(beat);
       const x = ns.slice().sort((p,q)=>p.val-q.val)[0];
       /* 병 노드 **기준값**의 몫이다 — 자리의 초기값도 현재값도 아니고, 완치가 병 노드를
-         깎아도 안 바뀐다 (stageDisVal 은 레벨표의 값을 낸다) */
-      const add = Math.ceil(stageDisVal(S.board.boss, dis.stage) * SR.BEAT_CROWD);
+         깎아도 안 바뀐다.
+         ★ 보는 것은 **레벨표**(SR.DIS_BASE)이지 stageDisVal 이 아니다. 둘은 보스가
+           disVal 로 병 노드 수치를 덮어썼을 때 갈린다 — stageDisVal 은 그 덮어쓴 값을
+           먼저 본다. 거기 묶어 두면 disVal 이 완치 전용 손잡이가 못 된다: 병 노드를
+           굵게 만들려고 올리는 순간 몰린다까지 같이 세져서 연명도 함께 어려워진다
+           (실측에서 disVal 을 3배로 올리자 연명이 11/40 → 7/40 으로 딸려 내려갔다).
+           문서 §4.2 도 「기준값은 레벨표의 병 노드 수치 열」이라고 못박는다 —
+           판의 무게는 전투 레벨이 정하고, disVal 은 완치의 거리만 정한다. */
+      const add = Math.ceil(SR.DIS_BASE[SLV(S.board.boss,'dis',dis.stage)] * SR.BEAT_CROWD);
       x.val = Math.min(Math.floor(x.init*R.VAL_CAP), x.val + add);
       dis.lastAct = beat; dis.growRun = 0;
       return `몰린다 — ${x.sym} +${add}`;

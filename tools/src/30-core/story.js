@@ -821,5 +821,9 @@ function runStory(bossKey, deck, seed, policy, opt={}){
   const a1 = act1(S, deck, opt);
   if(a1.out==='사망') return {out:'사망', act:1, turns:a1.turns, evid:a1.evid};
   const a3 = act3(S, policy, a1.correct, opt);
-  return {...a3, act:3, evid:a1.evid, correct:a1.correct, act1Turns:a1.turns};
+  /* 끝난 판의 체력도 돌려준다. ★ 이게 없는 동안 이것을 읽던 두 자가 조용히 빈 값을
+     보고 있었다 — sim_check 의 스토리 시나리오가 적던 hp 와 win, story_probe policy 의
+     「끝 체력 여백」이 전부 undefined/0 이었다. 판정(out)만 견주고 있었던 셈이다.
+     §7.3 이 「쓸 값」으로 꼽은 것이 바로 종료 시 체력 여백이라 그 칸이 비면 안 된다. */
+  return {...a3, act:3, hp:S.hp, hpMax:S.hpMax, evid:a1.evid, correct:a1.correct, act1Turns:a1.turns};
 }

@@ -77,7 +77,9 @@ const SCENARIOS = `(() => {
   out.story = [];
   for (const boss of Object.keys(BOSS)) for (const pol of ['완치', '연명', '편하게']) {
     const r = runStory(boss, C.DECK_D2, 777, pol);
-    out.story.push({ boss, pol, turn: r.turn, hp: r.hp, win: r.win, out: r.out });
+    /* turn · win 이라 적던 칸을 걷었다 — runStory 가 내놓는 이름은 turns 이고 win 은
+       아예 없다. 셋 다 undefined 로 찍히며 판정만 견주고 있었다 */
+    out.story.push({ boss, pol, turns: r.turns, stage: r.stage, hp: r.hp, out: r.out });
   }
 
   /* ⑥ 커널 손잡이 — 값이 그대로인가 */

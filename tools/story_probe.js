@@ -188,7 +188,7 @@ function sweep(bosses, file){
 function policy(file){
   const ev = load(file), run = ev(ROWS), cap = capOf(ev);
   const RUN = ev(`((boss,pol,seed)=>{ const r=runStory(boss,C.DECK_D2,seed,pol,{});
-    return {out:r.out, turns:r.turns, stage:r.stage, hp:r.hp, hpMax:r.S?r.S.hpMax:0} })`);
+    return {out:r.out, turns:r.turns, stage:r.stage, hp:r.hp, hpMax:r.hpMax} })`);
   const seeds = seedList(SEEDS);
   console.log(`=== ${file} · 방침 갈래 · 씨앗 ${seeds.length} ===`);
 

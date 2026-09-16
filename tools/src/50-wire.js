@@ -6,7 +6,7 @@
 const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,ev,
   killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,turnDmg,outcome,
   supAmt,stabAmt,diagAmt,
-  drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
+  drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,dmgMul,lineBase,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
 /* medianBoards 는 화면에서 부르는 곳이 없다. 레벨표 중앙값으로 S 를 되짚는

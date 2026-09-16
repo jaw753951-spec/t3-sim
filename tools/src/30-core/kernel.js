@@ -127,7 +127,17 @@ function painMul(S){
    통증은 곱, 약화는 그 위에 합.
    하한을 통증 몫에만 걸어 두면 약화가 죽는 구간이 생기지 않는다.
    하한을 최종 비율에 걸면 통증 둘일 때 약화 2스택이 하한에 먹혀 아무 일도 안 한다. */
-function painShare(S){ return Math.max(R.PAIN_FLOOR, R.KILL_LINE * painMul(S)) }
+/* 부수 자리 처치선의 **바탕 몫**. 방침이 연명이면 문진 단계만큼 올라간다.
+   ★ 차례가 규칙이다: **버프를 먼저 얹고 그 위에 통증을 건다** (문서 §5.2).
+     뒤집으면 통증이 누른 뒤에 버프가 얹혀 판이 달라진다.
+   ★ 연명 전용이고 **병 노드는 안 탄다** — killLine 이 병 노드를 따로 갈라 처리하므로
+     이 자는 부수 자리만 본다. 강·약 경계는 reaction 이 line/2 로 잡으니 저절로 따라온다. */
+//@ 커널.처치선바탕 — 방침 버프 → 통증 감소 차례로
+function lineBase(S){
+  const t = (S.policy==='연명') ? (S.tier||0) : 0;
+  return R.KILL_LINE + SR.TIER_LINGER * t;
+}
+function painShare(S){ return Math.max(R.PAIN_FLOOR, lineBase(S) * painMul(S)) }
 
 /* 처치선 ────────────────────────────────────────────
    증상  = 초기값 × min(100%, max(25%, 50% × 통증배율) + 5%p × 약화스택)
@@ -693,10 +703,29 @@ function comfortCuts(S){
   return out;
 }
 
-/* 방침이 얹는 피해 배수 — 「편하게」는 병을 놔두는 대가로 환자가 더 맞는다 */
-function policyDmg(S){
-  const P = (typeof SR!=='undefined' && SR.POLICY) ? SR.POLICY[S.policy] : null;
-  return 1 + ((P && P.dmgUp) || 0);
+/* 방침이 얹는 **시작** 배수. 「편하게」만 1 이 아니다 — 병을 놔두는 대가다.
+   완화와 문진 단계가 깎기 전의 값이고, 진화 즉발 · 점화 · 병 노드 공격이 이것을 본다
+   (그 셋은 턴 끝 정산 밖이라 완화가 안 붙는다). */
+function policyDmg(S){ return S.policy==='편하게' ? R.COMFORT_MUL : 1 }
+
+/* 이번 턴 환자 피해에 실제로 곱하는 배수. 차례가 규칙이다 —
+     ① 시작 배수            편하게 1.5 · 그 밖 1
+     ② 완화 한 겹마다 −0.2  (합연산. 곱연산이면 두 겹에 1 아래로 떨어져 도피가 되레 이득이 된다)
+     ③ 바닥 0.9             완화로는 여기까지만 내려간다 — 벌을 깎을 뿐 뒤집지 못한다
+     ④ 문진 단계 −0.1 × t   **바닥을 친 뒤에 뺀다**
+
+   ★ ④ 가 ③ 뒤인 것이 규칙이다 (문서 §5.3). 순서를 바꾸면 조건 셋을 다 채운 판에서
+     이미 0.9 로 눌린 값에 바닥이 다시 걸려 **문진 버프가 통째로 사라진다.**
+     최저값은 단계 3 에 조건 셋으로 0.6 이고, 그 아래 바닥은 두지 않는다. */
+//@ 커널.최종배수 — 시작 배수 → 완화 → 바닥 → 문진 단계
+function dmgMul(S){
+  const cuts = comfortCuts(S).length;
+  let m = policyDmg(S);
+  if(S.policy==='편하게'){
+    m = Math.max(R.COMFORT_FLOOR, m - R.COMFORT_CUT*cuts);
+    m -= SR.TIER_COMFORT * (S.tier||0);
+  }
+  return Math.max(0, m);
 }
 
 /* noDeath 판은 체력이 0이 되지 않는다 — 문구 그대로 바닥을 1로 깐다.
@@ -785,11 +814,8 @@ function turnResolve(S){
         ev(S,{t:'atk', n, raw});
       }
     }
-  const cuts = comfortCuts(S);
-  /* 완화는 방침 배수에서 뺀다 (합연산).
-     곱연산이면 두 겹만 채워도 배수가 1 아래로 떨어져 도피 방침이 되레 피해를 줄여 준다.
-     합연산은 셋을 다 채워도 1.5 − 0.6 = 0.9 에서 멈춘다 — 벌을 깎을 뿐 뒤집지 못한다. */
-  if(dmg>0) dmg = Math.ceil(dmg * Math.max(0, policyDmg(S) - R.COMFORT_CUT*cuts.length));
+  /* 배수 셈은 dmgMul 한 곳이다 — 화면의 계기판도 같은 자를 본다 (커널.최종배수) */
+  if(dmg>0) dmg = Math.ceil(dmg * dmgMul(S));
   hurtPatient(S, dmg, 'turn');      // 점화의 'atk' 와 가른다 — 칩이 턴 공격만 나눠 갖는다
   // 6 진화 — 피해가 먼저, 그 뒤에 진화로 인한 수치 증가
   for(const n of active(S)){

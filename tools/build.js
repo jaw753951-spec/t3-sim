@@ -138,6 +138,20 @@ const walk = d => fs.readdirSync(path.join(__dirname, d), { withFileTypes: true 
   .flatMap(e => e.isDirectory() ? walk(path.join(d, e.name))
                                 : (e.name.endsWith('.js') ? [path.join(d, e.name)] : []));
 for (const f of walk('src')) if (!seen.has(f)) problems.push(`ORDER 에 없다: ${f}`);
+/* 걷어낸 이름이 되살아나지 않았는가 (인계 문서 §7.1).
+   커널 안에서는 물을 수 없는 검사다 — 소스 문자열을 보는 이 자가 유일한 자리다.
+   되살리려면 이 목록에서 빼는 것이 먼저다: 왜 되살리는지 답할 수 있어야 한다. */
+const GONE = ['disCut', 'stageBonus', 'painCut', 'dmgUp'];
+for (const f of ORDER) {
+  const body = read(f);
+  /* 주석에 이름을 적는 것은 괜찮다 — 왜 걷었는지 남기는 자리가 그것이다.
+     코드만 본다. 주석을 떼는 자는 아래 stripJS 한 벌을 그대로 쓴다 (두 벌로 안 적는다) */
+  const code = stripJS(body);
+  for (const g of GONE)
+    if (new RegExp('\\b' + g + '\\b').test(code))
+      problems.push(`걷어낸 이름이 코드에 남아 있다: ${g} — ${f}`);
+}
+
 if (problems.length) { console.error('=== 문제 ===\n' + problems.join('\n')); process.exit(1) }
 
 /* ── 조립 ── */

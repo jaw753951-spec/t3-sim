@@ -1,6 +1,6 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>인턴 심 0.5 — 전투 시뮬레이터</title><style>
+<title>인턴 심 0.6 — 전투 시뮬레이터</title><style>
 :root{--bg:#DDD8C6;--panel:#E7E2D2;--panel2:#D2CCB8;--line:#B3AB93;--ink:#1C2321;--dim:#6C6A5A;
  --blood:#98302A;--shield:#3D6673;--t3:#8A6A10;--calm:#3C6E52;--alarm:#AF5A1D;
  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
@@ -782,7 +782,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 <div class="wrap">
  <div class="col">
   
-  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.5</span
+  <h1><span class="ttl">INTERN SIM</span> <span class="ver">0.6</span
       ><button class="pnbtn" onclick="openPatch()" title="패치 노트를 연다">패치</button></h1>
   <div class="tabs">
     <div class="tab on" data-m="one" onclick="setMode('one')">단판</div>
@@ -849,7 +849,8 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
     <label>3막부터 시작 (0 = 1막부터)</label>
     <div class="row2">
       <select id="sk_pol"><option value="">방침 —</option><option>완치</option><option>연명</option><option>편하게</option></select>
-      <select id="sk_dx"><option value="1">정진단</option><option value="0">오진</option></select>
+      <select id="sk_dx" onchange="skTierSync()"><option value="1">정진단</option><option value="0">오진</option></select>
+      <select id="sk_tier"><option value="0">문진 0단계</option><option value="1">문진 1단계</option><option value="2">문진 2단계</option><option value="3" selected>문진 3단계</option></select>
     </div>
     <div class="row2" style="margin-top:8px">
       <select id="sk_evid"><option value="1">증거 1</option><option value="2">증거 2</option><option value="3" selected>증거 3</option><option value="4">증거 4</option></select>
@@ -1062,7 +1063,7 @@ body.fxbusy #sg .card,body.fxbusy #sg .gz,body.fxbusy #sg .btn,body.fxbusy #sg_e
 //@ 파일.10-config/version
 
 //@ 판본 — 고치는 곳은 여기 하나
-const VERSION = '0.5';
+const VERSION = '0.6';
 
 //@ 자름.커널시작 — 점검 스크립트가 여기서부터 잘라 간다
 
@@ -1112,7 +1113,9 @@ const R = {
 
   DELAY_GROW: 0.10,
 
-  COMFORT_CUT: 0.20,       // 충족 항목 하나마다 방침 배수에서 빼는 값
+  COMFORT_MUL: 1.5,        // 「편하게」가 받는 피해에 거는 시작 배수
+  COMFORT_CUT: 0.20,       // 충족 항목 하나마다 그 배수에서 빼는 값
+  COMFORT_FLOOR: 0.90,     // 완화로는 여기까지만 내려간다. 문진 단계는 이 아래로 더 뺀다
 
   SHIELD_CUT: 0.30,        // 보호막이 있으면 받는 피해 30% 경감
   SHIELD_MAX: 10,          // 안정화 10 누적 시 소멸
@@ -1287,10 +1290,15 @@ const SR = {
   SPAWN_LV: Object.fromEntries(Object.entries(LVTAB).map(([k,v])=>[k, v.n[1]])),
 
   POLICY: {
-    완치:   {disCut:0.40, stageBonus:0, painCut:0,    tag:'마주'},
-    연명:   {disCut:0.20, stageBonus:2, painCut:0,    tag:'타협'},
-    편하게: {disCut:0,    stageBonus:3, painCut:0.30, dmgUp:0.50, tag:'도피'},
+    완치:   {tag:'마주'},
+    연명:   {tag:'타협'},
+    편하게: {tag:'도피'},
   },
+
+  TIER_MAX:     3,      // 보스가 interviewMax 를 안 적었을 때의 기본값
+  TIER_CURE:    0.05,
+  TIER_LINGER:  0.05,
+  TIER_COMFORT: 0.10,
 
   BEAT: {
     성장:       0.07,   // 성장 비트 — 살아 있는 부수 자리 전부. 폴백으로도 쓴다
@@ -1770,7 +1778,7 @@ const BEAT_FALLBACK = {'지금이면 괜찮아진다': '분화'};
 const BOSS = {
   아이:{name:'쓰러진 아이 · 수막알균', stage0:2, stageMax:4, tags:['소아'],
     lv:{enh:1},
-    noDeath:true, seed:['통증'],
+    interviewMax:3, noDeath:true, seed:['통증'],
     syms:{2:['통증','발열'],
           3:['발열','출혈','통증'],
           4:['발열','출혈','통증','호흡곤란']},
@@ -1802,7 +1810,7 @@ const BOSS = {
 
   어부:{name:'어부 · 접촉성 피부염', stage0:3, stageMax:4, tags:['노동자'],
     lv:{band:2, evo:3, enh:1},          // v27 — spots 를 걷었다. 정원은 병기 번호를 그대로 본다
-    noDeath:true, seed:['통증'], dupType:'통증',
+    interviewMax:3, noDeath:true, seed:['통증'], dupType:'통증',
     atk:{base:{3:12, 4:16}, per:4, when:2},
 
     beats:{3:['분화','번진다','긁는다','공격','아문다','분화','번진다','공격']},
@@ -1826,7 +1834,7 @@ const BOSS = {
 
   송이:{name:'송이 · 아편 중독 금단', stage0:3, stageMax:4, tags:['소아'],
     lv:{band:3, evo:5, enh:1},          // v27 — spots 를 걷었다. 정원은 병기 번호를 그대로 본다
-    noDeath:true, seed:['탈수','통증'],
+    interviewMax:3, noDeath:true, seed:['탈수','통증'],
     atk:{base:{3:14, 4:18}, per:6, when:1},
 
     beats:{3:['갈망','분화','치민다','공격','지금이면 괜찮아진다','가라앉는다']},
@@ -1938,7 +1946,12 @@ function painMul(S){
   return m;
 }
 
-function painShare(S){ return Math.max(R.PAIN_FLOOR, R.KILL_LINE * painMul(S)) }
+//@ 커널.처치선바탕 — 방침 버프 → 통증 감소 차례로
+function lineBase(S){
+  const t = (S.policy==='연명') ? (S.tier||0) : 0;
+  return R.KILL_LINE + SR.TIER_LINGER * t;
+}
+function painShare(S){ return Math.max(R.PAIN_FLOOR, lineBase(S) * painMul(S)) }
 
 //@ 커널.처치선 — 처치선 공식 · 반응 등급 · 드로우 수
 function killLine(S,n){
@@ -2351,9 +2364,17 @@ function comfortCuts(S){
   return out;
 }
 
-function policyDmg(S){
-  const P = (typeof SR!=='undefined' && SR.POLICY) ? SR.POLICY[S.policy] : null;
-  return 1 + ((P && P.dmgUp) || 0);
+function policyDmg(S){ return S.policy==='편하게' ? R.COMFORT_MUL : 1 }
+
+//@ 커널.최종배수 — 시작 배수 → 완화 → 바닥 → 문진 단계
+function dmgMul(S){
+  const cuts = comfortCuts(S).length;
+  let m = policyDmg(S);
+  if(S.policy==='편하게'){
+    m = Math.max(R.COMFORT_FLOOR, m - R.COMFORT_CUT*cuts);
+    m -= SR.TIER_COMFORT * (S.tier||0);
+  }
+  return Math.max(0, m);
 }
 
 //@ 커널.턴피해 — 자리 하나가 이번 턴에 때리는 몫
@@ -2401,8 +2422,7 @@ function turnResolve(S){
         ev(S,{t:'atk', n, raw});
       }
     }
-  const cuts = comfortCuts(S);
-  if(dmg>0) dmg = Math.ceil(dmg * Math.max(0, policyDmg(S) - R.COMFORT_CUT*cuts.length));
+  if(dmg>0) dmg = Math.ceil(dmg * dmgMul(S));
   hurtPatient(S, dmg, 'turn');      // 점화의 'atk' 와 가른다 — 칩이 턴 공격만 나눠 갖는다
   for(const n of active(S)){
     if(n.role==='disease' || n.evolved || born(n)) continue;
@@ -2937,6 +2957,9 @@ function laySpot(S, slot, turn, stage){
   return nd;
 }
 
+//@ 스토리.문진횟수 — 이 보스가 줄 수 있는 최대 단계
+const interviewMax = key => (BOSS[key]||{}).interviewMax ?? SR.TIER_MAX;
+
 //@ 스토리.정원 — 자리가 몇까지 서는가
 function spotCap(S, dis){
   const base = SR.SPAWN_LV[SLV(S.board.boss,'spots',dis.stage)];
@@ -3268,7 +3291,7 @@ function closeKilled(S){
 }
 
 //@ 스토리.방침 — 완치 · 연명 · 편하게
-function applyPolicy(S, dis, policy, correct){
+function applyPolicy(S, dis, policy, correct, tier){
   const P = SR.POLICY[policy];
   S.policy = policy; S.act = 3; S.comfort = 0;
   S.closedN = 0; S.spawnBonus = 0;
@@ -3277,14 +3300,19 @@ function applyPolicy(S, dis, policy, correct){
   S.rush = 0;
   dis.stageClock = SR.STAGE_TURNS; dis.beat = 0;   // 1막 길이가 첫 창의 자리를 정하지 않게 한다                                    // 기세는 막 단위다 — 1막에서 쌓은 것은 3막으로 넘어가지 않는다
   if(!P) return null;
-  if(correct){                                   // 오진이면 디버프가 안 붙는다
-    dis.val = Math.ceil(dis.val*(1-P.disCut));
-    dis.stageClock += P.stageBonus;
+
+  const tmax = interviewMax(S.board.boss);
+  S.tier = correct ? Math.max(0, Math.min(tmax, tier ?? tmax)) : 0;
+
+  let note = `문진 ${S.tier}단계`;
+  if(policy==='완치' && S.tier>0){
+    dis.init = Math.ceil(dis.init * (1 - SR.TIER_CURE*S.tier));
+    dis.val  = dis.init;                        // 수치와 초기값이 같이 내려간다 (문서 §5.1)
+    note += ` · 병 노드 ${dis.val}`;
   }
-  if(P.painCut) for(const n of K.active(S))
-    if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란'))
-      n.val = Math.ceil(n.val*(1-P.painCut));
-  return correct ? `디버프가 붙는다. 병 노드 ${dis.val}` : '오진이라 디버프가 붙지 않는다';
+  else if(policy==='연명') note += ` · 부수 처치선 ${Math.round(lineBase(S)*100)}%`;
+  else if(policy==='편하게') note += ` · 최종 배수 ×${dmgMul(S).toFixed(2)}`;
+  return correct ? note : note + ' <span class="d">(오진 — 버프가 없다)</span>';
 }
 
 function storyPhase(S, dis){
@@ -3381,7 +3409,7 @@ function act1(S, deck, opt={}){
 //@ 스토리.3막 — 방침대로 끝까지
 function act3(S, policy, correct, opt={}){
   const dis = S.nodes[0];
-  applyPolicy(S, dis, policy, correct);            // 공용 — painCut 포함
+  applyPolicy(S, dis, policy, correct, opt.tier);  // 공용 — 문진 단계를 여기서 굳힌다
   let t = 0;
   const cap = opt.act3Cap || SR.ACT3_CAP;
   while(t<cap){
@@ -3655,7 +3683,7 @@ function aiTurnH(S, opt={}){
 const K={R,SYM,ALLSYM,SYMPARAM,sp,killNow,calm,painShare,policyDmg,TRIG,TRANS,BAND,LVTAB,mulberry32,basicLines,EVO_ADJ,newState,alive,active,ev,
   killLine,reaction,canKill,doKill,sweepAmt,suppress,stabilize,diagnose,canDiag,turnResolve,turnDmg,outcome,
   supAmt,stabAmt,diagAmt,
-  drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,hurtPatient,
+  drawCount,painMul,mind,immune,growAmt,infPool,comfortCuts,dmgMul,lineBase,hurtPatient,
   bleedPay,canBleed,doBleed,delay,remStart,remGain,remUpkeep};
 
 const L={makeBoard,build,S_of,lv_of,medianBoards,HP_TAG,BODY_HP,hpOfTags,ATK_W,ATK_TARGET};
@@ -4021,8 +4049,12 @@ const RULE_DOC = {
   PARAM_NEED:'증거 하나에 드는 검사 파라미터', EVID_TOTAL:'병마다 있는 증거 수',
   EVID_AIM:'자동 진행이 모으고 멈추는 증거 수',
   ACT1_SPAWN_EVERY:'1막에서 병이 증상을 뿜는 주기',
-  disCut:'병 노드 수치 감소', stageBonus:'병기 시계 보정', painCut:'통증·호흡곤란 수치 감소',
-  dmgUp:'환자가 받는 피해 증가',
+  TIER_MAX:'보스가 문진 횟수를 안 적었을 때의 최대 단계',
+  TIER_CURE:'완치 — 문진 한 단계가 병 노드 수치를 깎는 비율',
+  TIER_LINGER:'연명 — 문진 한 단계가 부수 처치선을 올리는 몫 (병 노드는 제외)',
+  TIER_COMFORT:'편하게 — 문진 한 단계가 최종 피해 배수에서 빼는 값 (바닥을 친 뒤에 뺀다)',
+  COMFORT_MUL:'「편하게」가 받는 피해에 거는 시작 배수',
+  COMFORT_FLOOR:'「편하게」 완화로 내려갈 수 있는 바닥. 문진 단계는 이 아래로 더 뺀다',
   SWEEP_K:'광역 억제 — 잘라 낸 잔량에 곱하는 값 (올림). 1/3 이면 셋으로 나눈 것과 같다',
   SPAWN_LV:'레벨별 부수 증상 자리 상한 (LVTAB.n 상한에서 온다). 보스는 lv.spots 로 어느 레벨을 볼지 정한다',
   CAND_BASE:'차트에 처음 뜨는 후보 병명 수. 증거를 모을 때마다 둘씩 줄고 최소 하나는 남는다',
@@ -4045,7 +4077,7 @@ const RULE_DOC = {
 const RULE_GROUP = {
   R:[['처치와 처치선', ['KILL_LINE','KILL_COST','REFUND','SWEEP_CAP','SWEEP_K','DIS_KILL_LINE','WEAK_STACK','WEAK_STACK_DIS','WEAK_LINE_MAX','PAIN_T','PAIN_FLOOR','PAIN_STACK']],
      ['성장과 진화', ['BLEED_G','BLEED_ABS','INF_G','GROW_HOLD','NOATK_G','VAL_CAP','EVO_HIT','EVO_FEVER_GROW','EVO_BLEED_ACC','EVO_X2','EVO_INF_DIAG','DORMANT']],
-     ['피해와 정신', ['TURN_DMG','TURN_DMG_MIN','ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_CUT']],
+     ['피해와 정신', ['TURN_DMG','TURN_DMG_MIN','ATK_K','MIND_BIGHIT','MIND_ANX_SUP','MIND_ANX_DIAG','MIND_CALM_STAB','COMFORT_MUL','COMFORT_CUT','COMFORT_FLOOR']],
      ['보호막과 안정화', ['SHIELD_CUT','SHIELD_MAX','DEHY_STAB']],
      ['손과 코스트', ['ENERGY','HAND','DRAW_CUT','PLAY_CAP']],
      ['진단과 재진', ['DIAG_NEED','DIAG_NEED_UP','DIAG_CUT_R2','DIAG_CUT_LATE','DIAG_DEMOTE_ROUND','DIAG_DEEP_MAX']],
@@ -4055,6 +4087,7 @@ const RULE_GROUP = {
   SR:[['병 노드와 병기', ['DIS_BASE','STAGE_TURNS','SPAWN_LV']],
       ['박자', ['BEAT','BEAT_CROWD','BEAT_SCRATCH_N']],
       ['최종 병기 · 폴백', ['ANCHOR_EVERY','ANCHOR_LOOPS','GROW_RUN_MAX']],
+      ['문진 단계', ['TIER_MAX','TIER_CURE','TIER_LINGER','TIER_COMFORT']],
       ['방침 · 고유 기믹', ['LINGER_SPAWN','WINDOW_DRAIN','MOVE_DRAIN','CRAVE_HEAL']],
       ['자리를 세울 때', ['SPOT_SPREAD','ROSTER_MISS','FREE_BASE','FREE_SPREAD','DUP_BASE','DUP_SPREAD']],
       ['자동 진행', ['ACT1_CAP','ACT3_CAP']],
@@ -4066,6 +4099,26 @@ const RULE_GROUP = {
 
 //@ 패치노트 — 판본별 변경 내역. 위에 적힌 것이 최신이다
 const PATCH_NOTES = [
+{v:'0.6', size:'M', date:'2026-09-16', tag:'게임플레이 변경', body:`
+스토리 · 오진 페널티
+
+-문진 파라미터 넷을 삭제하고 「문진 단계」 정수 하나로 대체
+*삭제: 병 노드 수치 감소 · 병기 시계 보정 · 통증/호흡곤란 감소 · 받는 피해 증가
+*전에는 정진단이면 넷이 한꺼번에 붙고 오진이면 통째로 안 붙었다
+*그래서 오진이 곧 패배였다 — 완치 오진 22판이 전부 패
+
+-버프의 종류는 방침이, 세기는 문진 단계가 정한다. 한 방침에 버프는 하나
+*완치 — 병 노드 수치 단계당 −5%
+*연명 — 부수 자리 처치선 단계당 +5%p (병 노드는 제외)
+*편하게 — 최종 피해 배수 단계당 −0.1
+
+-오진이면 무조건 0단계. 3막에 들어서면 굳고 재진단으로도 안 바뀐다
+
+-편하게 배수 계산 순서: 시작 1.5 → 완화 겹당 −0.2 → 바닥 0.9 → 문진 단계 −0.1×단계
+*바닥을 친 뒤에 빼므로 조건을 다 채운 판에서도 문진 값이 남는다 (최저 0.6)
+
+-보스마다 문진 횟수(interviewMax)를 데이터로 둔다. 지금은 셋 다 3
+`},
 {v:'0.5', size:'M', date:'2026-09-08', tag:'게임플레이 변경', body:`
 스토리 · 치료 방침
 
@@ -4514,25 +4567,33 @@ function beatTip(S,n){
                      : TT('다음 박자', head + esc(bt) + atk);
 }
 
+function tierGain(k, t){
+  if(k==='완치')   return `병 노드 수치 <b>−${pctOf(SR.TIER_CURE*t)}</b>`;
+  if(k==='연명')   return `부수 처치선 <b>${pctOf(R.KILL_LINE)} → ${pctOf(R.KILL_LINE + SR.TIER_LINGER*t)}</b>`;
+  if(k==='편하게') return `최종 피해 배수 <b>−${(SR.TIER_COMFORT*t).toFixed(1)}</b>`;
+  return '없다';
+}
+
 function policyTip(k){
   const P = SR.POLICY[k]; if(!P) return null;
-  const dbuf = [];
-  if(P.disCut) dbuf.push(`병 노드 수치 <b>−${(P.disCut*100)|0}%</b>`);
-  if(P.stageBonus) dbuf.push(`병기 시계 <b>+${P.stageBonus}</b>`);
-  if(P.painCut) dbuf.push(`통증 · 호흡곤란 수치 <b>−${(P.painCut*100)|0}%</b>`);
-  if(P.dmgUp) dbuf.push(`환자가 받는 피해 <b>+${(P.dmgUp*100)|0}%</b>`);
+  const tmax = (typeof BOARD!=='undefined' && BOARD && BOARD.boss) ? interviewMax(BOARD.boss) : SR.TIER_MAX;
+  const now  = (typeof S!=='undefined' && S && S.policy===k) ? (S.tier||0) : null;
   const win = {
     '완치':'병 노드를 처치선까지 내려 처치한다.',
     '연명':'부수 증상의 자리를 <b>처치로</b> 전부 닫는다. 휴면과 소멸은 자리를 닫지 않는다.',
     '편하게':'병이 최종 병기에 도달할 때 까지 환자가 살아 있다.',
   }[k];
-  let body = `<b>승리 조건</b><br>${win}<br><br><b>판에 새기는 것</b><br>`
-    + (dbuf.length ? dbuf.join(' · ') : '없다')
-    + `<br><span class="d">오진 시 병 노드 수치 감소와 통증 완화가 붙지 않는다.</span>`;
+  let body = `<b>승리 조건</b><br>${win}`
+    + `<br><br><b>문진 단계가 주는 것</b><br>`
+    + Array.from({length:tmax}, (_,i)=>`${i+1}단계 — ${tierGain(k, i+1)}`).join('<br>')
+    + (now!==null ? `<br><span class="d">지금 <b>${now}</b>단계.</span>` : '')
+    + `<br><span class="d">오진이면 0단계다 — 버프가 하나도 안 붙는다.`
+    + ` 3막에 들어서면 굳고 재진단으로도 안 바뀐다.</span>`;
   if(k==='편하게'){
-    body += `<br><br><b>대가</b><br>환자가 받는 피해가 <b>${pctOf(P.dmgUp)}</b> 늘어난다.`
-          + `<br><br><b>버프</b><br>턴 종료 시 <b>통증 비활성</b> · <b>호흡곤란 비활성</b> · <b>공황 아님</b> 중`
-          + ` 충족한 항목 하나마다 이번 턴 환자 피해가 <b>${pctOf(R.COMFORT_CUT)}</b> 줄어든다.`;
+    body += `<br><br><b>대가</b><br>받는 피해가 <b>×${R.COMFORT_MUL}</b> 로 시작한다.`
+          + `<br><br><b>완화</b><br>턴 종료 시 <b>통증 비활성</b> · <b>호흡곤란 비활성</b> · <b>공황 아님</b> 중`
+          + ` 충족한 항목 하나마다 배수가 <b>${R.COMFORT_CUT.toFixed(1)}</b> 씩 줄어든다 (바닥 ${R.COMFORT_FLOOR}).`
+          + `<br><span class="d">문진 단계는 그 바닥을 친 <b>뒤에</b> 뺀다 — 조건을 다 채운 판에서도 값이 남는다.</span>`;
   }
   return TT(k, body);
 }
@@ -4863,7 +4924,8 @@ function hpTipBody(S, f){
     + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
     + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
     + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
-    + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
+    + (S.policy==='편하게'&&S.tier?`<br><b>문진 ${S.tier}단계</b> — 배수에서 −${(SR.TIER_COMFORT*S.tier).toFixed(1)}`:'')
+    + `<br><span class="d">이번 턴 최종 배수 ×${dmgMul(S).toFixed(2)}</span>`
     + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>.</span>':'');
 }
 
@@ -4886,7 +4948,8 @@ function lineWhy(S, n){
   if(n.weak) w.push(`약화 ${n.weak} — 처치선 +${pctOf(per*n.weak)}p`);
   if(n.role!=='disease'){
     const ps = active(S).filter(x=>x.sym==='통증');
-    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
+    if(S.policy==='연명' && S.tier) w.push(`연명 문진 ${S.tier}단계 — 처치선 바탕이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(lineBase(S))} 로 올랐다`);
+    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(lineBase(S))} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
   }
   return w;
 }
@@ -5155,7 +5218,7 @@ function stateHTML(){
   if(S.policy==='편하게'){
     const cuts = comfortCuts(S);
     rows.push(`<div class="st"${tip(policyTip('편하게'))}>
-      <div class="stt"><span>완화</span><b>×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</b></div>
+      <div class="stt"><span>완화</span><b>×${dmgMul(S).toFixed(2)}</b></div>
       <div class="stnote">${['통증 비활성','호흡곤란 비활성','공황 아님']
         .map(x=>`${cuts.includes(x)?'●':'○'} ${x}`).join('<br>')}</div></div>`);
   }
@@ -5781,6 +5844,14 @@ function renderBossPick(){
   if(was && [...sel.options].some(o=>o.value===was)) sel.value = was;
 }
 
+//@ 화면.문진단계 — 오진이면 고르개를 잠근다
+function skTierSync(){
+  const dx=$('sk_dx'), tr=$('sk_tier'); if(!dx||!tr) return;
+  const bad = dx.value!=='1';
+  tr.disabled = bad;
+  if(bad) tr.value = '0';
+}
+
 function newStory(){
   PICK = null;
   const key=$('boss').value, seed=+$('seed').value, rng=mulberry32(seed);
@@ -5805,7 +5876,7 @@ function newStory(){
   if(pol){
     S.evid = +$('sk_evid').value;
     S.correct = $('sk_dx').value==='1';
-    const note = applyPolicy(S, S.nodes[0], pol, S.correct);
+    const note = applyPolicy(S, S.nodes[0], pol, S.correct, +$('sk_tier').value);
     log(`<span class="d">1·2막을 건너뛴다 — 증거 ${S.evid} · ${S.correct?'정진단':'오진'}</span>`);
     log(`<b>${pol}</b> — ${note}`);
   } else {
@@ -5824,7 +5895,8 @@ function declareDx(){
 
 function pickPolicy(p){
   pushUndo('방침 선택');
-  const note = applyPolicy(S, S.nodes[0], p, S.correct);
+  const tr = $('sk_tier');
+  const note = applyPolicy(S, S.nodes[0], p, S.correct, tr ? +tr.value : undefined);
   log(`<b>${p}</b> — ${note}`);
   render();
 }

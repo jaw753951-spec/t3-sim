@@ -75,8 +75,12 @@ const SCENARIOS = `(() => {
 
   /* ⑤ 스토리 — 보스 × 방침 */
   out.story = [];
+  /* ★ 스토리는 **스토리 가방**으로 돈다. C.DECK_D2 는 세션 2일차 8종이라 판이 딴판이다 —
+     실제로 아이 완치가 D2 로는 0/40, 스토리 가방으로는 39/40 이었다. 그 표가 서기 전의
+     옛 파일에서는 D2 로 물러선다 */
+  const SDECK = typeof STORY_DECK !== 'undefined' ? STORY_DECK : C.DECK_D2;
   for (const boss of Object.keys(BOSS)) for (const pol of ['완치', '연명', '편하게']) {
-    const r = runStory(boss, C.DECK_D2, 777, pol);
+    const r = runStory(boss, SDECK, 777, pol);
     /* turn · win 이라 적던 칸을 걷었다 — runStory 가 내놓는 이름은 turns 이고 win 은
        아예 없다. 셋 다 undefined 로 찍히며 판정만 견주고 있었다 */
     out.story.push({ boss, pol, turns: r.turns, stage: r.stage, hp: r.hp, out: r.out });
@@ -376,6 +380,80 @@ const INVARIANTS = `(() => {
         bad.push('scoreClean 이 모르는 이름·빈 병기를 못 떨군다 — ' + JSON.stringify(dirty));
       if (scoreClean({ 3: ['모르는것'] }) !== null)
         bad.push('scoreClean 이 남는 것 없는 악보를 null 로 돌려주지 않는다');
+    }
+  }
+
+  /* ③ㅇ 문진 단계 — 방침이 제 버프만 받는가, 차례가 맞는가 (인계 문서 §7).
+     ★ 파라미터 넷(disCut · stageBonus · painCut · dmgUp)이 살아 있는지는 이 자가
+       아니라 build.js 가 본다 — 소스 문자열 검색이라 커널 안에서는 물을 수 없다. */
+  if (typeof SR.TIER_CURE !== 'undefined') {
+    const stand = (boss, pol, tier, correct) => {
+      const rng = K.mulberry32(11);
+      const board = makeDisease(boss, rng);
+      const S = K.newState(board, {}); S.board = board; S.rng = rng;
+      applyPolicy(S, S.nodes[0], pol, correct !== false, tier);
+      return S;
+    };
+    const tmax = SR.TIER_MAX;
+
+    /* ㄱ 오진이면 입력값을 무시하고 0 이다 — 최대치를 넣어도 0 */
+    for (const pol of ['완치', '연명', '편하게']) {
+      const S = stand('아이', pol, tmax, false);
+      if (S.tier !== 0) bad.push('오진인데 문진 단계가 ' + S.tier + ' 이다 — ' + pol);
+    }
+
+    /* ㄴ 방침 격리 — 한 방침에 버프는 하나다.
+       완치에 단계를 줘도 부수 처치선이 안 오르고, 연명·편하게에 줘도 병 노드가 안 깎인다 */
+    {
+      const base = stand('아이', '완치', 0).nodes[0].init;
+      const cure = stand('아이', '완치', tmax).nodes[0].init;
+      const want = Math.ceil(base * (1 - SR.TIER_CURE * tmax));
+      if (cure !== want) bad.push('완치 ' + tmax + '단계의 병 노드가 ' + cure + ' 다 — ' + want + ' 여야 한다');
+      for (const pol of ['연명', '편하게']) {
+        const S = stand('아이', pol, tmax);
+        if (S.nodes[0].init !== base)
+          bad.push(pol + ' ' + tmax + '단계가 병 노드 수치를 건드린다 — ' + S.nodes[0].init + ' / ' + base);
+      }
+      for (const pol of ['완치', '편하게']) {
+        const S = stand('아이', pol, tmax);
+        if (Math.abs(K.lineBase(S) - R.KILL_LINE) > 1e-9)
+          bad.push(pol + ' ' + tmax + '단계가 부수 처치선을 올린다 — ' + K.lineBase(S));
+      }
+      const L = stand('아이', '연명', tmax);
+      if (Math.abs(K.lineBase(L) - (R.KILL_LINE + SR.TIER_LINGER * tmax)) > 1e-9)
+        bad.push('연명 ' + tmax + '단계의 부수 처치선이 ' + K.lineBase(L) + ' 다');
+    }
+
+    /* ㄷ 계산 차례 — 편하게는 **바닥을 친 뒤에** 단계를 뺀다.
+       뒤집으면 조건 셋을 다 채운 판에서 버프가 통째로 사라진다 (문서 §5.3) */
+    {
+      const S = stand('아이', '편하게', tmax);
+      for (const n of S.nodes) if (n.role !== 'disease') { n.dead = true; n.val = 0 }
+      S.mind = '평정';                                   // 조건 셋 충족
+      if (K.comfortCuts(S).length !== 3) bad.push('편하게 완화 조건 셋이 안 채워졌다 — 검사 자체가 틀렸다');
+      const want = R.COMFORT_FLOOR - SR.TIER_COMFORT * tmax;
+      if (Math.abs(K.dmgMul(S) - want) > 1e-9)
+        bad.push('편하게 ' + tmax + '단계 · 완화 3겹의 배수가 ' + K.dmgMul(S).toFixed(2) +
+                 ' 다 — ' + want.toFixed(2) + ' 여야 한다 (바닥을 친 뒤에 빼는가)');
+    }
+
+    /* ㄹ 연명의 차례 — 버프를 얹고 그 위에 통증을 건다 (문서 §5.2) */
+    {
+      const S = stand('아이', '연명', tmax);
+      for (const n of S.nodes) if (n.role !== 'disease') { n.dead = true; n.val = 0 }
+      S.nodes.push(mkSpot('아이', S.nodes[0].stage, '통증', 50, 0));
+      const want = Math.max(R.PAIN_FLOOR, (R.KILL_LINE + SR.TIER_LINGER * tmax) * K.painMul(S));
+      if (Math.abs(K.painShare(S) - want) > 1e-9)
+        bad.push('연명 ' + tmax + '단계 · 통증 판의 처치선 몫이 ' + K.painShare(S).toFixed(3) +
+                 ' 다 — ' + want.toFixed(3) + ' 여야 한다 (버프 → 통증 차례인가)');
+    }
+
+    /* ㅁ 병 노드는 연명 버프를 안 탄다 — killLine 이 병 노드를 따로 가른다 */
+    {
+      const S = stand('아이', '연명', tmax);
+      const dis = S.nodes[0];
+      if (K.killLine(S, dis) !== Math.floor(dis.init * R.DIS_KILL_LINE))
+        bad.push('연명 버프가 병 노드 처치선까지 올렸다 — ' + K.killLine(S, dis));
     }
   }
 

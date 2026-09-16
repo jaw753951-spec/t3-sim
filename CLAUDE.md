@@ -33,6 +33,7 @@ node tools/sim_check.js  <옛것> <새것>     판정을 견준다 — 「판은
 node tools/ui_check.js   <옛것> <새것>     화면을 견준다 (헤드리스 크로미움)
 node tools/story_probe.js sweep 아이,어부,송이 [파일]    병이 노는 구간
 node tools/story_probe.js policy [파일]                 방침 셋이 실제로 갈리는가
+node tools/story_probe.js tier   [파일]                 문진 단계 0~3 이 무엇을 바꾸는가
 node tools/story_probe.js diff <옛것> <새것>             스토리 360판을 견준다
 node tools/stage_check.js [파일]      무대 자리 재기 (구역 겹침 · 칩 합 · 설명 빠짐)
 node tools/tips_doc.js               tools/docs/툴팁.md 를 소스에서 다시 뽑는다
@@ -59,6 +60,10 @@ node tools/lab/patch.js              src/ 를 안 건드리고 판본을 뽑는�
   걷자 넷이 통째로 조용히 건너뛰어지고 **그대로 통과했다.** 옛 파일을 받아 주려던
   조건이 새 파일의 검사를 끄는 스위치가 된 것이다. 통과했다고 안심하기 전에
   일부러 깨뜨려 무는지 한 번 본다.
+- **스토리를 잴 때는 `STORY_DECK` 을 쓴다.** `C.DECK_D2` 는 세션 2일차 8종이라 스토리
+  가방(16장)과 딴판이고, 그 가방으로 잰 숫자는 스토리를 말하지 않는다 — 아이 완치가
+  D2 로는 0/40, 스토리 가방으로는 39/40 이었다. 한 표 안에서 판정과 그림자 런이 서로
+  다른 가방을 쓰면 「연명 10/40」과 「자리 전부 폐쇄 19/40」이 나란히 찍힌다.
 - **`sim_check` 와 `ui_check` 는 자리를 못 본다.** 둘은 판정과 글자를 견주므로
   칸이 서로 겹치거나 카드가 손패 줄 밖으로 나가도 글자는 그대로라 통과한다.
   화면 배치를 건드렸으면 `stage_check.js` 를 같이 돌린다 — 눈으로 넘기다

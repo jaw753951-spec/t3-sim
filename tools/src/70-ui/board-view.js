@@ -96,7 +96,8 @@ function hpTipBody(S, f){
     + `<br>턴 끝 예고 피해 <b>−${f.dmg}</b>`
     + (policyDmg(S)>1?`<br><br><b>${S.policy} 방침</b> — 받는 피해 ×${policyDmg(S).toFixed(2)}`:'')
     + (cuts.length?`<br><b>완화 ${cuts.length}겹</b> — ${cuts.join(' · ')} · 배수에서 −${(R.COMFORT_CUT*cuts.length).toFixed(1)}`:'')
-    + `<br><span class="d">이번 턴 최종 배수 ×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</span>`
+    + (S.policy==='편하게'&&S.tier?`<br><b>문진 ${S.tier}단계</b> — 배수에서 −${(SR.TIER_COMFORT*S.tier).toFixed(1)}`:'')
+    + `<br><span class="d">이번 턴 최종 배수 ×${dmgMul(S).toFixed(2)}</span>`
     + (BOARD.noDeath?'<br><br><span class="d">이 판에서 체력은 <b>1 아래로 내려가지 않는다</b>.</span>':'');
 }
 
@@ -125,7 +126,8 @@ function lineWhy(S, n){
   if(n.weak) w.push(`약화 ${n.weak} — 처치선 +${pctOf(per*n.weak)}p`);
   if(n.role!=='disease'){
     const ps = active(S).filter(x=>x.sym==='통증');
-    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
+    if(S.policy==='연명' && S.tier) w.push(`연명 문진 ${S.tier}단계 — 처치선 바탕이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(lineBase(S))} 로 올랐다`);
+    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(lineBase(S))} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
   }
   return w;
 }
@@ -428,7 +430,7 @@ function stateHTML(){
   if(S.policy==='편하게'){
     const cuts = comfortCuts(S);
     rows.push(`<div class="st"${tip(policyTip('편하게'))}>
-      <div class="stt"><span>완화</span><b>×${Math.max(0, policyDmg(S)-R.COMFORT_CUT*cuts.length).toFixed(2)}</b></div>
+      <div class="stt"><span>완화</span><b>×${dmgMul(S).toFixed(2)}</b></div>
       <div class="stnote">${['통증 비활성','호흡곤란 비활성','공황 아님']
         .map(x=>`${cuts.includes(x)?'●':'○'} ${x}`).join('<br>')}</div></div>`);
   }

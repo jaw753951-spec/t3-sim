@@ -17,6 +17,16 @@ function renderBossPick(){
   if(was && [...sel.options].some(o=>o.value===was)) sel.value = was;
 }
 
+/* 오진이면 단계 고르개를 꺼 두고 0 을 보인다 — 규칙이 그렇기 때문이다 (스토리.방침).
+   화면에서 고를 수 있게 두면 「3단계인데 왜 안 붙나」를 설명할 길이 없다 */
+//@ 화면.문진단계 — 오진이면 고르개를 잠근다
+function skTierSync(){
+  const dx=$('sk_dx'), tr=$('sk_tier'); if(!dx||!tr) return;
+  const bad = dx.value!=='1';
+  tr.disabled = bad;
+  if(bad) tr.value = '0';
+}
+
 function newStory(){
   PICK = null;
   const key=$('boss').value, seed=+$('seed').value, rng=mulberry32(seed);
@@ -46,7 +56,7 @@ function newStory(){
   if(pol){
     S.evid = +$('sk_evid').value;
     S.correct = $('sk_dx').value==='1';
-    const note = applyPolicy(S, S.nodes[0], pol, S.correct);
+    const note = applyPolicy(S, S.nodes[0], pol, S.correct, +$('sk_tier').value);
     log(`<span class="d">1·2막을 건너뛴다 — 증거 ${S.evid} · ${S.correct?'정진단':'오진'}</span>`);
     log(`<b>${pol}</b> — ${note}`);
   } else {
@@ -65,7 +75,8 @@ function declareDx(){
 
 function pickPolicy(p){
   pushUndo('방침 선택');
-  const note = applyPolicy(S, S.nodes[0], p, S.correct);
+  const tr = $('sk_tier');
+  const note = applyPolicy(S, S.nodes[0], p, S.correct, tr ? +tr.value : undefined);
   log(`<b>${p}</b> — ${note}`);
   render();
 }

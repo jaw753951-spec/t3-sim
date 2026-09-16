@@ -6,6 +6,7 @@
      node story_probe.js sweep [보스…] [파일]                 병이 노는 구간을 센다
      node story_probe.js diff  A.html B.html                   두 결과물의 판을 견준다
      node story_probe.js policy [파일]                         방침 셋이 실제로 갈리는가
+     node story_probe.js tier   [파일]                         문진 단계 0~3 이 무엇을 바꾸는가
 
    sim_check 는 판의 '끝' 만 본다 — 몇 턴에 어떤 판정이 났는가. 여기는 '과정' 을 본다.
    비트 이름만으로는 안 보이는 것들이 있다. 「파고든다」라고 적어 놓고 아무 자리도
@@ -41,7 +42,7 @@ function load(file){
    턴 순서(병 행동 → 시계 → 손패 → 정산)는 storyPhase 를 그대로 부른다 —
    여기에 다시 적으면 언젠가 갈라지고, 갈라지면 이 자가 거짓말을 한다.
    비트 앞뒤로 판을 찍어야 하므로 diseaseAct 만 감싸 두고 storyPhase 가 그것을 부르게 한다. */
-const ROWS = `((boss, policy, seed, cap) => {
+const ROWS = `((boss, policy, seed, cap, tier) => {
   const rng = K.mulberry32(seed);
   const board = makeDisease(boss, rng);
   const S = K.newState(board, {}); S.board = board; S.rng = rng;
@@ -50,7 +51,7 @@ const ROWS = `((boss, policy, seed, cap) => {
   C.setupDeck(S, deck, K.mulberry32(seed + 1)); S.rng = rng;
   const dis = S.nodes[0];
   const a1 = act1(S, deck, {});
-  applyPolicy(S, dis, policy, a1.correct);
+  applyPolicy(S, dis, policy, a1.correct, tier);
 
   /* 비트가 판을 바꿨는가 — 비트 번호는 빼고 본다 (그것만 늘 오른다).
      crave · closedN · cap 이 든 까닭: 「갈망」은 상시 규칙만 설치하고 처치는 정원을
@@ -86,12 +87,27 @@ const ROWS = `((boss, policy, seed, cap) => {
       const live = K.active(S).filter(x=>x.role!=='disease').length;
       const neuro = K.active(S).filter(x=>x.role!=='disease' && (x.sym==='통증'||x.sym==='호흡곤란')).length;
       mark = null;
+      /* 증상별 피해 원장을 채우려면 사건 기록을 켜야 한다 (커널.사건).
+         무대가 안 켜면 아무것도 안 쌓이므로, 재는 동안만 이 자가 켠다 —
+         켜고 끄는 값은 배열 하나라 판정에는 영향이 없다 */
+      S.ev = [];
       const ph = storyPhase(S, dis) || {};
       C.endTurnHand(S); K.turnResolve(S); storyTick(S);
+      /* 턴 공격은 자리마다의 원값(raw)으로 총계를 나눠 갖는다 — 무대의 의도 칩과 같은 셈.
+         진화 즉발과 점화는 자리 하나가 낸 것이라 그대로 적는다 */
+      const bySym = {};
+      const raws = S.ev.filter(e=>e.t==='atk' && e.n);
+      const rawSum = raws.reduce((a,e)=>a+e.raw, 0);
+      const turnHit = S.ev.filter(e=>e.t==='hp' && e.why==='turn').reduce((a,e)=>a+e.amt, 0);
+      for(const e of raws) if(rawSum>0)
+        bySym[e.n.sym] = (bySym[e.n.sym]||0) + turnHit*e.raw/rawSum;
+      for(const e of S.ev) if(e.t==='hp' && e.why!=='turn' && e.n)
+        bySym[e.n.sym] = (bySym[e.n.sym]||0) + e.amt;
+      S.ev = null;
       /* storyPhase 가 병을 안 움직인 턴 — 3막에서는 없지만, 없다고 터지지는 않게 한다 */
       const m = mark || { beat:'—', line:'병이 움직이지 않았다', moved:false };
       rows.push({ t, stage:dis.stage, clock:dis.stageClock, up:ph.up, live, neuro,
-                  closed:S.closedN||0, cap:spotCap(S,dis),
+                  closed:S.closedN||0, cap:spotCap(S,dis), bySym,
                   beat:m.beat, line:m.line, moved:m.moved, floor:hp0<=1,
                   liveAfter:K.active(S).filter(x=>x.role!=='disease').length,
                   dmg:hp0-S.hp, hp:S.hp, disVal:dis.val });
@@ -187,7 +203,11 @@ function sweep(bosses, file){
      0 이면 그 방침으로는 이길 길이 아예 없다는 뜻이고, 그때는 규칙을 조정할 자리다. */
 function policy(file){
   const ev = load(file), run = ev(ROWS), cap = capOf(ev);
-  const RUN = ev(`((boss,pol,seed)=>{ const r=runStory(boss,C.DECK_D2,seed,pol,{});
+  /* ★ 판정과 그림자 런이 **같은 가방**을 써야 한다. ROWS 는 스토리 가방(STORY_DECK)을
+     쓰는데 여기만 C.DECK_D2 를 쓰던 동안, 한 표 안에서 「연명 10/40」과 「자리 전부
+     폐쇄 19/40」이 나란히 찍혔다 — 둘이 딴 판을 재고 있었다. */
+  const DECK = ev('typeof STORY_DECK !== "undefined" ? "STORY_DECK" : "C.DECK_D2"');
+  const RUN = ev(`((boss,pol,seed)=>{ const r=runStory(boss,${DECK},seed,pol,{});
     return {out:r.out, turns:r.turns, stage:r.stage, hp:r.hp, hpMax:r.hpMax} })`);
   const seeds = seedList(SEEDS);
   console.log(`=== ${file} · 방침 갈래 · 씨앗 ${seeds.length} ===`);
@@ -275,6 +295,55 @@ function policy(file){
   for (const boss of BOSSES) console.log(`  ${boss.padEnd(3)} ${ANCHOR(boss)}`);
 }
 
+/* ── tier ── 문진 단계가 무엇을 바꾸는가 ───────────────────────
+   인계 문서 §7.6 이 요구한 표다. **승률과 사망률은 안 뽑는다** — 판단 지표가 아니다
+   (§7.3). 쓸 값은 종료 시 체력 여유 · 그림자 런 최소 체력 · 총 피해 · 최대 단타 ·
+   증상별 피해 원장이고, 연명은 자리를 다 닫기까지 걸린 턴을 따로 센다.
+
+   이 표는 기획이 방침 간 체감 무게를 맞추는 데 쓴다 — 값 조정은 그 확인 전까지 안 한다. */
+function tier(file){
+  const ev = load(file), run = ev(ROWS), cap = capOf(ev);
+  const DECK = ev('typeof STORY_DECK !== "undefined" ? "STORY_DECK" : "C.DECK_D2"');
+  const RUN = ev(`((boss,pol,seed,t) => { const r = runStory(boss, ${DECK}, seed, pol, {tier:t});
+    return {out:r.out, turns:r.turns, hp:r.hp, hpMax:r.hpMax} })`);
+  const tmax = ev('SR.TIER_MAX');
+  const seeds = seedList(SEEDS);
+  console.log(`=== ${file} · 문진 단계 · 씨앗 ${seeds.length} ===`);
+  console.log('  단계   도달   끝 체력여유  최소 체력  총 피해  최대 단타   증상별 피해 원장');
+
+  for (const boss of BOSSES) for (const pol of POLS) {
+    console.log(`\n── ${boss} · ${pol} ──`);
+    for (let t = 0; t <= tmax; t++) {
+      let spare = 0, low = Infinity, dmg = 0, big = 0, closeTurn = 0, closed = 0, won = 0;
+      const ledger = {};
+      for (const seed of seeds) {
+        const r = RUN(boss, pol, seed, t);
+        if (r.out !== '악화' && r.out !== '사망') won++;
+        if (r.hpMax) spare += r.hp / r.hpMax;
+        const rows = run(boss, pol, seed, cap, t);
+        for (const q of rows) {
+          if (q.end) continue;
+          dmg += q.dmg; big = Math.max(big, q.dmg); low = Math.min(low, q.hp);
+          for (const k in (q.bySym||{})) ledger[k] = (ledger[k]||0) + q.bySym[k];
+        }
+        /* 연명 — 자리를 다 닫기까지 걸린 턴. 못 닫은 판은 안 센다 */
+        const done = rows.find(q => q.cap === 0);
+        if (done) { closeTurn += done.t; closed++ }
+      }
+      const n = seeds.length;
+      const led = Object.keys(ledger).sort((a,b)=>ledger[b]-ledger[a])
+        .map(k=>`${k} ${(ledger[k]/n).toFixed(1)}`).join(' · ') || '—';
+      console.log(`   ${t}  ${String(won+'/'+n).padStart(6)}  ${(spare/n*100).toFixed(0).padStart(4)}%`
+        + `      ${String(low===Infinity?'—':low).padStart(4)}`
+        + `    ${(dmg/n).toFixed(0).padStart(5)}`
+        + `     ${String(big).padStart(4)}`
+        + `      ${led}`
+        + (pol==='연명' ? `\n          자리 전부 폐쇄 ${closed}/${n}판`
+            + (closed ? ` · 평균 ${(closeTurn/closed).toFixed(1)}턴` : '') : ''));
+    }
+  }
+}
+
 /* ── diff ── 규칙을 고친 몫을 잰다 ──
    sim_check 의 견주기는 스토리를 9판만 본다. 밸런스가 얼마나 움직였는지는 그것으로 안 나온다. */
 function diff(a, b){
@@ -307,6 +376,7 @@ try {
   if (mode === 'trace') trace(arg[0] || '아이', arg[1] || '완치', +(arg[2] || 777), arg[3] || FILE);
   else if (mode === 'sweep') sweep((arg[0] || BOSSES.join(',')).split(','), arg[1] || FILE);
   else if (mode === 'policy') policy(arg[0] || FILE);
+  else if (mode === 'tier') tier(arg[0] || FILE);
   else if (mode === 'diff') {
     if (!arg[1]) throw new Error('두 파일을 넘긴다 — node story_probe.js diff A.html B.html');
     diff(arg[0], arg[1]);

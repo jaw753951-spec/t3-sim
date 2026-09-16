@@ -70,7 +70,8 @@
     <label>3막부터 시작 (0 = 1막부터)</label>
     <div class="row2">
       <select id="sk_pol"><option value="">방침 —</option><option>완치</option><option>연명</option><option>편하게</option></select>
-      <select id="sk_dx"><option value="1">정진단</option><option value="0">오진</option></select>
+      <select id="sk_dx" onchange="skTierSync()"><option value="1">정진단</option><option value="0">오진</option></select>
+      <select id="sk_tier"><option value="0">문진 0단계</option><option value="1">문진 1단계</option><option value="2">문진 2단계</option><option value="3" selected>문진 3단계</option></select>
     </div>
     <div class="row2" style="margin-top:8px">
       <select id="sk_evid"><option value="1">증거 1</option><option value="2">증거 2</option><option value="3" selected>증거 3</option><option value="4">증거 4</option></select>

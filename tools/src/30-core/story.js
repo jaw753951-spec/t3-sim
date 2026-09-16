@@ -103,6 +103,11 @@ function laySpot(S, slot, turn, stage){
   return nd;
 }
 
+/* 이 보스의 특화 문진 횟수. 보스가 안 적었으면 기본값이다 —
+   병별 횟수는 아직 미정이라 셋 다 3 이다 (문서 §2 · §4.1) */
+//@ 스토리.문진횟수 — 이 보스가 줄 수 있는 최대 단계
+const interviewMax = key => (BOSS[key]||{}).interviewMax ?? SR.TIER_MAX;
+
 /* ── 정원 ────────────────────────────────────────────────────
    자리가 몇까지 서는가. **명부 길이가 아니다** — 명부(roster)는 증상 '종류의 통'이고
    상한은 여기 하나가 쥔다. 전에는 명부 있는 보스만 명부 길이로 잘려서, 아이 병기3 은
@@ -611,13 +616,13 @@ function closeKilled(S){
    v19 는 스토리를 수동 UI 와 배치 엔진에 각각 따로 구현했고 둘이 어긋나 있었다.
    ① 1막 병 행동 주기 (배치=2턴마다 / 수동=매턴 / 자동진행=없음)
    ② 방침별 승리조건 (배치에만 있었다 — 손으로는 연명·편하게로 이길 수 없었다)
-   ③ 방침 painCut (배치에만 적용됐다)
+   ③ 방침 버프 (배치에만 적용됐다)
    아래 넷이 유일한 구현이고, 수동·자동·배치가 전부 이것을 부른다.
    ═══════════════════════════════════════════════════════════ */
 
 /* 방침을 판에 새긴다 */
 //@ 스토리.방침 — 완치 · 연명 · 편하게
-function applyPolicy(S, dis, policy, correct){
+function applyPolicy(S, dis, policy, correct, tier){
   const P = SR.POLICY[policy];
   S.policy = policy; S.act = 3; S.comfort = 0;
   /* 연명의 두 계수기. 방침을 고르는 이 자리에서만 선다 — 다른 방침에서는 0 으로 남고
@@ -634,14 +639,27 @@ function applyPolicy(S, dis, policy, correct){
   S.rush = 0;
   dis.stageClock = SR.STAGE_TURNS; dis.beat = 0;   // 1막 길이가 첫 창의 자리를 정하지 않게 한다                                    // 기세는 막 단위다 — 1막에서 쌓은 것은 3막으로 넘어가지 않는다
   if(!P) return null;
-  if(correct){                                   // 오진이면 디버프가 안 붙는다
-    dis.val = Math.ceil(dis.val*(1-P.disCut));
-    dis.stageClock += P.stageBonus;
+
+  /* ── 문진 단계를 굳힌다 ──────────────────────────────────────
+     오진이면 무조건 0. 아니면 넘겨받은 값을 0~보스의 interviewMax 로 자른다.
+     안 넘기면 최대치다 (문서 §4.1 의 기본값).
+     ★ **여기서 굳고 전투 중에 안 바뀐다.** 3막의 재진단으로도 안 돌아온다 —
+       재진단이 되찾는 것은 병명 표시 · 정신 완화 · 예고 텍스트뿐이다. */
+  const tmax = interviewMax(S.board.boss);
+  S.tier = correct ? Math.max(0, Math.min(tmax, tier ?? tmax)) : 0;
+
+  /* 방침마다 버프는 하나다 — 방침과 안 맞는 것은 안 붙는다.
+     연명(부수 처치선)은 커널의 lineBase 가, 편하게(최종 배수)는 dmgMul 이 읽는다.
+     여기서 한 번에 얹는 것은 완치의 병 노드 수치뿐이다. */
+  let note = `문진 ${S.tier}단계`;
+  if(policy==='완치' && S.tier>0){
+    dis.init = Math.ceil(dis.init * (1 - SR.TIER_CURE*S.tier));
+    dis.val  = dis.init;                        // 수치와 초기값이 같이 내려간다 (문서 §5.1)
+    note += ` · 병 노드 ${dis.val}`;
   }
-  if(P.painCut) for(const n of K.active(S))
-    if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란'))
-      n.val = Math.ceil(n.val*(1-P.painCut));
-  return correct ? `디버프가 붙는다. 병 노드 ${dis.val}` : '오진이라 디버프가 붙지 않는다';
+  else if(policy==='연명') note += ` · 부수 처치선 ${Math.round(lineBase(S)*100)}%`;
+  else if(policy==='편하게') note += ` · 최종 배수 ×${dmgMul(S).toFixed(2)}`;
+  return correct ? note : note + ' <span class="d">(오진 — 버프가 없다)</span>';
 }
 
 /* 턴 끝 — 병이 움직인다. 1막은 주기적으로, 3막은 매 턴 + 병기 시계 */
@@ -772,7 +790,7 @@ function act1(S, deck, opt={}){
 //@ 스토리.3막 — 방침대로 끝까지
 function act3(S, policy, correct, opt={}){
   const dis = S.nodes[0];
-  applyPolicy(S, dis, policy, correct);            // 공용 — painCut 포함
+  applyPolicy(S, dis, policy, correct, opt.tier);  // 공용 — 문진 단계를 여기서 굳힌다
   let t = 0;
   const cap = opt.act3Cap || SR.ACT3_CAP;
   while(t<cap){

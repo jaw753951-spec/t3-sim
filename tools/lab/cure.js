@@ -506,6 +506,50 @@ function winReport(rows) {
     }
   }
 
+  /* ── ⓔ 우발 완치 대 의도된 플레이 ────────────────────────────────
+     인계가 막으려는 것이 「연명으로 들어가 자리를 안 닫고 병만 치는 손」이므로,
+     그 손이 **정공법보다 나은가** 가 이 문서의 질문이다. 평균을 나란히 놓는 것으로는
+     답이 안 나온다 — 판마다 씨앗이 다르면 누가 나은지가 씨앗 차이에 묻힌다.
+     같은 씨앗 · 같은 보스 · 같은 문진 단계에서 손만 갈아 끼우고 짝으로 센다. */
+  const PAIRS = [
+    ['R4','R1', '완치 정공법 (현행 버프)'],
+    ['R4','R2', '완치 정공법 (A안 버프)'],
+    ['R4','R3', '연명 정공법 (표준)'],
+    ['R4','R3F','연명 정공법 (몰아쳐 닫기)'],
+  ];
+  console.log('\n══ ⓔ 연명 + 병 노드만 치기(R4) 대 의도된 플레이 ══');
+  console.log('  같은 씨앗에서 손만 갈아 끼운 짝 견주기. 「전역」 정산 (지금 규칙) 기준.');
+  console.log('  우세/무승부/열세 = 사망 면제를 벗긴 판에서 R4 가 살아남고 상대가 죽은 판 /');
+  console.log('  둘 다 같은 판 / 그 반대. 이 판의 승패는 사망률에서만 갈린다 (승률은 0·1 로 굳는다)');
+  const has = id => rows.some(x => x.run === id);
+  for (const [a, b, label] of PAIRS) {
+    if (!has(b)) continue;
+    console.log(`\n  ── R4 대 ${b} · ${label} ──`);
+    console.log('    ' + '보스'.padEnd(6) + '문진'.padEnd(6) + '승률 R4/상대'.padStart(14)
+                + '사망 R4/상대'.padStart(14) + '우세·무·열세'.padStart(16)
+                + '여유 R4−상대'.padStart(14) + '턴수 R4/상대'.padStart(14));
+    for (const boss of BOSSES) for (const i of INQS) {
+      const A = rows.filter(x => x.run===a && x.scope==='전역' && x.boss===boss && x.inq===i);
+      const B = rows.filter(x => x.run===b && x.scope==='전역' && x.boss===boss && x.inq===i);
+      if (!A.length || A.length !== B.length) continue;
+      const dead = x => x.bareOut === '사망';
+      let win = 0, tie = 0, lose = 0;
+      for (let k = 0; k < A.length; k++) {
+        if (dead(A[k]) === dead(B[k])) tie++;
+        else if (dead(B[k])) win++;                     // 상대만 죽었다 = R4 우세
+        else lose++;
+      }
+      const wr = R => R.filter(x => WIN_OUTS.includes(x.out)).length / R.length;
+      const dr = R => R.filter(dead).length / R.length;
+      console.log('    ' + boss.padEnd(6) + String(i).padEnd(6)
+        + `${f2(wr(A))}/${f2(wr(B))}`.padStart(14)
+        + `${f2(dr(A))}/${f2(dr(B))}`.padStart(14)
+        + `${win}·${tie}·${lose}`.padStart(16)
+        + f2(mean(A.map((x,k) => x.hp/x.hpMax - B[k].hp/B[k].hpMax))).padStart(14)
+        + `${f1(mean(A.map(x=>x.turns)))}/${f1(mean(B.map(x=>x.turns)))}`.padStart(14));
+    }
+  }
+
   console.log('\n══ ⓒ C안이 무엇을 바꾸는가 ══ 전역 대비');
   console.log('  같은 씨앗 · 같은 손에서 정산만 갈아 끼운 값. 우발 완치가 얼마나 사라지는가');
   console.log('  ' + '런'.padEnd(5) + '보스'.padEnd(6) + '전역 완치율'.padStart(13)
@@ -535,7 +579,9 @@ if (require.main === module) {
   if (arg.includes('--ladder')) { ladder(file, seeds, [0.10, 0.15, 0.20, 0.25, 0.30]); process.exit(0) }
   if (arg.includes('--win')) {
     const WDATA = path.join(__dirname, 'data', 'cure-win.json');
-    const ids = ['R1','R3','R4','R5S','R5'];
+    /* 우발 완치(R4)를 견줄 상대가 다 들어 있어야 한다 —
+       완치 정공법 둘(R1 현행 · R2 A안)과 연명 정공법 둘(R3 표준 · R3F 몰아쳐 닫기). */
+    const ids = ['R1','R2','R3','R3F','R4','R5S','R5'];
     const t1 = Date.now();
     const w = winrate(file, seeds, ids);
     fs.mkdirSync(path.dirname(WDATA), { recursive: true });

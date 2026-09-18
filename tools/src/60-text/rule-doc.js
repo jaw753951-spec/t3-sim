@@ -141,6 +141,13 @@ const RULE_DOC = {
   FREE_BASE:'명부가 없는 보스의 자리 밑값', FREE_SPREAD:'그 폭',
   DUP_BASE:'분화로 나는 자리의 밑값', DUP_SPREAD:'그 폭',
   ACT1_CAP:'자동 진행이 1막에 쓸 턴', ACT3_CAP:'자동 진행이 3막에 쓸 턴',
+  INQ_MAX:'문진 전장 버프의 단계 상한. 3막에 들어설 때 이 값에서 잘린다',
+  FIELD:'문진 단계가 방침마다 어디를 얼마나 기울이는가 (단계당). 완치 줄의 disHp 는 현행 버프이고 disLine 은 A안이다 — 한쪽을 0 으로 두고 견준다',
+  disHp:'병 노드 수치 감소 (단계당). 현행 완치 버프',
+  disLine:'병 노드 처치선 상향 (단계당). A안',
+  symLine:'부수 자리 처치선 상향 (단계당). 연명',
+  dmgDown:'환자가 받는 피해 배수에서 빼는 값 (단계당). 편하게',
+  CURE_SCOPE:'병 노드를 끊은 판을 무엇으로 정산하는가. 전역이면 어느 방침이든 완치, 방침이면 그 방침의 제 판정(연명·호전), 봉쇄면 완치 방침이 아닐 때 아예 못 끊는다',
 };
 
 const RULE_GROUP = {
@@ -158,5 +165,6 @@ const RULE_GROUP = {
       ['자리를 세울 때', ['SPOT_SPREAD','ROSTER_MISS','FREE_BASE','FREE_SPREAD','DUP_BASE','DUP_SPREAD']],
       ['자동 진행', ['ACT1_CAP','ACT3_CAP']],
       ['1막 · 진단', ['PARAM_NEED','EVID_TOTAL','EVID_AIM','CAND_BASE','ACT1_SPAWN_EVERY']],
-      ['방침', ['POLICY']]],
+      ['방침', ['POLICY']],
+      ['문진 전장 버프 · 완치 정산', ['INQ_MAX','FIELD','CURE_SCOPE']]],
 };

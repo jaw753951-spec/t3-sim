@@ -104,8 +104,12 @@ function killSel(){
   pushUndo('처치');
   if(!doKill(S,n)){
     UNDO.pop();
-    /* 왜 안 되는지 밝힌다 — 넷 중 하나다 */
+    /* 왜 안 되는지 밝힌다 — 다섯 중 하나다.
+       ★ 봉쇄(C안)를 통증 진화보다 **앞에** 묻는다. 둘 다 canKill 이 false 를 내므로,
+         뒤에 두면 병 노드를 못 끊을 때마다 「진화한 통증이 판을 잡고 있다」고 적힌다 —
+         통증이 한 자리도 없는 판에서도 그렇게 적힌다. 화면이 거짓말을 하는 꼴이다. */
     const why = S.rem ? '관해 중에는 처치할 수 없다. 관해를 끝내야 손을 댈 수 있다.'
+      : (n.role==='disease' && S.cureBlocked) ? `${S.policy} 방침에서는 병 노드를 끊을 수 없다. 이 판의 승리 조건은 따로 있다.`
       : !canKill(S,n) ? '진화한 통증이 판을 잡고 있다. 통증 말고는 아무것도 처치할 수 없다.'
       : S.energy < R.KILL_COST ? `코스트가 모자란다. 처치에 ${R.KILL_COST} 필요한데 ${S.energy} 남았다.`
       : (S.pendKill||[]).includes(S.nodes.indexOf(n)) ? '이미 예약해 둔 자리다. 다음 턴 시작에 터진다.'

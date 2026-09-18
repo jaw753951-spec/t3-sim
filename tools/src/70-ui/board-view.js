@@ -118,15 +118,23 @@ function lineSpan(S, n){
     + (why.length ? '<br><br>' + why.join('<br>') : ''), true);
 }
 
-/* 무엇이 처치선을 움직였는가 */
+/* 무엇이 처치선을 움직였는가.
+   ★ 문진 몫을 여기서 말해야 한다. 처치선의 밑값이 손잡이 하나이던 동안은 뱃지의
+     드리프트가 곧 약화와 통증이었지만, 문진이 그 밑값을 올릴 수 있게 된 뒤로는
+     아무 까닭도 못 대면서 수만 달라진다. 값은 커널이 쓴 칸(S.disLine · S.symLine)에서
+     읽는다 — 화면이 방침과 단계로 다시 셈하면 그 셈이 두 벌이 되고, 갈리는 순간
+     뱃지가 거짓말을 한다 (카드 수치와 같은 함정). */
 function lineWhy(S, n){
   const w = [];
   const per = n.role==='disease' ? R.WEAK_STACK_DIS : R.WEAK_STACK;
   if(n.weak) w.push(`약화 ${n.weak} — 처치선 +${pctOf(per*n.weak)}p`);
+  const inqAdd = n.role==='disease' ? (S.disLine||0) : (S.symLine||0);
+  if(inqAdd) w.push(`문진 ${S.inq}단계 — 처치선 밑값 +${pctOf(inqAdd)}p`);
   if(n.role!=='disease'){
     const ps = active(S).filter(x=>x.sym==='통증');
-    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
+    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE + (S.symLine||0))} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
   }
+  if(S.cureBlocked && n.role==='disease') w.push(`<b>${S.policy}</b> 방침에서는 병 노드를 끊을 수 없다`);
   return w;
 }
 

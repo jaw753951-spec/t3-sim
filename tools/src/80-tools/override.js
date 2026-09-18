@@ -56,6 +56,7 @@ function ovrSet(root, pathStr, raw){
   const orig0 = pathDig(root==='R'?R0:SR0, path);   // 권위본 값으로 형을 본다
   let v;
   if(typeof orig0 === 'boolean') v = (raw===true||raw==='true');
+  else if(typeof orig0 === 'string') v = String(raw);   // 고르개 — 목록 밖 값은 고를 수가 없다
   else { v = parseFloat(raw); if(!isFinite(v)) { delete OVRV[key]; ovrSync(); return } }
   if(v === orig0) delete OVRV[key]; else OVRV[key] = v;
   ovrSync();
@@ -112,15 +113,34 @@ function renderOvrForm(){
     if(typeof orig === 'boolean')
       return `<label class="mk"${tp}>${label}${off?' <span class="badred" style="border:0;padding:0">•</span>':''}
         <input type="checkbox" ${cur?'checked':''} onchange="ovrSet('${root}','${path.join('.')}',this.checked)"></label>`;
+    const opts = optsOf(root, path);
+    if(opts)
+      return `<label class="mk"${tp}>${label}${off?' <span class="badred" style="border:0;padding:0">•</span>':''}
+        <select onchange="ovrSet('${root}','${path.join('.')}',this.value)">${
+          opts.map(o=>`<option value="${esc(o)}"${o===cur?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
     const step = Math.abs(orig)<1 && orig!==0 ? 0.05 : 1;
     return `<label class="mk"${tp}>${label}${off?' <span class="badred" style="border:0;padding:0">•</span>':''}
       <input type="number" step="${step}" value="${cur}" onchange="ovrSet('${root}','${path.join('.')}',this.value)"></label>`;
   };
-  /* 한 열쇠 아래 숫자 잎을 전부 편다 (두 단계까지) */
+  /* 이 손잡이가 칸에 뜰 수 있는 값인가.
+     숫자 · 참거짓  늘 뜬다
+     글자          「고를 것들」이 이름 옆에 `<열쇠>_LIST` 로 적혀 있을 때만 뜬다
+   ★ 글자 손잡이가 여기 없던 동안 RUSH_SCOPE 가 덮어쓰기 칸에 아예 안 떴다.
+     안 뜨니 아무도 못 돌렸고, 안 돌리니 읽는 코드가 없다는 것도 안 드러나서
+     죽은 손잡이가 살아 있는 규칙처럼 오래 남았다. 그 구멍을 여기서 막는다 —
+     목록을 들고 있는 글자 손잡이는 고르개로 뜬다. */
+  const optsOf = (root, path) => {
+    if(path.length !== 1) return null;                       // 잎 하나짜리 손잡이만 본다
+    const list = pathDig(root==='R'?R0:SR0, [path[0]+'_LIST']);
+    return Array.isArray(list) && list.length ? list : null;
+  };
+
+  /* 한 열쇠 아래 잎을 전부 편다 (두 단계까지) */
   const leaves = (root, k) => {
     const v = pathDig(root==='R'?R0:SR0, [k]);
     if(v === undefined) return [];
     if(typeof v === 'number' || typeof v === 'boolean') return [[k]];
+    if(typeof v === 'string') return optsOf(root, [k]) ? [[k]] : [];
     if(v && typeof v === 'object' && !Array.isArray(v)){
       const out = [];
       for(const k2 in v){

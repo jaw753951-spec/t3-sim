@@ -7,6 +7,7 @@
      node lab/cure.js --file <html>       → 잴 파일을 정해서 (기본 = 루트 결과물)
      node lab/cure.js --report            → 이미 잰 lab/data/cure.json 만 다시 읽어 보고
      node lab/cure.js --ladder            → A안 단계당 값을 올려 가며 R2 를 다시 잰다 (§6-1)
+     node lab/cure.js --win               → 방침별 승률 · 판정 분포 · 사망률 (C안 셋을 나란히)
 
    ── 이 자가 measure.js 와 따로 있는 까닭 ────────────────────────────
    measure.js 는 보스 × 방침 격자를 잰다. 이쪽은 **런** 격자다 — 같은 방침을
@@ -54,8 +55,15 @@ const RUNS = [
   { id: 'R3', pol: '연명',   hand: '표준',       field: null, desc: '표준 (기준선)' },
   { id: 'R3F',pol: '연명',   hand: '자리닫기',   field: null, desc: '몰아쳐 자리 닫기' },
   { id: 'R4', pol: '연명',   hand: '병노드타격', field: null, desc: '자리 유지 + 병 노드 타격' },
+  { id: 'R5S',pol: '편하게', hand: '표준',       field: null, desc: '표준 (기준선)' },
   { id: 'R5', pol: '편하게', hand: '병노드타격', field: null, desc: '배수 관리 + 병 노드 타격' },
 ];
+
+/* 방침마다 '제 판정' 이 무엇인가 — 승률을 셀 때 이 표 하나를 본다.
+   두 곳에 따로 적으면 편하게의 승리 이름(호전)이 한쪽에서만 바뀐다. */
+const OWN_WIN = { 완치:'완치', 연명:'연명', 편하게:'호전' };
+/* 이기고 끝난 판정 한 벌. 이 밖은 전부 진 것이다 (악화 · 사망) */
+const WIN_OUTS = ['완치','연명','호전'];
 
 /* B안 후보값 — 자리 하나를 닫을 때 **늘어나는** 병 노드 공격 (인계 §2 B안 표).
    ★ 이 시뮬에는 병 노드가 환자를 직접 때리는 규칙이 없다. 그래서 이 값을 판에
@@ -86,9 +94,12 @@ function load(file) {
      그 사이에 끼는 것이 없어 그 값이 곧 그 타격의 코스트다. 이 붙임은 그 두 줄이
      붙어 있다는 데 기댄다 — storyTurn 의 그 갈래를 옮기면 여기가 조용히 빗나간다.
      (빗나가면 여유 화력이 병 노드 몫만큼 작게 나온다) */
-const PROBE = `((boss, policy, hand, inq, seed) => {
+const PROBE = `((boss, policy, hand, inq, seed, noDeath) => {
   const rng = K.mulberry32(seed);
   const board = makeDisease(boss, rng);
+  /* 그림자 판 — 사망 면제를 실제로 걷는다. 보스 셋이 전부 noDeath 라 이것을 안 걷으면
+     사망률이 정의상 0 이고 「편하게」 승률이 구조적으로 1.00 이다 (measure.js 와 같은 잣대). */
+  if (noDeath === false) board.noDeath = false;
   const S = K.newState(board, {}); S.board = board; S.rng = rng;
   const deck = typeof STORY_DECK !== 'undefined' ? STORY_DECK : C.DECK_D2;
   C.setupDeck(S, deck, K.mulberry32(seed + 1)); S.rng = rng;
@@ -103,9 +114,14 @@ const PROBE = `((boss, policy, hand, inq, seed) => {
                 lastCost:0, turn:0 };
   const put = (k, amt) => { LED.book[k] = (LED.book[k]||0) + amt };
 
-  /* ── 피해 장부 (measure.js 와 같은 자) ── */
-  if (typeof turnDmg === 'function') {
-    const origTD = turnDmg;
+  /* ── 피해 장부 (measure.js 와 같은 자) ──
+     ★ 감싼 것을 finally 에서 반드시 벗긴다. 처음에는 벗기지 않고 부르는 쪽이
+       원본을 되돌리게 뒀는데, 그러면 판마다 껍질이 한 겹씩 쌓인다 —
+       판정은 안 틀리지만(껍질마다 제 장부에 적고 값은 그대로 넘긴다) 호출이 깊어져
+       느려지다가 결국 「Maximum call stack size exceeded」로 터진다.
+       5040판 쓸기는 겨우 버티고 10800판 쓸기에서 터졌다. 감싼 자가 벗긴다. */
+  const origTD = typeof turnDmg === 'function' ? turnDmg : null;
+  if (origTD) {
     turnDmg = n => { const v = origTD(n);
       if (v > 0) { (LED.turnPend = LED.turnPend || {})[n.sym] = (LED.turnPend[n.sym] || 0) + v }
       return v };
@@ -202,6 +218,7 @@ const PROBE = `((boss, policy, hand, inq, seed) => {
     hurtPatient = origHurt; K.turnResolve = origTR; turnResolve = origTR;
     evolveNow = origEvolve; storyTurn = origST;
     C.cardCost = origCost; C.play = origPlay; hitDisease = origHit;
+    if (origTD) turnDmg = origTD;
   }
   const book = {}; for (const k in LED.book) book[k] = Math.round(LED.book[k]*100)/100;
   const per = LED.supCost > 0 ? LED.supRaw / LED.supCost : 0;
@@ -233,10 +250,8 @@ function run(file, seeds) {
   for (const r of RUNS) {
     ev(`Object.assign(SR.FIELD, ${JSON.stringify(base ? JSON.parse(base) : {})})`);   // 런마다 원래 표로 되돌린다
     if (r.field) ev(`Object.assign(SR.FIELD, ${JSON.stringify(r.field)})`);
-    for (const boss of BOSSES) for (const inq of INQS) for (const seed of seeds) {
-      ev(`if (globalThis.__td) turnDmg = globalThis.__td`);
+    for (const boss of BOSSES) for (const inq of INQS) for (const seed of seeds)
       rows.push({ run: r.id, pol: r.pol, hand: r.hand, boss, inq, seed, ...probe(boss, r.pol, r.hand, inq, seed) });
-    }
   }
   ev(`Object.assign(SR.FIELD, ${JSON.stringify(base ? JSON.parse(base) : {})})`);
   return rows;
@@ -405,6 +420,110 @@ function ladder(file, seeds, vals) {
   ev(`Object.assign(SR.FIELD, ${JSON.stringify(base)})`);
 }
 
+/* ── 승률 ── 방침마다 얼마나 이기는가. C안 셋을 나란히 놓는다 ─────────────
+   ★ 여기서 재는 승률은 **판정에 안 쓴다** (인계 §3-5 — 같은 확정본에서 0.43~0.58
+     까지 흔들린다). 그래도 재는 까닭은 C안이 '판정 이름' 을 바꾸는 안이기 때문이다:
+     여유나 피해로는 C안 셋이 서로 구별되지 않는다. 같은 수를 두고 같은 피해를 받고
+     끝에 적히는 이름만 달라지는 판이 있어서, 그 이름을 세는 자가 따로 있어야 한다.
+   ★ 흔들림을 숨기지 않으려고 씨앗을 앞뒤 반으로 갈라 둘 다 찍는다. 두 반쪽이
+     벌어진 폭이 곧 이 수를 믿을 수 있는 자리수다. */
+function winrate(file, seeds, ids) {
+  const ev = load(file);
+  const probe = ev(PROBE_FIX);
+  const base = JSON.parse(ev(`JSON.stringify(SR.FIELD)`));
+  const scopes = JSON.parse(ev(`JSON.stringify(SR.CURE_SCOPE_LIST)`));
+  const use = RUNS.filter(r => ids.includes(r.id));
+  const rows = [];
+  for (const sc of scopes) {
+    ev(`SR.CURE_SCOPE = ${JSON.stringify(sc)}`);
+    for (const r of use) {
+      ev(`Object.assign(SR.FIELD, ${JSON.stringify(base)})`);
+      if (r.field) ev(`Object.assign(SR.FIELD, ${JSON.stringify(r.field)})`);
+      for (const boss of BOSSES) for (const inq of INQS) for (const seed of seeds) {
+        const real = probe(boss, r.pol, r.hand, inq, seed, true);
+        const bare = probe(boss, r.pol, r.hand, inq, seed, false);
+        rows.push({ scope: sc, run: r.id, pol: r.pol, hand: r.hand, boss, inq, seed,
+                    out: real.out, turns: real.turns, hp: real.hp, hpMax: real.hpMax,
+                    bareOut: bare.out, bareTurns: bare.turns });
+      }
+    }
+  }
+  ev(`SR.CURE_SCOPE = ${JSON.stringify(scopes[0])}`);
+  ev(`Object.assign(SR.FIELD, ${JSON.stringify(base)})`);
+  return rows;
+}
+
+function winReport(rows) {
+  const scopes = [...new Set(rows.map(r => r.scope))];
+  const ids = [...new Set(rows.map(r => r.run))];
+  const half = r => r.seed < med(rows.map(x => x.seed));
+  const rate = (R, f) => R.length ? R.filter(f).length / R.length : 0;
+
+  console.log('\n══ ⓐ 방침별 승률 ══');
+  console.log('  승률 = 악화·사망이 아닌 판의 비율. 제판정 = 그 방침의 제 이름으로 끝난 비율');
+  console.log('  (완치→완치 · 연명→연명 · 편하게→호전). 둘이 갈리는 폭이 곧 우발 완치다');
+  console.log('  ±는 씨앗을 앞뒤 반으로 가른 두 값의 차 — 이만큼은 표본이 흔드는 값이다');
+  for (const boss of BOSSES) {
+    console.log(`\n  ── ${boss} ──`);
+    console.log('    ' + '런'.padEnd(5) + '정산'.padEnd(6) + INQS.map(i => `문진${i}`.padStart(21)).join(''));
+    for (const id of ids) for (const sc of scopes) {
+      const cells = INQS.map(i => {
+        const R = rows.filter(x => x.run===id && x.scope===sc && x.boss===boss && x.inq===i);
+        const own = OWN_WIN[R[0] ? R[0].pol : ''];
+        const w = rate(R, x => WIN_OUTS.includes(x.out));
+        const o = rate(R, x => x.out === own);
+        const A = R.filter(half), B = R.filter(x => !half(x));
+        const j = Math.abs(rate(A, x => WIN_OUTS.includes(x.out)) - rate(B, x => WIN_OUTS.includes(x.out)));
+        return `${f2(w)} / ${f2(o)} ±${f2(j)}`.padStart(21);
+      });
+      console.log('    ' + id.padEnd(5) + sc.padEnd(6) + cells.join(''));
+    }
+    console.log('    (칸: 승률 / 제판정률 ± 반쪽 차)');
+  }
+
+  console.log('\n══ ⓑ 판정 분포 ══ 어느 이름으로 끝나는가 (문진 단계를 합친 값)');
+  const OUTS = ['완치','연명','호전','악화','사망'];
+  console.log('  ' + '런'.padEnd(5) + '정산'.padEnd(6) + '보스'.padEnd(6)
+              + OUTS.map(o => o.padStart(8)).join('') + '사망(벗김)'.padStart(12) + '턴수'.padStart(8));
+  for (const id of ids) for (const sc of scopes) for (const boss of BOSSES) {
+    const R = rows.filter(x => x.run===id && x.scope===sc && x.boss===boss);
+    console.log('  ' + id.padEnd(5) + sc.padEnd(6) + boss.padEnd(6)
+      + OUTS.map(o => f2(rate(R, x => x.out === o)).padStart(8)).join('')
+      + f2(rate(R, x => x.bareOut === '사망')).padStart(12)
+      + f1(mean(R.map(x => x.turns))).padStart(8));
+  }
+
+  console.log('\n══ ⓓ 사망률 (사망 면제를 벗긴 짝) ══');
+  console.log('  보스 셋이 전부 noDeath 라 위의 승률은 0 아니면 1 로 굳는다 — 질 방법이 없다.');
+  console.log('  면제를 실제로 걷고 같은 씨앗으로 다시 돌린 판에서 재는 이 값이 이 판의 진짜 패배율이다.');
+  for (const boss of BOSSES) {
+    console.log(`\n  ── ${boss} ──`);
+    console.log('    ' + '런'.padEnd(5) + '정산'.padEnd(6) + INQS.map(i => `문진${i}`.padStart(10)).join('') + '전체'.padStart(10));
+    for (const id of ids) for (const sc of scopes) {
+      const all = rows.filter(x => x.run===id && x.scope===sc && x.boss===boss);
+      const cells = INQS.map(i => f2(rate(all.filter(x => x.inq===i), x => x.bareOut==='사망')).padStart(10));
+      console.log('    ' + id.padEnd(5) + sc.padEnd(6) + cells.join('') + f2(rate(all, x => x.bareOut==='사망')).padStart(10));
+    }
+  }
+
+  console.log('\n══ ⓒ C안이 무엇을 바꾸는가 ══ 전역 대비');
+  console.log('  같은 씨앗 · 같은 손에서 정산만 갈아 끼운 값. 우발 완치가 얼마나 사라지는가');
+  console.log('  ' + '런'.padEnd(5) + '보스'.padEnd(6) + '전역 완치율'.padStart(13)
+              + '방침 완치율'.padStart(13) + '봉쇄 완치율'.padStart(13)
+              + '방침 승률차'.padStart(13) + '봉쇄 승률차'.padStart(13));
+  for (const id of ids) for (const boss of BOSSES) {
+    const at = sc => rows.filter(x => x.run===id && x.scope===sc && x.boss===boss);
+    const g = at('전역'), p = at('방침'), b = at('봉쇄');
+    if (!g.length) continue;
+    console.log('  ' + id.padEnd(5) + boss.padEnd(6)
+      + f2(rate(g, x => x.out==='완치')).padStart(13)
+      + f2(rate(p, x => x.out==='완치')).padStart(13)
+      + f2(rate(b, x => x.out==='완치')).padStart(13)
+      + f2(rate(p, x => WIN_OUTS.includes(x.out)) - rate(g, x => WIN_OUTS.includes(x.out))).padStart(13)
+      + f2(rate(b, x => WIN_OUTS.includes(x.out)) - rate(g, x => WIN_OUTS.includes(x.out))).padStart(13));
+  }
+}
+
 if (require.main === module) {
   const arg = process.argv.slice(2);
   const opt = (k, d) => { const i = arg.indexOf(k); return i >= 0 ? arg[i+1] : d };
@@ -414,6 +533,17 @@ if (require.main === module) {
   const file = opt('--file', path.join(__dirname, '..', '..', 'intern_sim.html'));
   const seeds = seedList(n);
   if (arg.includes('--ladder')) { ladder(file, seeds, [0.10, 0.15, 0.20, 0.25, 0.30]); process.exit(0) }
+  if (arg.includes('--win')) {
+    const WDATA = path.join(__dirname, 'data', 'cure-win.json');
+    const ids = ['R1','R3','R4','R5S','R5'];
+    const t1 = Date.now();
+    const w = winrate(file, seeds, ids);
+    fs.mkdirSync(path.dirname(WDATA), { recursive: true });
+    fs.writeFileSync(WDATA, JSON.stringify({ file: path.basename(file), seeds: n, rows: w }));
+    console.log(`잰 판 ${w.length*2} · ${((Date.now()-t1)/1000).toFixed(1)}초 (사망 면제 벗긴 짝까지)`);
+    winReport(w);
+    process.exit(0);
+  }
   const t0 = Date.now();
   const rows = run(file, seeds);
   fs.mkdirSync(path.dirname(DATA), { recursive: true });

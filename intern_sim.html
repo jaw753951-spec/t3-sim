@@ -1300,6 +1300,9 @@ const SR = {
     편하게: {dmgDown:0.10},
   },
 
+  CURE_SCOPE: '전역',
+  CURE_SCOPE_LIST: ['전역','방침','봉쇄'],
+
   BEAT: {
     성장:       0.15,   // 성장 비트 — 살아 있는 부수 자리 전부. 폴백으로도 쓴다
     몰린다:     0.40,   // 가장 옅은 자리 하나만 크게
@@ -2008,6 +2011,7 @@ function mind(S,d){
 //@ 커널.처치 — 처치 · 광역 억제 보상 · 반응 발동
 function canKill(S,n){
   if(n.dead) return false;
+  if(n.role==='disease' && S.cureBlocked) return false;
   if(n.sym!=='통증' && S.nodes.some(x=>!x.dead && x.val>0 && x.sym==='통증' && x.evolved)) return false;
   return reaction(S,n)!==null;
 }
@@ -3025,6 +3029,7 @@ function applyPolicy(S, dis, policy, correct, inq){
   S.disLine = (F.disLine||0) * S.inq;
   S.symLine = (F.symLine||0) * S.inq;
   S.dmgDown = (F.dmgDown||0) * S.inq;
+  S.cureBlocked = (SR.CURE_SCOPE === '봉쇄' && policy !== '완치');
   if(!P) return null;
   if(correct){                                   // 오진이면 디버프가 안 붙는다
     dis.val = Math.ceil(dis.val*(1-P.disCut));
@@ -3059,9 +3064,15 @@ function storyTick(S){
   S.comfort = K.comfortCuts(S).length;
 }
 
+//@ 스토리.완치정산 — 병을 끊은 판을 무엇으로 적는가
+function cureVerdict(policy){
+  if(SR.CURE_SCOPE !== '방침') return '완치';
+  return policy==='연명' ? '연명' : policy==='편하게' ? '호전' : '완치';
+}
+
 function storyVerdict(S, dis, policy){
   if(S.hp<=0 && !S.board.noDeath) return '사망';
-  if(dis.dead) return '완치';   // 어떤 방침으로 들어갔든 병을 끊었으면 완치다.
+  if(dis.dead) return cureVerdict(policy);
   if(!policy) return null;
   if(policy==='연명' && !dis.dead && !S.wiped
      && !S.nodes.some(n=>n.role!=='disease' && !n.dead && n.val>0)) return '연명';
@@ -3154,7 +3165,8 @@ function storyTurn(S, dis, policy, hand){
   while(S.played<R.PLAY_CAP && guard++<40){
     if(S.hand.includes('소매를 걷습니다') && C.canPlay(S,'소매를 걷습니다')){ C.play(S,'소매를 걷습니다'); continue }
     if(S.energy<=0) break;
-    if(!dis.dead && (aimDis || policy==='완치') && K.reaction(S,dis)!==null && S.energy>=R.KILL_COST){
+    if(!dis.dead && !S.cureBlocked && (aimDis || policy==='완치')
+       && K.reaction(S,dis)!==null && S.energy>=R.KILL_COST){
       S.energy-=R.KILL_COST; dis.dead=true; S.played++;
       if(S.rec) S.rec.push('처치 병 노드'); return;
     }
@@ -3162,9 +3174,10 @@ function storyTurn(S, dis, policy, hand){
     let killable = others.filter(n=>K.reaction(S,n)!==null);
     const comfortFirst = aimDis && policy==='편하게'
       && others.some(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted);
-    const wantDis = aimDis ? !comfortFirst
-                           : (policy==='완치' && dis.val > 0
-                              && (!others.length || (S.played>0 && !killable.length)));
+    const canAimDis = aimDis && !S.cureBlocked;
+    const wantDis = canAimDis ? !comfortFirst
+                              : (policy==='완치' && dis.val > 0
+                                 && (!others.length || (S.played>0 && !killable.length)));
 
     const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
     if(!sup.length) break;
@@ -3176,7 +3189,7 @@ function storyTurn(S, dis, policy, hand){
       const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
       continue;
     }
-    if(!aimDis){
+    if(!canAimDis){
       const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
       if(kn && S.energy>=R.KILL_COST){
         if(K.doKill(S,kn)){ S.played++; continue }
@@ -3185,7 +3198,7 @@ function storyTurn(S, dis, policy, hand){
     }
     const tgt = comfortFirst
       ? others.filter(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted).sort((a,b)=>a.val-b.val)[0]
-      : closeFirst
+      : (closeFirst || (aimDis && S.cureBlocked))
         ? others.slice().sort((a,b)=>(a.val-K.killLine(S,a))-(b.val-K.killLine(S,b)))[0]
         : others.sort((a,b)=>b.val-a.val)[0];
     if(!tgt) break;
@@ -3822,6 +3835,13 @@ const RULE_DOC = {
   FREE_BASE:'명부가 없는 보스의 자리 밑값', FREE_SPREAD:'그 폭',
   DUP_BASE:'분화로 나는 자리의 밑값', DUP_SPREAD:'그 폭',
   ACT1_CAP:'자동 진행이 1막에 쓸 턴', ACT3_CAP:'자동 진행이 3막에 쓸 턴',
+  INQ_MAX:'문진 전장 버프의 단계 상한. 3막에 들어설 때 이 값에서 잘린다',
+  FIELD:'문진 단계가 방침마다 어디를 얼마나 기울이는가 (단계당). 완치 줄의 disHp 는 현행 버프이고 disLine 은 A안이다 — 한쪽을 0 으로 두고 견준다',
+  disHp:'병 노드 수치 감소 (단계당). 현행 완치 버프',
+  disLine:'병 노드 처치선 상향 (단계당). A안',
+  symLine:'부수 자리 처치선 상향 (단계당). 연명',
+  dmgDown:'환자가 받는 피해 배수에서 빼는 값 (단계당). 편하게',
+  CURE_SCOPE:'병 노드를 끊은 판을 무엇으로 정산하는가. 전역이면 어느 방침이든 완치, 방침이면 그 방침의 제 판정(연명·호전), 봉쇄면 완치 방침이 아닐 때 아예 못 끊는다',
 };
 
 const RULE_GROUP = {
@@ -3839,7 +3859,8 @@ const RULE_GROUP = {
       ['자리를 세울 때', ['SPOT_SPREAD','ROSTER_MISS','FREE_BASE','FREE_SPREAD','DUP_BASE','DUP_SPREAD']],
       ['자동 진행', ['ACT1_CAP','ACT3_CAP']],
       ['1막 · 진단', ['PARAM_NEED','EVID_TOTAL','EVID_AIM','CAND_BASE','ACT1_SPAWN_EVERY']],
-      ['방침', ['POLICY']]],
+      ['방침', ['POLICY']],
+      ['문진 전장 버프 · 완치 정산', ['INQ_MAX','FIELD','CURE_SCOPE']]],
 };
 
 //@ 파일.60-text/patch-notes
@@ -4545,10 +4566,13 @@ function lineWhy(S, n){
   const w = [];
   const per = n.role==='disease' ? R.WEAK_STACK_DIS : R.WEAK_STACK;
   if(n.weak) w.push(`약화 ${n.weak} — 처치선 +${pctOf(per*n.weak)}p`);
+  const inqAdd = n.role==='disease' ? (S.disLine||0) : (S.symLine||0);
+  if(inqAdd) w.push(`문진 ${S.inq}단계 — 처치선 밑값 +${pctOf(inqAdd)}p`);
   if(n.role!=='disease'){
     const ps = active(S).filter(x=>x.sym==='통증');
-    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE)} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
+    if(ps.length) w.push(`통증 ${ps.length}자리 — 처치선 몫이 ${pctOf(R.KILL_LINE + (S.symLine||0))} 에서 ${pctOf(painShare(S))} 로 눌렸다`);
   }
+  if(S.cureBlocked && n.role==='disease') w.push(`<b>${S.policy}</b> 방침에서는 병 노드를 끊을 수 없다`);
   return w;
 }
 
@@ -4936,6 +4960,7 @@ function killSel(){
   if(!doKill(S,n)){
     UNDO.pop();
     const why = S.rem ? '관해 중에는 처치할 수 없다. 관해를 끝내야 손을 댈 수 있다.'
+      : (n.role==='disease' && S.cureBlocked) ? `${S.policy} 방침에서는 병 노드를 끊을 수 없다. 이 판의 승리 조건은 따로 있다.`
       : !canKill(S,n) ? '진화한 통증이 판을 잡고 있다. 통증 말고는 아무것도 처치할 수 없다.'
       : S.energy < R.KILL_COST ? `코스트가 모자란다. 처치에 ${R.KILL_COST} 필요한데 ${S.energy} 남았다.`
       : (S.pendKill||[]).includes(S.nodes.indexOf(n)) ? '이미 예약해 둔 자리다. 다음 턴 시작에 터진다.'
@@ -7594,6 +7619,7 @@ function ovrSet(root, pathStr, raw){
   const orig0 = pathDig(root==='R'?R0:SR0, path);   // 권위본 값으로 형을 본다
   let v;
   if(typeof orig0 === 'boolean') v = (raw===true||raw==='true');
+  else if(typeof orig0 === 'string') v = String(raw);   // 고르개 — 목록 밖 값은 고를 수가 없다
   else { v = parseFloat(raw); if(!isFinite(v)) { delete OVRV[key]; ovrSync(); return } }
   if(v === orig0) delete OVRV[key]; else OVRV[key] = v;
   ovrSync();
@@ -7648,14 +7674,26 @@ function renderOvrForm(){
     if(typeof orig === 'boolean')
       return `<label class="mk"${tp}>${label}${off?' <span class="badred" style="border:0;padding:0">•</span>':''}
         <input type="checkbox" ${cur?'checked':''} onchange="ovrSet('${root}','${path.join('.')}',this.checked)"></label>`;
+    const opts = optsOf(root, path);
+    if(opts)
+      return `<label class="mk"${tp}>${label}${off?' <span class="badred" style="border:0;padding:0">•</span>':''}
+        <select onchange="ovrSet('${root}','${path.join('.')}',this.value)">${
+          opts.map(o=>`<option value="${esc(o)}"${o===cur?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`;
     const step = Math.abs(orig)<1 && orig!==0 ? 0.05 : 1;
     return `<label class="mk"${tp}>${label}${off?' <span class="badred" style="border:0;padding:0">•</span>':''}
       <input type="number" step="${step}" value="${cur}" onchange="ovrSet('${root}','${path.join('.')}',this.value)"></label>`;
   };
+  const optsOf = (root, path) => {
+    if(path.length !== 1) return null;                       // 잎 하나짜리 손잡이만 본다
+    const list = pathDig(root==='R'?R0:SR0, [path[0]+'_LIST']);
+    return Array.isArray(list) && list.length ? list : null;
+  };
+
   const leaves = (root, k) => {
     const v = pathDig(root==='R'?R0:SR0, [k]);
     if(v === undefined) return [];
     if(typeof v === 'number' || typeof v === 'boolean') return [[k]];
+    if(typeof v === 'string') return optsOf(root, [k]) ? [[k]] : [];
     if(v && typeof v === 'object' && !Array.isArray(v)){
       const out = [];
       for(const k2 in v){

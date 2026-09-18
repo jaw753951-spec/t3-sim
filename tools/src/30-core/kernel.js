@@ -406,6 +406,10 @@ function mind(S,d){
 //@ 커널.처치 — 처치 · 광역 억제 보상 · 반응 발동
 function canKill(S,n){
   if(n.dead) return false;
+  /* 이 판에서 병 노드를 끊는 수가 막혀 있는가 (C안 「봉쇄」).
+     적는 자는 applyPolicy 하나고 커널은 이 칸만 읽는다 — 스토리 아닌 판에는
+     칸이 없어 undefined 이고, 그때는 막히지 않는다. */
+  if(n.role==='disease' && S.cureBlocked) return false;
   // 통증 진화 — 통증 아닌 자리는 끊지 못한다. 판마다 부르는 자리라 배열을 만들지 않는다
   if(n.sym!=='통증' && S.nodes.some(x=>!x.dead && x.val>0 && x.sym==='통증' && x.evolved)) return false;
   return reaction(S,n)!==null;

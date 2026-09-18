@@ -369,6 +369,11 @@ function applyPolicy(S, dis, policy, correct, inq){
   S.disLine = (F.disLine||0) * S.inq;
   S.symLine = (F.symLine||0) * S.inq;
   S.dmgDown = (F.dmgDown||0) * S.inq;
+  /* C안 「봉쇄」 — 이 방침에서는 병 노드를 끊는 수 자체가 없다.
+     커널이 SR 을 안 읽게 여기서 갈라 S 에 적는다 (S.disLine 과 같은 잣대).
+     canKill 이 이 칸 하나만 보므로 손 · 자동 진행 · 빔 탐색이 같은 답을 얻는다 —
+     v19 의 통증 진화 봉쇄는 AI 의 수 고르기에만 걸려 있어서 사람만 뚫을 수 있었다. */
+  S.cureBlocked = (SR.CURE_SCOPE === '봉쇄' && policy !== '완치');
   if(!P) return null;
   if(correct){                                   // 오진이면 디버프가 안 붙는다
     dis.val = Math.ceil(dis.val*(1-P.disCut));
@@ -407,12 +412,22 @@ function storyTick(S){
   S.comfort = K.comfortCuts(S).length;
 }
 
+/* 병 노드가 끊긴 판을 무엇으로 정산하는가 — C안이 정하는 자리.
+   전역이면 늘 완치다. 방침이면 그 방침의 제 판정으로 내려앉는다.
+   ★ null 을 돌려주지 않는다. 병이 끊긴 판은 어느 안에서든 **거기서 끝난다** —
+     v19 는 완치 방침에서만 완치를 봐서, 연명 중 병을 끊으면 판정이 영영 안 나고
+     턴만 흘렀다. 죽은 병 노드가 악보를 마저 두는 판이 그때 나왔다.
+   ★ 「봉쇄」는 여기 안 온다. 그쪽은 애초에 못 끊게 막는 안이라 dis.dead 가 안 선다. */
+//@ 스토리.완치정산 — 병을 끊은 판을 무엇으로 적는가
+function cureVerdict(policy){
+  if(SR.CURE_SCOPE !== '방침') return '완치';
+  return policy==='연명' ? '연명' : policy==='편하게' ? '호전' : '완치';
+}
+
 /* 판정 — 읽기만 한다. 방침마다 이기는 조건이 다르다 */
 function storyVerdict(S, dis, policy){
   if(S.hp<=0 && !S.board.noDeath) return '사망';
-  if(dis.dead) return '완치';   // 어떤 방침으로 들어갔든 병을 끊었으면 완치다.
-                                //  v19 는 완치 방침에서만 봐서, 연명 중 병을 끊으면
-                                //  판정이 영영 나지 않고 턴만 흘렀다.
+  if(dis.dead) return cureVerdict(policy);
   if(!policy) return null;
   /* v25 — 활성 부수 자리가 하나도 없으면 이긴다. 병 노드는 보지 않는다.
      휴면도 '비운 것'으로 센다 — 눌러서 내보냈고 병은 그대로다. */
@@ -547,8 +562,12 @@ function storyTurn(S, dis, policy, hand){
          반응을 함께 터뜨린다. 병 노드에는 배선이 없어 반응은 헛돌고 광역 억제는
          이긴 뒤에 도는 값이라 결과가 같지만, 봉쇄는 결과를 바꾼다 —
          「통증이 진화해 있으면 병을 못 끊는다」는 규칙이 없으므로 여기를 안 지난다.
-         되살리려면 그 봉쇄를 병 노드에도 걸 것인지부터 정해야 한다. */
-    if(!dis.dead && (aimDis || policy==='완치') && K.reaction(S,dis)!==null && S.energy>=R.KILL_COST){
+         되살리려면 그 봉쇄를 병 노드에도 걸 것인지부터 정해야 한다.
+       ★ 그 대신 S.cureBlocked 는 손으로 본다 (C안 「봉쇄」). canKill 을 안 지나는
+         길이 여기 하나뿐이라, 여기서 안 물으면 자동 진행만 봉쇄를 뚫는다 —
+         v19 의 통증 진화 봉쇄가 정확히 그 반대꼴로 틀렸던 자리다. */
+    if(!dis.dead && !S.cureBlocked && (aimDis || policy==='완치')
+       && K.reaction(S,dis)!==null && S.energy>=R.KILL_COST){
       S.energy-=R.KILL_COST; dis.dead=true; S.played++;
       if(S.rec) S.rec.push('처치 병 노드'); return;
     }
@@ -565,9 +584,13 @@ function storyTurn(S, dis, policy, hand){
        동안은 먼저 눌러 배수를 관리하고 남는 손으로 병을 친다 — 인계 §4 R5 의 손이다. */
     const comfortFirst = aimDis && policy==='편하게'
       && others.some(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted);
-    const wantDis = aimDis ? !comfortFirst
-                           : (policy==='완치' && dis.val > 0
-                              && (!others.length || (S.played>0 && !killable.length)));
+    /* 봉쇄된 판에서는 병 노드를 쳐 봐야 끊을 수가 없다. 그래도 치게 두면 이 손이
+       30턴을 병에 붓고 판정 없이 끝나, C안 「봉쇄」가 「아무것도 안 한 판」으로 잰다.
+       막혔으면 제 방침의 승리 조건으로 돌아간다 — 그것이 봉쇄가 노리는 행동 변화다. */
+    const canAimDis = aimDis && !S.cureBlocked;
+    const wantDis = canAimDis ? !comfortFirst
+                              : (policy==='완치' && dis.val > 0
+                                 && (!others.length || (S.played>0 && !killable.length)));
 
     const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
     if(!sup.length) break;
@@ -582,7 +605,7 @@ function storyTurn(S, dis, policy, hand){
     /* 부수 증상 — 뽑을 수 있으면 뽑는다.
        병노드타격은 안 뽑는다. 자리를 닫으면 연명 승리가 먼저 떨어져 이 손이 재려는
        것(우발 완치)이 아예 안 일어나고, 광역 억제가 다른 자리까지 함께 재운다. */
-    if(!aimDis){
+    if(!canAimDis){
       const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
       /* v25 버그 — doKill 은 이미 예약된 자리에 false 를 돌려준다. 그 반환을 안 봐서
          공황 판에서 같은 자리를 열 번 다시 예약하며 턴을 통째로 태웠다. */
@@ -598,7 +621,7 @@ function storyTurn(S, dis, policy, hand){
          그 밖      가장 굵은 자리 */
     const tgt = comfortFirst
       ? others.filter(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted).sort((a,b)=>a.val-b.val)[0]
-      : closeFirst
+      : (closeFirst || (aimDis && S.cureBlocked))
         ? others.slice().sort((a,b)=>(a.val-K.killLine(S,a))-(b.val-K.killLine(S,b)))[0]
         : others.sort((a,b)=>b.val-a.val)[0];
     if(!tgt) break;

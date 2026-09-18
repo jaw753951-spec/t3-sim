@@ -123,20 +123,37 @@ function painMul(S){
   return m;
 }
 
+/* 처치선의 밑값 둘 — 손잡이(R)가 정한 값에 **판이 얹은 몫**을 더한다.
+   판이 얹는 몫은 S 에 적혀 있고, 적는 자는 applyPolicy 하나뿐이다 (문진 전장 버프).
+   외래·왕진 판에는 그 칸이 아예 없다 — undefined 는 0 으로 읽히므로 손잡이 값 그대로다.
+
+   ★ 커널이 SR.FIELD 를 직접 읽지 않는 까닭. 이 구간은 스토리를 모르는 층이고,
+     같은 함수가 스토리 아닌 판에도 돈다. 스토리 표를 여기서 읽으면 층이 뒤집히고,
+     무엇보다 '지금 판의 처치선' 을 묻는 자리가 방침·문진 단계를 다시 셈해야 한다 —
+     그 셈이 두 벌이 되는 순간 화면 예고와 실제 판정이 갈린다 (supAmt 와 같은 함정). */
+function symLineBase(S){ return R.KILL_LINE + (S.symLine||0) }
+function disLineBase(S){ return R.DIS_KILL_LINE + (S.disLine||0) }
+
 /* 통증이 깎고 남은 처치선 몫. 하한을 여기에 건다 —
    통증은 곱, 약화는 그 위에 합.
    하한을 통증 몫에만 걸어 두면 약화가 죽는 구간이 생기지 않는다.
-   하한을 최종 비율에 걸면 통증 둘일 때 약화 2스택이 하한에 먹혀 아무 일도 안 한다. */
-function painShare(S){ return Math.max(R.PAIN_FLOOR, R.KILL_LINE * painMul(S)) }
+   하한을 최종 비율에 걸면 통증 둘일 때 약화 2스택이 하한에 먹혀 아무 일도 안 한다.
+   판이 얹은 몫은 통증배율 **안쪽**에 든다 — 연명 버프가 「초기값의 65%」를 말하는 것은
+   통증이 없을 때의 값이고, 통증은 그 위에서 여전히 반으로 깎는다. */
+function painShare(S){ return Math.max(R.PAIN_FLOOR, symLineBase(S) * painMul(S)) }
 
 /* 처치선 ────────────────────────────────────────────
-   증상  = 초기값 × min(100%, max(25%, 50% × 통증배율) + 5%p × 약화스택)
-   병    = 초기값 × min(100%, 0% + 2.5%p × 약화스택)   — 약화가 반만 먹는다
-   통증은 병 노드의 처치선을 건드리지 않는다. 0에 무엇을 곱해도 0이라 뜻이 없다. */
+   증상  = 초기값 × min(100%, max(25%, (50% + 판이 얹은 몫) × 통증배율) + 5%p × 약화스택)
+   병    = 초기값 × min(100%, (0% + 판이 얹은 몫) + 2.5%p × 약화스택)   — 약화가 반만 먹는다
+
+   통증은 병 노드의 처치선을 건드리지 않는다. 밑값이 0 이던 동안은 「0에 무엇을 곱해도
+   0」이라 물을 것도 없었지만, 판이 그 선을 올릴 수 있게 된 뒤로는 고르고 남긴 자리다 —
+   통증이 병 노드의 선까지 밀어 올리면 「통증을 깔아 두고 병을 끊는다」가 완치의 지름길이
+   되어 A안이 재려는 격차가 통증 자리 수로 뒤집힌다. 병의 선은 문진만이 올린다. */
 //@ 커널.처치선 — 처치선 공식 · 반응 등급 · 드로우 수
 function killLine(S,n){
   if(n.role==='disease'){
-    const pct = Math.min(R.WEAK_LINE_MAX, R.DIS_KILL_LINE + R.WEAK_STACK_DIS * n.weak);
+    const pct = Math.min(R.WEAK_LINE_MAX, disLineBase(S) + R.WEAK_STACK_DIS * n.weak);
     return Math.floor(n.init * pct);
   }
   const pct = Math.min(R.WEAK_LINE_MAX, painShare(S) + R.WEAK_STACK * n.weak);
@@ -687,10 +704,13 @@ function comfortCuts(S){
   return out;
 }
 
-/* 방침이 얹는 피해 배수 — 「편하게」는 병을 놔두는 대가로 환자가 더 맞는다 */
+/* 방침이 얹는 피해 배수 — 「편하게」는 병을 놔두는 대가로 환자가 더 맞는다.
+   문진 전장 버프가 그 대가를 깎는다 (S.dmgDown) — 적는 자는 applyPolicy 하나다.
+   0 에서 막는다: 진화 즉발은 완화(R.COMFORT_CUT)를 안 빼고 이 값을 바로 곱하므로,
+   여기서 안 막으면 음수 배수가 진화 피해를 회복으로 뒤집는다. */
 function policyDmg(S){
   const P = (typeof SR!=='undefined' && SR.POLICY) ? SR.POLICY[S.policy] : null;
-  return 1 + ((P && P.dmgUp) || 0);
+  return Math.max(0, 1 + ((P && P.dmgUp) || 0) - (S.dmgDown||0));
 }
 
 /* noDeath 판은 체력이 0이 되지 않는다 — 문구 그대로 바닥을 1로 깐다.

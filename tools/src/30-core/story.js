@@ -345,9 +345,12 @@ function stageUp(S, dis){
    아래 넷이 유일한 구현이고, 수동·자동·배치가 전부 이것을 부른다.
    ═══════════════════════════════════════════════════════════ */
 
-/* 방침을 판에 새긴다 */
+/* 방침을 판에 새긴다.
+   inq = 2막 문진 단계 (0 ~ SR.INQ_MAX). 안 주면 0 — 전장 버프가 한 줄도 안 붙는다.
+   ★ 3막에 들어서는 길이 이 자 하나뿐이라, 판이 얹는 몫(S.disLine · S.symLine ·
+     S.dmgDown)을 적는 자리도 여기 하나다. 커널은 그 세 칸만 읽는다. */
 //@ 스토리.방침 — 완치 · 연명 · 편하게
-function applyPolicy(S, dis, policy, correct){
+function applyPolicy(S, dis, policy, correct, inq){
   const P = SR.POLICY[policy];
   S.policy = policy; S.act = 3; S.comfort = 0;
   /* v25 — 병기에 들어서면 명부를 세운다. 3막 진입만 이 규칙이 빠져 있어서
@@ -355,10 +358,24 @@ function applyPolicy(S, dis, policy, correct){
   layAct3(S, dis);
   S.rush = 0;
   dis.stageClock = SR.STAGE_TURNS; dis.beat = 0;   // 1막 길이가 첫 창의 자리를 정하지 않게 한다                                    // 기세는 막 단위다 — 1막에서 쌓은 것은 3막으로 넘어가지 않는다
+  /* 전장 버프 — 방침 디버프와 같은 잣대로 정진단일 때만 붙는다.
+     오진이 방침 디버프를 통째로 걷는데 문진 몫만 남으면, 「모르고 들어가도 문진값은
+     받는다」가 되어 오진 처벌이 방침마다 다른 크기로 새어 나간다. */
+  /* S.inq 는 '실제로 붙은' 단계다 — 오진이면 문진을 아무리 했어도 0 이다.
+     판에 붙은 값과 사람이 쌓은 값을 한 칸에 담지 않으려면 칸을 둘로 나눠야 하는데,
+     지금 이 값을 읽는 곳이 바로 아래 세 줄뿐이라 붙은 쪽만 적는다. */
+  S.inq = Math.max(0, Math.min(SR.INQ_MAX, (correct ? (inq|0) : 0)));
+  const F = SR.FIELD[policy] || {};
+  S.disLine = (F.disLine||0) * S.inq;
+  S.symLine = (F.symLine||0) * S.inq;
+  S.dmgDown = (F.dmgDown||0) * S.inq;
   if(!P) return null;
   if(correct){                                   // 오진이면 디버프가 안 붙는다
     dis.val = Math.ceil(dis.val*(1-P.disCut));
     dis.stageClock += P.stageBonus;
+    /* 문진 몫은 방침 디버프 **뒤에** 곱한다. 순서가 곧 규칙인 자리다 —
+       먼저 곱하면 같은 단계가 방침마다 다른 절대값을 깎는다 (disCut 이 방침마다 다르므로). */
+    if(F.disHp) dis.val = Math.ceil(dis.val*(1-F.disHp*S.inq));
   }
   if(P.painCut) for(const n of K.active(S))
     if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란'))
@@ -472,7 +489,7 @@ function act1(S, deck, opt={}){
 //@ 스토리.3막 — 방침대로 끝까지
 function act3(S, policy, correct, opt={}){
   const dis = S.nodes[0];
-  applyPolicy(S, dis, policy, correct);            // 공용 — painCut 포함
+  applyPolicy(S, dis, policy, correct, opt.inq);   // 공용 — painCut · 전장 버프 포함
   let t = 0;
   const cap = opt.act3Cap || SR.ACT3_CAP;
   while(t<cap){
@@ -480,7 +497,7 @@ function act3(S, policy, correct, opt={}){
     if(v) return {out:v, turns:t, stage:dis.stage};
     t++;
     S.played=0;
-    storyTurn(S, dis, policy);
+    storyTurn(S, dis, policy, opt.hand);
     storyPhase(S, dis);
     C.endTurnHand(S); K.turnResolve(S);
     storyTick(S);
@@ -488,15 +505,50 @@ function act3(S, policy, correct, opt={}){
   return {out:'악화', turns:t, stage:dis.stage};
 }
 
+/* ── 손 ─────────────────────────────────────────────────────
+   같은 방침이라도 어떻게 잡느냐가 판을 가른다. 방침은 '무엇으로 이기는가'이고
+   손은 '거기까지 어떻게 두는가'다. 둘을 한 자에 묶어 두면 「연명을 골라 놓고
+   병 노드만 치는 손」 — 곧 우발 완치가 성립하는 자리 — 을 아예 둬 볼 수 없다.
+
+     표준        방침이 시키는 대로만 둔다. 지금까지의 유일한 손이다
+     자리닫기    처치선에 가장 가까운 자리부터 몰아쳐 실제로 닫는다
+     병노드타격  자리를 안 닫고 병 노드만 친다. 방침을 가리지 않는다
+
+   ★ 손을 안 주면 표준이다. 화면 · 배치 · 검사기가 타는 길은 전부 인자를 안 주므로
+     이 갈래가 생겨도 판이 한 글자도 안 움직인다. sim_check 견주기가 그것을 지킨다.
+
+   ★ 자리닫기가 왜 따로 있는가. 표준은 연명에서도 **가장 굵은 자리**를 친다.
+     굵은 자리는 처치선도 멀어서, 판이 자라는 속도와 맞물리면 어느 자리도 선 아래로
+     안 내려간다 — 3막 30턴에 닫은 자리가 아이 0.02개 · 어부 0개다 (60시드 실측).
+     즉 표준으로 잰 「연명의 닫기 손익」은 규칙이 아니라 표적 고르기를 잰 값이다.
+     선까지 남은 거리가 가장 짧은 자리부터 몰아치는 손을 따로 세워야 그 둘이 갈린다. */
+//@ 스토리.손 — 방침을 어떻게 잡는가
+const HAND_LIST = ['표준','자리닫기','병노드타격'];
+
+/* 모르는 이름은 표준으로 받는다 — 악보에 scoreClean 을 두는 것과 같은 잣대다.
+   오타 하나가 조용히 딴 손으로 새면 잰 값이 어느 손의 것인지 알 수 없게 된다 */
+const handOf = h => HAND_LIST.includes(h) ? h : HAND_LIST[0];
+
 //@ 스토리.턴 — 스토리 한 턴
-function storyTurn(S, dis, policy){
+function storyTurn(S, dis, policy, hand){
+  const H = handOf(hand);
+  const aimDis = H==='병노드타격', closeFirst = H==='자리닫기';
   let guard=0;
   while(S.played<R.PLAY_CAP && guard++<40){
     if(S.hand.includes('소매를 걷습니다') && C.canPlay(S,'소매를 걷습니다')){ C.play(S,'소매를 걷습니다'); continue }
     if(S.energy<=0) break;
-    /* 병 노드를 0까지 내렸으면 끊는다. 표적 판단보다 앞에 둔다 —
-       wantDis 에 묶여 있으면 수치가 0이 되는 순간 표적에서 빠져 영영 못 끊는다. */
-    if(policy==='완치' && !dis.dead && dis.val<=0 && S.energy>=R.KILL_COST){
+    /* 병 노드가 처치선 아래로 내려왔으면 끊는다. 표적 판단보다 앞에 둔다 —
+       wantDis 에 묶여 있으면 수치가 선 아래로 드는 순간 표적에서 빠져 영영 못 끊는다.
+       ★ 전에는 `dis.val<=0` 이었다. 처치선이 0 으로 못 박혀 있던 동안은 같은 말이지만,
+         문진이 그 선을 올릴 수 있게 된 뒤로는 갈린다 — 선이 20% 인데 0 까지 내리면
+         A안이 깎아 준 몫을 한 톨도 안 쓰고 현행과 똑같이 싸우는 셈이다.
+         K.reaction 으로 묻는다: 그것이 일반 자리와 같은 잣대다.
+       ★ K.doKill 을 안 쓴다. doKill 은 통증 진화 봉쇄를 보고(canKill), 광역 억제와
+         반응을 함께 터뜨린다. 병 노드에는 배선이 없어 반응은 헛돌고 광역 억제는
+         이긴 뒤에 도는 값이라 결과가 같지만, 봉쇄는 결과를 바꾼다 —
+         「통증이 진화해 있으면 병을 못 끊는다」는 규칙이 없으므로 여기를 안 지난다.
+         되살리려면 그 봉쇄를 병 노드에도 걸 것인지부터 정해야 한다. */
+    if(!dis.dead && (aimDis || policy==='완치') && K.reaction(S,dis)!==null && S.energy>=R.KILL_COST){
       S.energy-=R.KILL_COST; dis.dead=true; S.played++;
       if(S.rec) S.rec.push('처치 병 노드'); return;
     }
@@ -508,8 +560,14 @@ function storyTurn(S, dis, policy){
        분화가 부수 증상을 계속 뿜기 때문에 '부수가 다 없어지면'만 보면 그 순간이 오지 않는다. */
     /* 연명은 승리선까지만 내리면 된다. 그 아래로 더 때리는 대신 부수 증상을 재우러 간다. */
     /* v25 — 연명은 병 노드에 손대지 않는다. 이길 조건이 부수 자리에만 걸려 있다 */
-    const wantDis = policy==='완치' && dis.val > 0
-                    && (!others.length || (S.played>0 && !killable.length));
+    /* 병노드타격 — 방침이 무엇이든 병 노드가 표적이다. 자리는 닫지 않는다.
+       다만 「편하게」는 완화 항목(통증·호흡곤란 비활성)이 곧 배수라, 그 둘이 서 있는
+       동안은 먼저 눌러 배수를 관리하고 남는 손으로 병을 친다 — 인계 §4 R5 의 손이다. */
+    const comfortFirst = aimDis && policy==='편하게'
+      && others.some(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted);
+    const wantDis = aimDis ? !comfortFirst
+                           : (policy==='완치' && dis.val > 0
+                              && (!others.length || (S.played>0 && !killable.length)));
 
     const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
     if(!sup.length) break;
@@ -521,15 +579,28 @@ function storyTurn(S, dis, policy){
       const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
       continue;
     }
-    /* 부수 증상 — 뽑을 수 있으면 뽑는다 */
-    const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
-    /* v25 버그 — doKill 은 이미 예약된 자리에 false 를 돌려준다. 그 반환을 안 봐서
-       공황 판에서 같은 자리를 열 번 다시 예약하며 턴을 통째로 태웠다. */
-    if(kn && S.energy>=R.KILL_COST){
-      if(K.doKill(S,kn)){ S.played++; continue }
-      const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
+    /* 부수 증상 — 뽑을 수 있으면 뽑는다.
+       병노드타격은 안 뽑는다. 자리를 닫으면 연명 승리가 먼저 떨어져 이 손이 재려는
+       것(우발 완치)이 아예 안 일어나고, 광역 억제가 다른 자리까지 함께 재운다. */
+    if(!aimDis){
+      const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
+      /* v25 버그 — doKill 은 이미 예약된 자리에 false 를 돌려준다. 그 반환을 안 봐서
+         공황 판에서 같은 자리를 열 번 다시 예약하며 턴을 통째로 태웠다. */
+      if(kn && S.energy>=R.KILL_COST){
+        if(K.doKill(S,kn)){ S.played++; continue }
+        const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
+      }
     }
-    const tgt = others.sort((a,b)=>b.val-a.val)[0];
+    /* 표적 고르기 — 손마다 다른 자리를 본다.
+         배수 관리  완화 항목을 막는 자리부터 (편하게 · 병노드타격)
+         자리닫기   처치선까지 남은 거리가 가장 짧은 자리부터. 닫는 것이 목적이므로
+                    굵기가 아니라 '선까지 얼마나 남았는가' 를 본다
+         그 밖      가장 굵은 자리 */
+    const tgt = comfortFirst
+      ? others.filter(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted).sort((a,b)=>a.val-b.val)[0]
+      : closeFirst
+        ? others.slice().sort((a,b)=>(a.val-K.killLine(S,a))-(b.val-K.killLine(S,b)))[0]
+        : others.sort((a,b)=>b.val-a.val)[0];
     if(!tgt) break;
     if(!C.play(S, card, tgt)) break;
   }

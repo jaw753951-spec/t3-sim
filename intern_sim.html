@@ -1293,6 +1293,13 @@ const SR = {
     편하게: {disCut:0,    stageBonus:3, painCut:0.30, dmgUp:0.50, tag:'도피'},
   },
 
+  INQ_MAX: 3,
+  FIELD: {
+    완치:   {disHp:0.05, disLine:0},
+    연명:   {symLine:0.05},
+    편하게: {dmgDown:0.10},
+  },
+
   BEAT: {
     성장:       0.15,   // 성장 비트 — 살아 있는 부수 자리 전부. 폴백으로도 쓴다
     몰린다:     0.40,   // 가장 옅은 자리 하나만 크게
@@ -1804,12 +1811,15 @@ function painMul(S){
   return m;
 }
 
-function painShare(S){ return Math.max(R.PAIN_FLOOR, R.KILL_LINE * painMul(S)) }
+function symLineBase(S){ return R.KILL_LINE + (S.symLine||0) }
+function disLineBase(S){ return R.DIS_KILL_LINE + (S.disLine||0) }
+
+function painShare(S){ return Math.max(R.PAIN_FLOOR, symLineBase(S) * painMul(S)) }
 
 //@ 커널.처치선 — 처치선 공식 · 반응 등급 · 드로우 수
 function killLine(S,n){
   if(n.role==='disease'){
-    const pct = Math.min(R.WEAK_LINE_MAX, R.DIS_KILL_LINE + R.WEAK_STACK_DIS * n.weak);
+    const pct = Math.min(R.WEAK_LINE_MAX, disLineBase(S) + R.WEAK_STACK_DIS * n.weak);
     return Math.floor(n.init * pct);
   }
   const pct = Math.min(R.WEAK_LINE_MAX, painShare(S) + R.WEAK_STACK * n.weak);
@@ -2220,7 +2230,7 @@ function comfortCuts(S){
 
 function policyDmg(S){
   const P = (typeof SR!=='undefined' && SR.POLICY) ? SR.POLICY[S.policy] : null;
-  return 1 + ((P && P.dmgUp) || 0);
+  return Math.max(0, 1 + ((P && P.dmgUp) || 0) - (S.dmgDown||0));
 }
 
 //@ 커널.턴피해 — 자리 하나가 이번 턴에 때리는 몫
@@ -3004,16 +3014,22 @@ function stageUp(S, dis){
 }
 
 //@ 스토리.방침 — 완치 · 연명 · 편하게
-function applyPolicy(S, dis, policy, correct){
+function applyPolicy(S, dis, policy, correct, inq){
   const P = SR.POLICY[policy];
   S.policy = policy; S.act = 3; S.comfort = 0;
   layAct3(S, dis);
   S.rush = 0;
   dis.stageClock = SR.STAGE_TURNS; dis.beat = 0;   // 1막 길이가 첫 창의 자리를 정하지 않게 한다                                    // 기세는 막 단위다 — 1막에서 쌓은 것은 3막으로 넘어가지 않는다
+  S.inq = Math.max(0, Math.min(SR.INQ_MAX, (correct ? (inq|0) : 0)));
+  const F = SR.FIELD[policy] || {};
+  S.disLine = (F.disLine||0) * S.inq;
+  S.symLine = (F.symLine||0) * S.inq;
+  S.dmgDown = (F.dmgDown||0) * S.inq;
   if(!P) return null;
   if(correct){                                   // 오진이면 디버프가 안 붙는다
     dis.val = Math.ceil(dis.val*(1-P.disCut));
     dis.stageClock += P.stageBonus;
+    if(F.disHp) dis.val = Math.ceil(dis.val*(1-F.disHp*S.inq));
   }
   if(P.painCut) for(const n of K.active(S))
     if(n.role!=='disease' && (n.sym==='통증'||n.sym==='호흡곤란'))
@@ -3109,7 +3125,7 @@ function act1(S, deck, opt={}){
 //@ 스토리.3막 — 방침대로 끝까지
 function act3(S, policy, correct, opt={}){
   const dis = S.nodes[0];
-  applyPolicy(S, dis, policy, correct);            // 공용 — painCut 포함
+  applyPolicy(S, dis, policy, correct, opt.inq);   // 공용 — painCut · 전장 버프 포함
   let t = 0;
   const cap = opt.act3Cap || SR.ACT3_CAP;
   while(t<cap){
@@ -3117,7 +3133,7 @@ function act3(S, policy, correct, opt={}){
     if(v) return {out:v, turns:t, stage:dis.stage};
     t++;
     S.played=0;
-    storyTurn(S, dis, policy);
+    storyTurn(S, dis, policy, opt.hand);
     storyPhase(S, dis);
     C.endTurnHand(S); K.turnResolve(S);
     storyTick(S);
@@ -3125,20 +3141,30 @@ function act3(S, policy, correct, opt={}){
   return {out:'악화', turns:t, stage:dis.stage};
 }
 
+//@ 스토리.손 — 방침을 어떻게 잡는가
+const HAND_LIST = ['표준','자리닫기','병노드타격'];
+
+const handOf = h => HAND_LIST.includes(h) ? h : HAND_LIST[0];
+
 //@ 스토리.턴 — 스토리 한 턴
-function storyTurn(S, dis, policy){
+function storyTurn(S, dis, policy, hand){
+  const H = handOf(hand);
+  const aimDis = H==='병노드타격', closeFirst = H==='자리닫기';
   let guard=0;
   while(S.played<R.PLAY_CAP && guard++<40){
     if(S.hand.includes('소매를 걷습니다') && C.canPlay(S,'소매를 걷습니다')){ C.play(S,'소매를 걷습니다'); continue }
     if(S.energy<=0) break;
-    if(policy==='완치' && !dis.dead && dis.val<=0 && S.energy>=R.KILL_COST){
+    if(!dis.dead && (aimDis || policy==='완치') && K.reaction(S,dis)!==null && S.energy>=R.KILL_COST){
       S.energy-=R.KILL_COST; dis.dead=true; S.played++;
       if(S.rec) S.rec.push('처치 병 노드'); return;
     }
     const others = K.active(S).filter(n=>n.role!=='disease');
     let killable = others.filter(n=>K.reaction(S,n)!==null);
-    const wantDis = policy==='완치' && dis.val > 0
-                    && (!others.length || (S.played>0 && !killable.length));
+    const comfortFirst = aimDis && policy==='편하게'
+      && others.some(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted);
+    const wantDis = aimDis ? !comfortFirst
+                           : (policy==='완치' && dis.val > 0
+                              && (!others.length || (S.played>0 && !killable.length)));
 
     const sup = S.hand.filter(id=>C.CARDS[id].verb==='억제' && C.CARDS[id].sub!=='안정화' && C.canPlay(S,id));
     if(!sup.length) break;
@@ -3150,12 +3176,18 @@ function storyTurn(S, dis, policy){
       const i=S.hand.indexOf(card); S.hand.splice(i,1); S.discard.push(card);
       continue;
     }
-    const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
-    if(kn && S.energy>=R.KILL_COST){
-      if(K.doKill(S,kn)){ S.played++; continue }
-      const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
+    if(!aimDis){
+      const kn = killable.slice().sort((a,b)=>K.sweepAmt(b)-K.sweepAmt(a))[0];
+      if(kn && S.energy>=R.KILL_COST){
+        if(K.doKill(S,kn)){ S.played++; continue }
+        const j=killable.indexOf(kn); if(j>=0) killable.splice(j,1);
+      }
     }
-    const tgt = others.sort((a,b)=>b.val-a.val)[0];
+    const tgt = comfortFirst
+      ? others.filter(n=>(n.sym==='통증'||n.sym==='호흡곤란') && !n.muted).sort((a,b)=>a.val-b.val)[0]
+      : closeFirst
+        ? others.slice().sort((a,b)=>(a.val-K.killLine(S,a))-(b.val-K.killLine(S,b)))[0]
+        : others.sort((a,b)=>b.val-a.val)[0];
     if(!tgt) break;
     if(!C.play(S, card, tgt)) break;
   }
